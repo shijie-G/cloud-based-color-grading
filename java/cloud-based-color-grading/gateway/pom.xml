@@ -2,25 +2,35 @@
 <project xmlns="http://maven.apache.org/POM/4.0.0" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
          xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 https://maven.apache.org/xsd/maven-4.0.0.xsd">
     <modelVersion>4.0.0</modelVersion>
-
     <parent>
         <groupId>cn.gsjgsj</groupId>
         <artifactId>cloud-based-color-grading</artifactId>
         <version>V1.0.0</version>
     </parent>
 
-    <artifactId>common</artifactId>
-    <version>V1.0.0</version> <!-- init -->
-    <name>common</name>
-    <description>common</description>
+    <artifactId>gateway</artifactId>
+    <version>V1.0.0</version>
+    <name>gateway</name>
+    <description>gateway</description>
 
     <dependencies>
+        <dependency>
+            <groupId>org.springframework.cloud</groupId>
+            <artifactId>spring-cloud-starter-gateway</artifactId>
+        </dependency>
+
+        <!-- Spring Boot 基础依赖（已被 gateway 依赖间接引入，可保留） -->
+        <dependency>
+            <groupId>org.springframework.boot</groupId>
+            <artifactId>spring-boot-starter</artifactId>
+        </dependency>
+
+        <!-- 正确的测试依赖（替换错误的 webmvc-test） -->
         <dependency>
             <groupId>org.springframework.boot</groupId>
             <artifactId>spring-boot-starter-test</artifactId>
             <scope>test</scope>
         </dependency>
-
     </dependencies>
 
     <build>
