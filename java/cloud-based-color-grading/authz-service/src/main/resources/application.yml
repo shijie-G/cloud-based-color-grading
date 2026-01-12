@@ -1,3 +1,56 @@
 spring:
   application:
     name: authz-service
+  cloud:
+    nacos:
+      discovery:
+        server-addr: 139.199.17.216:18080
+  datasource:
+    driver-class-name: com.mysql.cj.jdbc.Driver
+    url: ${DB_URL:jdbc:mysql://139.199.17.216:13306/cloud_color_grading?useUnicode=true&characterEncoding=utf8&useSSL=false&serverTimezone=Asia/Shanghai}
+    username: ${DB_USERNAME:root}
+    password: ${DB_PASSWORD:123456}
+    hikari:
+      maximum-pool-size: 10
+      minimum-idle: 5
+      connection-timeout: 30000
+      idle-timeout: 600000
+      max-lifetime: 1800000
+  data:
+    redis:
+      host: ${REDIS_HOST:139.199.17.216}
+      port: ${REDIS_PORT:16739}
+      database: ${REDIS_DATABASE:0}
+      timeout: ${REDIS_TIMEOUT:3000ms}
+      password: ${REDIS_PASSWORD:123456}
+      lettuce:
+        pool:
+          max-active: 8
+          max-idle: 8
+          min-idle: 0
+          max-wait: -1ms
+
+server:
+  port: 8082
+
+# MyBatis-Plus Configuration
+mybatis-plus:
+  configuration:
+    map-underscore-to-camel-case: true
+    log-impl: org.apache.ibatis.logging.stdout.StdOutImpl
+  global-config:
+    db-config:
+      id-type: auto
+      logic-delete-field: deleted
+      logic-delete-value: 1
+      logic-not-delete-value: 0
+
+# Permission Cache Configuration
+permission:
+  cache:
+    ttl: ${PERMISSION_CACHE_TTL:1800}  # 30 minutes in seconds
+
+# Security Configuration
+security:
+  audit:
+    enabled: ${SECURITY_AUDIT_ENABLED:true}  # Enable security audit logging

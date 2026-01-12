@@ -1,5 +1,83 @@
 spring:
   application:
     name: gateway
+  cloud:
+    gateway:
+      routes:
+        # Auth Service Routes
+        - id: auth-service
+          uri: ${AUTH_SERVICE_URL:http://localhost:8081}
+          predicates:
+            - Path=/auth/**
+          filters:
+            - StripPrefix=0
+        
+        # Authorization Service Routes
+        - id: authz-service
+          uri: ${AUTHZ_SERVICE_URL:http://localhost:8082}
+          predicates:
+            - Path=/roles/**,/permissions/**,/menus/**
+          filters:
+            - StripPrefix=0
+        
+        # User Management Routes
+        - id: user-service
+          uri: ${AUTH_SERVICE_URL:http://localhost:8081}
+          predicates:
+            - Path=/users/**
+          filters:
+            - StripPrefix=0
+      
+      # Global CORS Configuration
+      globalcors:
+        cors-configurations:
+          '[/**]':
+            allowedOrigins: "*"
+            allowedMethods:
+              - GET
+              - POST
+              - PUT
+              - DELETE
+              - OPTIONS
+            allowedHeaders: "*"
+            allowCredentials: false
+            maxAge: 3600
+  
+  data:
+    redis:
+      host: ${REDIS_HOST:139.199.17.216}
+      port: ${REDIS_PORT:16739}
+      database: ${REDIS_DATABASE:0}
+      timeout: ${REDIS_TIMEOUT:3000ms}
+      password: ${REDIS_PASSWORD:123456}
+      lettuce:
+        pool:
+          max-active: 8
+          max-idle: 8
+          min-idle: 0
+          max-wait: -1ms
+
 server:
   port: 8080
+
+jwt:
+  secret: ${JWT_SECRET:your-256-bit-secret-key-for-jwt-token-generation-and-validation-must-be-secure}
+  validity-in-milliseconds: ${JWT_VALIDITY:7200000}  # 2 hours
+  refresh-threshold: ${JWT_REFRESH_THRESHOLD:1800000}  # 30 minutes
+
+gateway:
+  whitelist:
+    - /auth/login
+    - /auth/register
+    - /actuator/**
+    - /favicon.ico
+
+authz-service:
+  url: ${AUTHZ_SERVICE_URL:http://localhost:8082}
+
+# Security Configuration
+security:
+  audit:
+    enabled: ${SECURITY_AUDIT_ENABLED:true}  # Enable security audit logging
+  rate-limit:
+    enabled: ${RATE_LIMIT_ENABLED:false}  # Enable rate limiting (future enhancement)
