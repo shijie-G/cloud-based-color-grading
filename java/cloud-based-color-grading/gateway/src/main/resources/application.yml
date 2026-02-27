@@ -61,16 +61,12 @@ server:
   port: 8080
 
 jwt:
-  secret: ${JWT_SECRET:your-256-bit-secret-key-for-jwt-token-generation-and-validation-must-be-secure}
+  secret: ${JWT_SECRET:YourSecretKeyForJWTTokenGenerationShouldBeAtLeast256BitsLongAndSecure123456789}
   validity-in-milliseconds: ${JWT_VALIDITY:7200000}  # 2 hours
   refresh-threshold: ${JWT_REFRESH_THRESHOLD:1800000}  # 30 minutes
 
 gateway:
-  whitelist:
-    - /auth/login
-    - /auth/register
-    - /actuator/**
-    - /favicon.ico
+  whitelist: /auth/login,/auth/register,/actuator/**,/favicon.ico
 
 authz-service:
   url: ${AUTHZ_SERVICE_URL:http://localhost:8082}

@@ -19,7 +19,7 @@ import java.util.List;
 @Component
 public class JwtTokenProvider {
 
-    @Value("${jwt.secret:your-256-bit-secret-key-for-jwt-token-generation-and-validation}")
+    @Value("${jwt.secret:YourSecretKeyForJWTTokenGenerationShouldBeAtLeast256BitsLongAndSecure123456789}")
     private String secretKey;
 
     @Value("${jwt.validity-in-milliseconds:7200000}") // 默认2小时

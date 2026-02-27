@@ -11,9 +11,10 @@
     
     <!-- File Appender for General Logs -->
     <appender name="FILE" class="ch.qos.logback.core.rolling.RollingFileAppender">
-        <file>logs/gateway.log</file>
+        <file>logs/gateway/gateway.log</file>
+        <append>true</append>
         <rollingPolicy class="ch.qos.logback.core.rolling.TimeBasedRollingPolicy">
-            <fileNamePattern>logs/gateway.%d{yyyy-MM-dd}.log</fileNamePattern>
+            <fileNamePattern>logs/gateway/%d{yyyy,aux}/%d{yyyy-MM,aux}/%d{yyyy-MM-dd}/gateway.log</fileNamePattern>
             <maxHistory>30</maxHistory>
         </rollingPolicy>
         <encoder>
@@ -23,9 +24,10 @@
     
     <!-- Security Audit Log Appender -->
     <appender name="SECURITY_AUDIT" class="ch.qos.logback.core.rolling.RollingFileAppender">
-        <file>logs/security-audit.log</file>
+        <file>logs/gateway/security-audit.log</file>
+        <append>true</append>
         <rollingPolicy class="ch.qos.logback.core.rolling.TimeBasedRollingPolicy">
-            <fileNamePattern>logs/security-audit.%d{yyyy-MM-dd}.log</fileNamePattern>
+            <fileNamePattern>logs/gateway/%d{yyyy,aux}/%d{yyyy-MM,aux}/%d{yyyy-MM-dd}/security-audit.log</fileNamePattern>
             <maxHistory>90</maxHistory>
         </rollingPolicy>
         <encoder>

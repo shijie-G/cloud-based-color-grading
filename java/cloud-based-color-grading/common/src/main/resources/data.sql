@@ -83,10 +83,10 @@ INSERT INTO sys_menu_permission (menu_id, permission_id) VALUES
 (6, 15), (6, 16), (6, 17), (6, 18);
 
 -- 插入超级管理员用户
--- 密码: admin123 (BCrypt加密后的值，实际使用时需要通过BCrypt生成)
--- 注意：这里使用的是BCrypt加密 "admin123" 的示例值
+-- 密码: admin123 (BCrypt加密后的值)
+-- BCrypt 哈希值: $2a$10$92IXUNpkjO0rOQ5byMi.Ye4oKoEa3Ro9llC/.og/at2.uheWG/igi
 INSERT INTO sys_user (id, username, password, nickname, email, phone, status) VALUES
-(1, 'admin', '$2a$10$N.zmdr9k7uOCQb376NoUnuTJ8iAt6Z5EHsM8lE9lBOsl7iAt6Z5EH', '超级管理员', 'admin@example.com', '13800138000', 0);
+(1, 'admin', '$2a$10$92IXUNpkjO0rOQ5byMi.Ye4oKoEa3Ro9llC/.og/at2.uheWG/igi', '超级管理员', 'admin@example.com', '13800138000', 0);
 
 -- 关联超级管理员用户与超级管理员角色
 INSERT INTO sys_user_role (user_id, role_id) VALUES (1, 1);

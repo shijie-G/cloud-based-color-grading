@@ -34,7 +34,7 @@ public class JwtAuthenticationFilter implements GlobalFilter, Ordered {
     private final SecurityAuditLogger securityAuditLogger;
     private final AntPathMatcher pathMatcher = new AntPathMatcher();
 
-    @Value("${gateway.whitelist}")
+    @Value("#{'${gateway.whitelist:/auth/login,/auth/register,/actuator/**,/favicon.ico}'.split(',')}")
     private List<String> whitelist;
 
     public JwtAuthenticationFilter(JwtTokenProvider jwtTokenProvider, 

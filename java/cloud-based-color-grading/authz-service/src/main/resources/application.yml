@@ -4,7 +4,8 @@ spring:
   cloud:
     nacos:
       discovery:
-        server-addr: 139.199.17.216:18080
+        enabled: false
+        server-addr: 139.199.17.216:8080
   datasource:
     driver-class-name: com.mysql.cj.jdbc.Driver
     url: ${DB_URL:jdbc:mysql://139.199.17.216:13306/cloud_color_grading?useUnicode=true&characterEncoding=utf8&useSSL=false&serverTimezone=Asia/Shanghai}

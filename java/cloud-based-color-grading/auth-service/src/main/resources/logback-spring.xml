@@ -11,9 +11,10 @@
     
     <!-- File Appender for General Logs -->
     <appender name="FILE" class="ch.qos.logback.core.rolling.RollingFileAppender">
-        <file>logs/auth-service.log</file>
+        <file>logs/auth-service/auth-service.log</file>
+        <append>true</append>
         <rollingPolicy class="ch.qos.logback.core.rolling.TimeBasedRollingPolicy">
-            <fileNamePattern>logs/auth-service.%d{yyyy-MM-dd}.log</fileNamePattern>
+            <fileNamePattern>logs/auth-service/%d{yyyy,aux}/%d{yyyy-MM,aux}/%d{yyyy-MM-dd}/auth-service.log</fileNamePattern>
             <maxHistory>30</maxHistory>
         </rollingPolicy>
         <encoder>
@@ -23,9 +24,10 @@
     
     <!-- Security Audit Log Appender -->
     <appender name="SECURITY_AUDIT" class="ch.qos.logback.core.rolling.RollingFileAppender">
-        <file>logs/security-audit.log</file>
+        <file>logs/auth-service/security-audit.log</file>
+        <append>true</append>
         <rollingPolicy class="ch.qos.logback.core.rolling.TimeBasedRollingPolicy">
-            <fileNamePattern>logs/security-audit.%d{yyyy-MM-dd}.log</fileNamePattern>
+            <fileNamePattern>logs/auth-service/%d{yyyy,aux}/%d{yyyy-MM,aux}/%d{yyyy-MM-dd}/security-audit.log</fileNamePattern>
             <maxHistory>90</maxHistory>
         </rollingPolicy>
         <encoder>
