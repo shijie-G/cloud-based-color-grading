@@ -12,7 +12,7 @@ import java.util.List;
  * 提供权限检查接口供网关调用，以及权限管理接口
  */
 @RestController
-@RequestMapping("/api/permissions")
+@RequestMapping("/permissions")
 public class PermissionController {
     
     private final PermissionService permissionService;

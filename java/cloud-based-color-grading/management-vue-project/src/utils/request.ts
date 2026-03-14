@@ -22,8 +22,15 @@ service.interceptors.request.use(
   (config: InternalAxiosRequestConfig) => {
     const token = getToken()
     
+    console.log('=== 请求拦截器 ===')
+    console.log('请求URL:', config.url)
+    console.log('获取到的Token:', token ? token.substring(0, 50) + '...' : 'null')
+    
     if (token && config.headers) {
       config.headers.Authorization = `Bearer ${token}`
+      console.log('✅ 已添加Authorization头')
+    } else {
+      console.log('❌ 没有Token或headers不存在')
     }
     
     return config

@@ -7,7 +7,7 @@ import type { Permission, PermissionFormData, ApiResponse } from '@/types'
  */
 export function getPermissions(): Promise<ApiResponse<Permission[]>> {
   return request({
-    url: '/api/permissions',
+    url: '/permissions',
     method: 'get'
   })
 }
@@ -19,7 +19,7 @@ export function getPermissions(): Promise<ApiResponse<Permission[]>> {
  */
 export function getPermissionById(id: number): Promise<ApiResponse<Permission>> {
   return request({
-    url: `/api/permissions/${id}`,
+    url: `/permissions/${id}`,
     method: 'get'
   })
 }
@@ -31,7 +31,7 @@ export function getPermissionById(id: number): Promise<ApiResponse<Permission>> 
  */
 export function getUserPermissions(userId: number): Promise<ApiResponse<Permission[]>> {
   return request({
-    url: `/api/permissions/user/${userId}`,
+    url: `/permissions/user/${userId}`,
     method: 'get'
   })
 }
@@ -43,7 +43,7 @@ export function getUserPermissions(userId: number): Promise<ApiResponse<Permissi
  */
 export function createPermission(data: PermissionFormData): Promise<ApiResponse<Permission>> {
   return request({
-    url: '/api/permissions',
+    url: '/permissions',
     method: 'post',
     data
   })
@@ -60,7 +60,7 @@ export function updatePermission(
   data: PermissionFormData
 ): Promise<ApiResponse<Permission>> {
   return request({
-    url: `/api/permissions/${id}`,
+    url: `/permissions/${id}`,
     method: 'put',
     data
   })
@@ -73,7 +73,7 @@ export function updatePermission(
  */
 export function deletePermission(id: number): Promise<ApiResponse<void>> {
   return request({
-    url: `/api/permissions/${id}`,
+    url: `/permissions/${id}`,
     method: 'delete'
   })
 }

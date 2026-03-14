@@ -7,7 +7,7 @@ import type { Role, RoleFormData, ApiResponse } from '@/types'
  */
 export function getRoles(): Promise<ApiResponse<Role[]>> {
   return request({
-    url: '/api/roles',
+    url: '/roles',
     method: 'get'
   })
 }
@@ -19,7 +19,7 @@ export function getRoles(): Promise<ApiResponse<Role[]>> {
  */
 export function getRoleById(id: number): Promise<ApiResponse<Role>> {
   return request({
-    url: `/api/roles/${id}`,
+    url: `/roles/${id}`,
     method: 'get'
   })
 }
@@ -31,7 +31,7 @@ export function getRoleById(id: number): Promise<ApiResponse<Role>> {
  */
 export function createRole(data: RoleFormData): Promise<ApiResponse<Role>> {
   return request({
-    url: '/api/roles',
+    url: '/roles',
     method: 'post',
     data
   })
@@ -45,7 +45,7 @@ export function createRole(data: RoleFormData): Promise<ApiResponse<Role>> {
  */
 export function updateRole(id: number, data: RoleFormData): Promise<ApiResponse<Role>> {
   return request({
-    url: `/api/roles/${id}`,
+    url: `/roles/${id}`,
     method: 'put',
     data
   })
@@ -58,7 +58,7 @@ export function updateRole(id: number, data: RoleFormData): Promise<ApiResponse<
  */
 export function deleteRole(id: number): Promise<ApiResponse<void>> {
   return request({
-    url: `/api/roles/${id}`,
+    url: `/roles/${id}`,
     method: 'delete'
   })
 }
@@ -70,7 +70,7 @@ export function deleteRole(id: number): Promise<ApiResponse<void>> {
  */
 export function getRolePermissions(roleId: number): Promise<ApiResponse<number[]>> {
   return request({
-    url: `/api/roles/${roleId}/permissions`,
+    url: `/roles/${roleId}/permissions`,
     method: 'get'
   })
 }
@@ -86,7 +86,7 @@ export function assignPermissionsToRole(
   permissionIds: number[]
 ): Promise<ApiResponse<void>> {
   return request({
-    url: `/api/roles/${roleId}/permissions`,
+    url: `/roles/${roleId}/permissions`,
     method: 'post',
     data: permissionIds
   })
@@ -103,7 +103,7 @@ export function assignRolesToUser(
   roleIds: number[]
 ): Promise<ApiResponse<void>> {
   return request({
-    url: `/api/roles/users/${userId}`,
+    url: `/roles/users/${userId}`,
     method: 'post',
     data: roleIds
   })
@@ -120,7 +120,7 @@ export function removeRoleFromUser(
   roleId: number
 ): Promise<ApiResponse<void>> {
   return request({
-    url: `/api/roles/users/${userId}/roles/${roleId}`,
+    url: `/roles/users/${userId}/roles/${roleId}`,
     method: 'delete'
   })
 }

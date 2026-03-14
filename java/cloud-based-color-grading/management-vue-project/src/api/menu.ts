@@ -7,7 +7,7 @@ import type { Menu, MenuFormData, MenuTreeNode, ApiResponse } from '@/types'
  */
 export function getMenus(): Promise<ApiResponse<Menu[]>> {
   return request({
-    url: '/api/menus',
+    url: '/menus',
     method: 'get'
   })
 }
@@ -19,7 +19,7 @@ export function getMenus(): Promise<ApiResponse<Menu[]>> {
  */
 export function getMenuById(id: number): Promise<ApiResponse<Menu>> {
   return request({
-    url: `/api/menus/${id}`,
+    url: `/menus/${id}`,
     method: 'get'
   })
 }
@@ -31,7 +31,7 @@ export function getMenuById(id: number): Promise<ApiResponse<Menu>> {
  */
 export function getUserMenuTree(userId: number): Promise<ApiResponse<MenuTreeNode[]>> {
   return request({
-    url: `/api/menus/user/${userId}/tree`,
+    url: `/menus/user/${userId}/tree`,
     method: 'get'
   })
 }
@@ -43,7 +43,7 @@ export function getUserMenuTree(userId: number): Promise<ApiResponse<MenuTreeNod
  */
 export function createMenu(data: MenuFormData): Promise<ApiResponse<void>> {
   return request({
-    url: '/api/menus',
+    url: '/menus',
     method: 'post',
     data
   })
@@ -57,7 +57,7 @@ export function createMenu(data: MenuFormData): Promise<ApiResponse<void>> {
  */
 export function updateMenu(id: number, data: MenuFormData): Promise<ApiResponse<void>> {
   return request({
-    url: `/api/menus/${id}`,
+    url: `/menus/${id}`,
     method: 'put',
     data
   })
@@ -70,7 +70,7 @@ export function updateMenu(id: number, data: MenuFormData): Promise<ApiResponse<
  */
 export function deleteMenu(id: number): Promise<ApiResponse<void>> {
   return request({
-    url: `/api/menus/${id}`,
+    url: `/menus/${id}`,
     method: 'delete'
   })
 }
@@ -82,7 +82,7 @@ export function deleteMenu(id: number): Promise<ApiResponse<void>> {
  */
 export function getMenuPermissions(menuId: number): Promise<ApiResponse<number[]>> {
   return request({
-    url: `/api/menus/${menuId}/permissions`,
+    url: `/menus/${menuId}/permissions`,
     method: 'get'
   })
 }
@@ -98,7 +98,7 @@ export function associateMenuPermission(
   permissionId: number
 ): Promise<ApiResponse<void>> {
   return request({
-    url: `/api/menus/${menuId}/permissions/${permissionId}`,
+    url: `/menus/${menuId}/permissions/${permissionId}`,
     method: 'post'
   })
 }
@@ -114,7 +114,7 @@ export function disassociateMenuPermission(
   permissionId: number
 ): Promise<ApiResponse<void>> {
   return request({
-    url: `/api/menus/${menuId}/permissions/${permissionId}`,
+    url: `/menus/${menuId}/permissions/${permissionId}`,
     method: 'delete'
   })
 }

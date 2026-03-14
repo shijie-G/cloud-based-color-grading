@@ -67,9 +67,9 @@ const userStore = useUserStore()
 // 菜单项
 const menuItems = computed(() => {
   const items = [
-    { path: '/role', title: '角色管理', icon: UserFilled, permission: 'system:role:view' },
-    { path: '/menu', title: '菜单管理', icon: Menu, permission: 'system:menu:view' },
-    { path: '/permission', title: '权限管理', icon: Lock, permission: 'system:permission:view' }
+    { path: '/role', title: '角色管理', icon: UserFilled, permission: 'system:role:query' },
+    { path: '/menu', title: '菜单管理', icon: Menu, permission: 'system:menu:query' },
+    { path: '/permission', title: '权限管理', icon: Lock, permission: 'system:permission:query' }
   ]
   
   // 根据权限过滤菜单

@@ -1,5 +1,6 @@
 package cn.gsjgsj.authservice.service.impl;
 
+import cn.gsjgsj.authservice.client.AuthzServiceClient;
 import cn.gsjgsj.authservice.security.SecurityAuditLogger;
 import cn.gsjgsj.authservice.service.AuthService;
 import cn.gsjgsj.authservice.service.UserService;
@@ -24,16 +25,19 @@ public class AuthServiceImpl implements AuthService {
     private final RedisService redisService;
     private final BCryptPasswordEncoder passwordEncoder;
     private final SecurityAuditLogger securityAuditLogger;
+    private final AuthzServiceClient authzServiceClient;
     
     public AuthServiceImpl(UserService userService, 
                           JwtTokenProvider jwtTokenProvider,
                           RedisService redisService,
-                          SecurityAuditLogger securityAuditLogger) {
+                          SecurityAuditLogger securityAuditLogger,
+                          AuthzServiceClient authzServiceClient) {
         this.userService = userService;
         this.jwtTokenProvider = jwtTokenProvider;
         this.redisService = redisService;
         this.securityAuditLogger = securityAuditLogger;
         this.passwordEncoder = new BCryptPasswordEncoder();
+        this.authzServiceClient = authzServiceClient;
     }
     
     @Override
@@ -100,9 +104,19 @@ public class AuthServiceImpl implements AuthService {
         response.setUsername(user.getUsername());
         response.setNickname(user.getNickname());
         response.setRoles(roles);
-        // TODO: 查询用户权限和菜单，这里暂时使用空列表
-        response.setPermissions(new ArrayList<>());
-        response.setMenus(new ArrayList<>());
+        
+        // 查询用户权限和菜单
+        try {
+            List<String> permissions = authzServiceClient.getUserPermissions(user.getId());
+            response.setPermissions(permissions);
+            
+            Object menus = authzServiceClient.getUserMenuTree(user.getId());
+            response.setMenus((List) menus);
+        } catch (Exception e) {
+            // 如果查询权限失败，使用空列表，不影响登录
+            response.setPermissions(new ArrayList<>());
+            response.setMenus(new ArrayList<>());
+        }
         
         return response;
     }

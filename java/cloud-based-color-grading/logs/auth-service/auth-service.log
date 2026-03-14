@@ -1,26 +1,105 @@
-2026-03-09 16:17:46.579 [main] INFO  c.g.a.AuthServiceApplication - Starting AuthServiceApplication using Java 21.0.7 with PID 26538 (/Users/gaoshijie/u_Document/cloud-based-color-grading/cloud-based-color-grading/java/cloud-based-color-grading/auth-service/target/classes started by gaoshijie in /Users/gaoshijie/u_Document/cloud-based-color-grading/cloud-based-color-grading/java/cloud-based-color-grading)
-2026-03-09 16:17:46.582 [main] INFO  c.g.a.AuthServiceApplication - No active profile set, falling back to 1 default profile: "default"
-2026-03-09 16:17:46.792 [main] INFO  o.s.d.r.c.RepositoryConfigurationDelegate - Multiple Spring Data modules found, entering strict repository configuration mode
-2026-03-09 16:17:46.793 [main] INFO  o.s.d.r.c.RepositoryConfigurationDelegate - Bootstrapping Spring Data Redis repositories in DEFAULT mode.
-2026-03-09 16:17:46.801 [main] INFO  o.s.d.r.c.RepositoryConfigurationDelegate - Finished Spring Data repository scanning in 4 ms. Found 0 Redis repository interfaces.
-2026-03-09 16:17:46.850 [main] INFO  o.s.cloud.context.scope.GenericScope - BeanFactory id=11c2d48c-b5aa-3fc9-8c75-0c97a6fc1601
-2026-03-09 16:17:46.963 [main] INFO  o.s.b.w.e.tomcat.TomcatWebServer - Tomcat initialized with port 8081 (http)
-2026-03-09 16:17:46.967 [main] INFO  o.a.catalina.core.StandardService - Starting service [Tomcat]
-2026-03-09 16:17:46.967 [main] INFO  o.a.catalina.core.StandardEngine - Starting Servlet engine: [Apache Tomcat/10.1.30]
-2026-03-09 16:17:46.985 [main] INFO  o.a.c.c.C.[Tomcat].[localhost].[/] - Initializing Spring embedded WebApplicationContext
-2026-03-09 16:17:46.985 [main] INFO  o.s.b.w.s.c.ServletWebServerApplicationContext - Root WebApplicationContext: initialization completed in 387 ms
-2026-03-09 16:17:47.052 [main] INFO  com.zaxxer.hikari.HikariDataSource - HikariPool-1 - Starting...
-2026-03-09 16:17:47.589 [main] INFO  com.zaxxer.hikari.pool.HikariPool - HikariPool-1 - Added connection com.mysql.cj.jdbc.ConnectionImpl@4cecc15a
-2026-03-09 16:17:47.590 [main] INFO  com.zaxxer.hikari.HikariDataSource - HikariPool-1 - Start completed.
-2026-03-09 16:17:47.880 [main] INFO  o.s.b.w.e.tomcat.TomcatWebServer - Tomcat started on port 8081 (http) with context path ''
-2026-03-09 16:17:47.885 [main] INFO  c.g.a.AuthServiceApplication - Started AuthServiceApplication in 1.495 seconds (process running for 1.814)
-2026-03-09 17:02:21.491 [http-nio-8081-exec-2] INFO  o.a.c.c.C.[Tomcat].[localhost].[/] - Initializing Spring DispatcherServlet 'dispatcherServlet'
-2026-03-09 17:02:21.492 [http-nio-8081-exec-2] INFO  o.s.web.servlet.DispatcherServlet - Initializing Servlet 'dispatcherServlet'
-2026-03-09 17:02:21.495 [http-nio-8081-exec-2] INFO  o.s.web.servlet.DispatcherServlet - Completed initialization in 3 ms
-2026-03-09 17:02:21.957 [http-nio-8081-exec-2] WARN  com.zaxxer.hikari.pool.PoolBase - HikariPool-1 - Failed to validate connection com.mysql.cj.jdbc.ConnectionImpl@5be08dc1 (No operations allowed after connection closed.). Possibly consider using a shorter maxLifetime value.
-2026-03-09 17:02:21.958 [http-nio-8081-exec-2] WARN  com.zaxxer.hikari.pool.PoolBase - HikariPool-1 - Failed to validate connection com.mysql.cj.jdbc.ConnectionImpl@1361971b (No operations allowed after connection closed.). Possibly consider using a shorter maxLifetime value.
-2026-03-09 17:02:21.958 [http-nio-8081-exec-2] WARN  com.zaxxer.hikari.pool.PoolBase - HikariPool-1 - Failed to validate connection com.mysql.cj.jdbc.ConnectionImpl@2e30c778 (No operations allowed after connection closed.). Possibly consider using a shorter maxLifetime value.
-2026-03-09 17:02:21.958 [http-nio-8081-exec-2] WARN  com.zaxxer.hikari.pool.PoolBase - HikariPool-1 - Failed to validate connection com.mysql.cj.jdbc.ConnectionImpl@71e1c9fa (No operations allowed after connection closed.). Possibly consider using a shorter maxLifetime value.
-2026-03-09 17:02:21.958 [http-nio-8081-exec-2] WARN  com.zaxxer.hikari.pool.PoolBase - HikariPool-1 - Failed to validate connection com.mysql.cj.jdbc.ConnectionImpl@2efa950 (No operations allowed after connection closed.). Possibly consider using a shorter maxLifetime value.
-2026-03-09 17:08:25.867 [SpringApplicationShutdownHook] INFO  com.zaxxer.hikari.HikariDataSource - HikariPool-1 - Shutdown initiated...
-2026-03-09 17:08:25.869 [SpringApplicationShutdownHook] INFO  com.zaxxer.hikari.HikariDataSource - HikariPool-1 - Shutdown completed.
+2026-03-14 18:22:53.461 [main] INFO  c.g.a.AuthServiceApplication - Starting AuthServiceApplication using Java 21.0.7 with PID 32089 (/Users/gaoshijie/u_Document/cloud-based-color-grading/cloud-based-color-grading/java/cloud-based-color-grading/auth-service/target/classes started by gaoshijie in /Users/gaoshijie/u_Document/cloud-based-color-grading/cloud-based-color-grading/java/cloud-based-color-grading)
+2026-03-14 18:22:53.464 [main] INFO  c.g.a.AuthServiceApplication - No active profile set, falling back to 1 default profile: "default"
+2026-03-14 18:22:53.726 [main] INFO  o.s.d.r.c.RepositoryConfigurationDelegate - Multiple Spring Data modules found, entering strict repository configuration mode
+2026-03-14 18:22:53.727 [main] INFO  o.s.d.r.c.RepositoryConfigurationDelegate - Bootstrapping Spring Data Redis repositories in DEFAULT mode.
+2026-03-14 18:22:53.736 [main] INFO  o.s.d.r.c.RepositoryConfigurationDelegate - Finished Spring Data repository scanning in 4 ms. Found 0 Redis repository interfaces.
+2026-03-14 18:22:53.797 [main] INFO  o.s.cloud.context.scope.GenericScope - BeanFactory id=11c2d48c-b5aa-3fc9-8c75-0c97a6fc1601
+2026-03-14 18:22:53.929 [main] INFO  o.s.b.w.e.tomcat.TomcatWebServer - Tomcat initialized with port 8081 (http)
+2026-03-14 18:22:53.934 [main] INFO  o.a.catalina.core.StandardService - Starting service [Tomcat]
+2026-03-14 18:22:53.934 [main] INFO  o.a.catalina.core.StandardEngine - Starting Servlet engine: [Apache Tomcat/10.1.30]
+2026-03-14 18:22:53.962 [main] INFO  o.a.c.c.C.[Tomcat].[localhost].[/] - Initializing Spring embedded WebApplicationContext
+2026-03-14 18:22:53.962 [main] INFO  o.s.b.w.s.c.ServletWebServerApplicationContext - Root WebApplicationContext: initialization completed in 483 ms
+2026-03-14 18:22:54.038 [main] INFO  com.zaxxer.hikari.HikariDataSource - HikariPool-1 - Starting...
+2026-03-14 18:22:54.514 [main] INFO  com.zaxxer.hikari.pool.HikariPool - HikariPool-1 - Added connection com.mysql.cj.jdbc.ConnectionImpl@74f4a2ba
+2026-03-14 18:22:54.515 [main] INFO  com.zaxxer.hikari.HikariDataSource - HikariPool-1 - Start completed.
+2026-03-14 18:22:54.814 [main] INFO  o.s.b.w.e.tomcat.TomcatWebServer - Tomcat started on port 8081 (http) with context path ''
+2026-03-14 18:22:54.819 [main] INFO  c.g.a.AuthServiceApplication - Started AuthServiceApplication in 1.584 seconds (process running for 1.982)
+2026-03-14 18:23:51.278 [http-nio-8081-exec-1] INFO  o.a.c.c.C.[Tomcat].[localhost].[/] - Initializing Spring DispatcherServlet 'dispatcherServlet'
+2026-03-14 18:23:51.280 [http-nio-8081-exec-1] INFO  o.s.web.servlet.DispatcherServlet - Initializing Servlet 'dispatcherServlet'
+2026-03-14 18:23:51.281 [http-nio-8081-exec-1] INFO  o.s.web.servlet.DispatcherServlet - Completed initialization in 1 ms
+2026-03-14 18:41:39.451 [SpringApplicationShutdownHook] INFO  com.zaxxer.hikari.HikariDataSource - HikariPool-1 - Shutdown initiated...
+2026-03-14 18:41:39.456 [SpringApplicationShutdownHook] INFO  com.zaxxer.hikari.HikariDataSource - HikariPool-1 - Shutdown completed.
+2026-03-14 18:51:05.351 [main] INFO  c.g.a.AuthServiceApplication - Starting AuthServiceApplication using Java 21.0.7 with PID 34409 (/Users/gaoshijie/u_Document/cloud-based-color-grading/cloud-based-color-grading/java/cloud-based-color-grading/auth-service/target/classes started by gaoshijie in /Users/gaoshijie/u_Document/cloud-based-color-grading/cloud-based-color-grading/java/cloud-based-color-grading)
+2026-03-14 18:51:05.352 [main] INFO  c.g.a.AuthServiceApplication - No active profile set, falling back to 1 default profile: "default"
+2026-03-14 18:51:05.567 [main] INFO  o.s.d.r.c.RepositoryConfigurationDelegate - Multiple Spring Data modules found, entering strict repository configuration mode
+2026-03-14 18:51:05.568 [main] INFO  o.s.d.r.c.RepositoryConfigurationDelegate - Bootstrapping Spring Data Redis repositories in DEFAULT mode.
+2026-03-14 18:51:05.576 [main] INFO  o.s.d.r.c.RepositoryConfigurationDelegate - Finished Spring Data repository scanning in 4 ms. Found 0 Redis repository interfaces.
+2026-03-14 18:51:05.640 [main] INFO  o.s.cloud.context.scope.GenericScope - BeanFactory id=7db9776a-0f49-330e-8caf-bffb412b50bd
+2026-03-14 18:51:05.776 [main] INFO  o.s.b.w.e.tomcat.TomcatWebServer - Tomcat initialized with port 8081 (http)
+2026-03-14 18:51:05.781 [main] INFO  o.a.catalina.core.StandardService - Starting service [Tomcat]
+2026-03-14 18:51:05.781 [main] INFO  o.a.catalina.core.StandardEngine - Starting Servlet engine: [Apache Tomcat/10.1.30]
+2026-03-14 18:51:05.807 [main] INFO  o.a.c.c.C.[Tomcat].[localhost].[/] - Initializing Spring embedded WebApplicationContext
+2026-03-14 18:51:05.808 [main] INFO  o.s.b.w.s.c.ServletWebServerApplicationContext - Root WebApplicationContext: initialization completed in 441 ms
+2026-03-14 18:51:05.885 [main] INFO  com.zaxxer.hikari.HikariDataSource - HikariPool-1 - Starting...
+2026-03-14 18:51:06.078 [main] INFO  com.zaxxer.hikari.pool.HikariPool - HikariPool-1 - Added connection com.mysql.cj.jdbc.ConnectionImpl@4cd7d5e1
+2026-03-14 18:51:06.079 [main] INFO  com.zaxxer.hikari.HikariDataSource - HikariPool-1 - Start completed.
+2026-03-14 18:51:06.357 [main] INFO  o.s.b.w.e.tomcat.TomcatWebServer - Tomcat started on port 8081 (http) with context path ''
+2026-03-14 18:51:06.362 [main] INFO  c.g.a.AuthServiceApplication - Started AuthServiceApplication in 1.228 seconds (process running for 1.449)
+2026-03-14 18:53:25.480 [http-nio-8081-exec-1] INFO  o.a.c.c.C.[Tomcat].[localhost].[/] - Initializing Spring DispatcherServlet 'dispatcherServlet'
+2026-03-14 18:53:25.481 [http-nio-8081-exec-1] INFO  o.s.web.servlet.DispatcherServlet - Initializing Servlet 'dispatcherServlet'
+2026-03-14 18:53:25.483 [http-nio-8081-exec-1] INFO  o.s.web.servlet.DispatcherServlet - Completed initialization in 2 ms
+2026-03-14 18:53:25.988 [http-nio-8081-exec-1] INFO  c.g.a.client.AuthzServiceClient - Calling authz-service to get user permissions: http://localhost:8082/permissions/user/1
+2026-03-14 18:53:26.216 [http-nio-8081-exec-1] INFO  c.g.a.client.AuthzServiceClient - Calling authz-service to get user menu tree: http://localhost:8082/menus/user/1/tree
+2026-03-14 18:53:34.419 [http-nio-8081-exec-2] INFO  c.g.a.client.AuthzServiceClient - Calling authz-service to get user permissions: http://localhost:8082/permissions/user/1
+2026-03-14 18:53:34.442 [http-nio-8081-exec-2] INFO  c.g.a.client.AuthzServiceClient - Calling authz-service to get user menu tree: http://localhost:8082/menus/user/1/tree
+2026-03-14 18:57:50.374 [http-nio-8081-exec-5] INFO  c.g.a.client.AuthzServiceClient - Calling authz-service to get user permissions: http://localhost:8082/permissions/user/1
+2026-03-14 18:57:50.413 [http-nio-8081-exec-5] INFO  c.g.a.client.AuthzServiceClient - Calling authz-service to get user menu tree: http://localhost:8082/menus/user/1/tree
+2026-03-14 18:59:10.208 [http-nio-8081-exec-7] INFO  c.g.a.client.AuthzServiceClient - Calling authz-service to get user permissions: http://localhost:8082/permissions/user/1
+2026-03-14 18:59:10.237 [http-nio-8081-exec-7] INFO  c.g.a.client.AuthzServiceClient - Calling authz-service to get user menu tree: http://localhost:8082/menus/user/1/tree
+2026-03-14 19:00:50.727 [http-nio-8081-exec-9] INFO  c.g.a.client.AuthzServiceClient - Calling authz-service to get user permissions: http://localhost:8082/permissions/user/1
+2026-03-14 19:00:50.760 [http-nio-8081-exec-9] INFO  c.g.a.client.AuthzServiceClient - Calling authz-service to get user menu tree: http://localhost:8082/menus/user/1/tree
+2026-03-14 19:02:03.424 [http-nio-8081-exec-1] INFO  c.g.a.client.AuthzServiceClient - Calling authz-service to get user permissions: http://localhost:8082/permissions/user/1
+2026-03-14 19:02:03.517 [http-nio-8081-exec-1] INFO  c.g.a.client.AuthzServiceClient - Calling authz-service to get user menu tree: http://localhost:8082/menus/user/1/tree
+2026-03-14 19:08:15.272 [SpringApplicationShutdownHook] INFO  com.zaxxer.hikari.HikariDataSource - HikariPool-1 - Shutdown initiated...
+2026-03-14 19:08:15.276 [SpringApplicationShutdownHook] INFO  com.zaxxer.hikari.HikariDataSource - HikariPool-1 - Shutdown completed.
+2026-03-14 19:08:16.574 [main] INFO  c.g.a.AuthServiceApplication - Starting AuthServiceApplication using Java 21.0.7 with PID 34797 (/Users/gaoshijie/u_Document/cloud-based-color-grading/cloud-based-color-grading/java/cloud-based-color-grading/auth-service/target/classes started by gaoshijie in /Users/gaoshijie/u_Document/cloud-based-color-grading/cloud-based-color-grading/java/cloud-based-color-grading)
+2026-03-14 19:08:16.574 [main] INFO  c.g.a.AuthServiceApplication - No active profile set, falling back to 1 default profile: "default"
+2026-03-14 19:08:16.852 [main] INFO  o.s.d.r.c.RepositoryConfigurationDelegate - Multiple Spring Data modules found, entering strict repository configuration mode
+2026-03-14 19:08:16.853 [main] INFO  o.s.d.r.c.RepositoryConfigurationDelegate - Bootstrapping Spring Data Redis repositories in DEFAULT mode.
+2026-03-14 19:08:16.861 [main] INFO  o.s.d.r.c.RepositoryConfigurationDelegate - Finished Spring Data repository scanning in 4 ms. Found 0 Redis repository interfaces.
+2026-03-14 19:08:16.914 [main] INFO  o.s.cloud.context.scope.GenericScope - BeanFactory id=7db9776a-0f49-330e-8caf-bffb412b50bd
+2026-03-14 19:08:17.025 [main] INFO  o.s.b.w.e.tomcat.TomcatWebServer - Tomcat initialized with port 8081 (http)
+2026-03-14 19:08:17.029 [main] INFO  o.a.catalina.core.StandardService - Starting service [Tomcat]
+2026-03-14 19:08:17.029 [main] INFO  o.a.catalina.core.StandardEngine - Starting Servlet engine: [Apache Tomcat/10.1.30]
+2026-03-14 19:08:17.047 [main] INFO  o.a.c.c.C.[Tomcat].[localhost].[/] - Initializing Spring embedded WebApplicationContext
+2026-03-14 19:08:17.047 [main] INFO  o.s.b.w.s.c.ServletWebServerApplicationContext - Root WebApplicationContext: initialization completed in 428 ms
+2026-03-14 19:08:17.120 [main] INFO  com.zaxxer.hikari.HikariDataSource - HikariPool-1 - Starting...
+2026-03-14 19:08:17.312 [main] INFO  com.zaxxer.hikari.pool.HikariPool - HikariPool-1 - Added connection com.mysql.cj.jdbc.ConnectionImpl@775f15fd
+2026-03-14 19:08:17.313 [main] INFO  com.zaxxer.hikari.HikariDataSource - HikariPool-1 - Start completed.
+2026-03-14 19:08:17.638 [main] INFO  o.s.b.w.e.tomcat.TomcatWebServer - Tomcat started on port 8081 (http) with context path ''
+2026-03-14 19:08:17.644 [main] INFO  c.g.a.AuthServiceApplication - Started AuthServiceApplication in 1.256 seconds (process running for 1.563)
+2026-03-14 19:08:17.653 [SpringApplicationShutdownHook] INFO  com.zaxxer.hikari.HikariDataSource - HikariPool-1 - Shutdown initiated...
+2026-03-14 19:08:17.718 [SpringApplicationShutdownHook] INFO  com.zaxxer.hikari.HikariDataSource - HikariPool-1 - Shutdown completed.
+2026-03-14 19:08:18.740 [main] INFO  c.g.a.AuthServiceApplication - Starting AuthServiceApplication using Java 21.0.7 with PID 34806 (/Users/gaoshijie/u_Document/cloud-based-color-grading/cloud-based-color-grading/java/cloud-based-color-grading/auth-service/target/classes started by gaoshijie in /Users/gaoshijie/u_Document/cloud-based-color-grading/cloud-based-color-grading/java/cloud-based-color-grading)
+2026-03-14 19:08:18.741 [main] INFO  c.g.a.AuthServiceApplication - No active profile set, falling back to 1 default profile: "default"
+2026-03-14 19:08:19.011 [main] INFO  o.s.d.r.c.RepositoryConfigurationDelegate - Multiple Spring Data modules found, entering strict repository configuration mode
+2026-03-14 19:08:19.013 [main] INFO  o.s.d.r.c.RepositoryConfigurationDelegate - Bootstrapping Spring Data Redis repositories in DEFAULT mode.
+2026-03-14 19:08:19.028 [main] INFO  o.s.d.r.c.RepositoryConfigurationDelegate - Finished Spring Data repository scanning in 6 ms. Found 0 Redis repository interfaces.
+2026-03-14 19:08:19.090 [main] INFO  o.s.cloud.context.scope.GenericScope - BeanFactory id=7db9776a-0f49-330e-8caf-bffb412b50bd
+2026-03-14 19:08:19.204 [main] INFO  o.s.b.w.e.tomcat.TomcatWebServer - Tomcat initialized with port 8081 (http)
+2026-03-14 19:08:19.208 [main] INFO  o.a.catalina.core.StandardService - Starting service [Tomcat]
+2026-03-14 19:08:19.208 [main] INFO  o.a.catalina.core.StandardEngine - Starting Servlet engine: [Apache Tomcat/10.1.30]
+2026-03-14 19:08:19.226 [main] INFO  o.a.c.c.C.[Tomcat].[localhost].[/] - Initializing Spring embedded WebApplicationContext
+2026-03-14 19:08:19.226 [main] INFO  o.s.b.w.s.c.ServletWebServerApplicationContext - Root WebApplicationContext: initialization completed in 468 ms
+2026-03-14 19:08:19.283 [main] INFO  com.zaxxer.hikari.HikariDataSource - HikariPool-1 - Starting...
+2026-03-14 19:08:19.467 [main] INFO  com.zaxxer.hikari.pool.HikariPool - HikariPool-1 - Added connection com.mysql.cj.jdbc.ConnectionImpl@762405bf
+2026-03-14 19:08:19.468 [main] INFO  com.zaxxer.hikari.HikariDataSource - HikariPool-1 - Start completed.
+2026-03-14 19:08:19.720 [main] INFO  o.s.b.w.e.tomcat.TomcatWebServer - Tomcat started on port 8081 (http) with context path ''
+2026-03-14 19:08:19.728 [main] INFO  c.g.a.AuthServiceApplication - Started AuthServiceApplication in 1.196 seconds (process running for 1.447)
+2026-03-14 19:08:49.717 [http-nio-8081-exec-1] INFO  o.a.c.c.C.[Tomcat].[localhost].[/] - Initializing Spring DispatcherServlet 'dispatcherServlet'
+2026-03-14 19:08:49.717 [http-nio-8081-exec-1] INFO  o.s.web.servlet.DispatcherServlet - Initializing Servlet 'dispatcherServlet'
+2026-03-14 19:08:49.718 [http-nio-8081-exec-1] INFO  o.s.web.servlet.DispatcherServlet - Completed initialization in 1 ms
+2026-03-14 19:08:50.217 [http-nio-8081-exec-1] INFO  c.g.a.client.AuthzServiceClient - Calling authz-service to get user permissions: http://localhost:8082/permissions/user/1
+2026-03-14 19:08:50.476 [http-nio-8081-exec-1] INFO  c.g.a.client.AuthzServiceClient - Calling authz-service to get user menu tree: http://localhost:8082/menus/user/1/tree
+2026-03-14 19:09:00.603 [http-nio-8081-exec-2] INFO  c.g.a.client.AuthzServiceClient - Calling authz-service to get user permissions: http://localhost:8082/permissions/user/1
+2026-03-14 19:09:00.627 [http-nio-8081-exec-2] INFO  c.g.a.client.AuthzServiceClient - Calling authz-service to get user menu tree: http://localhost:8082/menus/user/1/tree
+2026-03-14 19:11:58.310 [http-nio-8081-exec-5] INFO  c.g.a.client.AuthzServiceClient - Calling authz-service to get user permissions: http://localhost:8082/permissions/user/1
+2026-03-14 19:11:58.408 [http-nio-8081-exec-5] INFO  c.g.a.client.AuthzServiceClient - Calling authz-service to get user menu tree: http://localhost:8082/menus/user/1/tree
+2026-03-14 19:23:28.546 [http-nio-8081-exec-8] INFO  c.g.a.client.AuthzServiceClient - Calling authz-service to get user permissions: http://localhost:8082/permissions/user/1
+2026-03-14 19:23:28.629 [http-nio-8081-exec-8] INFO  c.g.a.client.AuthzServiceClient - Calling authz-service to get user menu tree: http://localhost:8082/menus/user/1/tree
+2026-03-14 19:29:21.890 [http-nio-8081-exec-10] INFO  c.g.a.client.AuthzServiceClient - Calling authz-service to get user permissions: http://localhost:8082/permissions/user/1
+2026-03-14 19:29:21.924 [http-nio-8081-exec-10] INFO  c.g.a.client.AuthzServiceClient - Calling authz-service to get user menu tree: http://localhost:8082/menus/user/1/tree
+2026-03-14 19:31:42.280 [http-nio-8081-exec-3] INFO  c.g.a.client.AuthzServiceClient - Calling authz-service to get user permissions: http://localhost:8082/permissions/user/1
+2026-03-14 19:31:42.368 [http-nio-8081-exec-3] INFO  c.g.a.client.AuthzServiceClient - Calling authz-service to get user menu tree: http://localhost:8082/menus/user/1/tree
+2026-03-14 19:31:55.145 [http-nio-8081-exec-5] INFO  c.g.a.client.AuthzServiceClient - Calling authz-service to get user permissions: http://localhost:8082/permissions/user/1
+2026-03-14 19:31:55.219 [http-nio-8081-exec-5] INFO  c.g.a.client.AuthzServiceClient - Calling authz-service to get user menu tree: http://localhost:8082/menus/user/1/tree

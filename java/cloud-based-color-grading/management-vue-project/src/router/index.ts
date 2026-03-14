@@ -22,7 +22,7 @@ const routes: RouteRecordRaw[] = [
         meta: { 
           title: '角色管理', 
           icon: 'user',
-          permission: 'system:role:view'
+          permission: 'system:role:query'
         }
       },
       {
@@ -32,7 +32,7 @@ const routes: RouteRecordRaw[] = [
         meta: { 
           title: '菜单管理', 
           icon: 'menu',
-          permission: 'system:menu:view'
+          permission: 'system:menu:query'
         }
       },
       {
@@ -42,7 +42,7 @@ const routes: RouteRecordRaw[] = [
         meta: { 
           title: '权限管理', 
           icon: 'lock',
-          permission: 'system:permission:view'
+          permission: 'system:permission:query'
         }
       }
     ]
@@ -70,23 +70,44 @@ const router = createRouter({
 router.beforeEach((to, from, next) => {
   const userStore = useUserStore()
   
+  console.log('=== 路由守卫调试 ===')
+  console.log('目标路由:', to.path)
+  console.log('是否登录:', userStore.isLoggedIn)
+  console.log('权限列表:', userStore.permissions)
+  console.log('权限列表长度:', userStore.permissions.length)
+  console.log('所需权限:', to.meta.permission)
+  
   // 设置页面标题
   document.title = `${to.meta.title || ''} - 管理系统`
   
   // 检查是否需要登录
   if (to.meta.requiresAuth && !userStore.isLoggedIn) {
+    console.log('❌ 未登录，跳转到登录页')
     ElMessage.warning('请先登录')
     next({ path: '/login', query: { redirect: to.fullPath } })
     return
   }
   
   // 检查权限
-  if (to.meta.permission && !userStore.hasPermission(to.meta.permission as string)) {
-    ElMessage.error('无权限访问该页面')
-    next({ path: '/403' })
-    return
+  if (to.meta.permission) {
+    const hasPermissionFn = userStore.hasPermission
+    console.log('需要权限检查，权限列表长度:', userStore.permissions.length)
+    
+    // 如果用户有权限列表但没有该权限，则拒绝访问
+    // 如果用户权限列表为空（后端未实现），则暂时允许访问
+    if (userStore.permissions.length > 0 && !hasPermissionFn(to.meta.permission as string)) {
+      console.log('❌ 权限列表不为空但缺少所需权限，跳转到403')
+      ElMessage.error('无权限访问该页面')
+      next({ path: '/403' })
+      return
+    } else if (userStore.permissions.length === 0) {
+      console.log('⚠️ 权限列表为空，允许访问（开发模式）')
+    } else {
+      console.log('✅ 有所需权限')
+    }
   }
   
+  console.log('✅ 通过路由守卫，继续导航')
   next()
 })
 

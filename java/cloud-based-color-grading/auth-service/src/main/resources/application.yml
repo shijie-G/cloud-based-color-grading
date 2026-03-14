@@ -36,6 +36,10 @@ spring:
 server:
   port: 8081
 
+# Authz Service Configuration
+authz-service:
+  url: ${AUTHZ_SERVICE_URL:http://localhost:8082}
+
 # JWT Configuration
 jwt:
   secret: ${JWT_SECRET:YourSecretKeyForJWTTokenGenerationShouldBeAtLeast256BitsLongAndSecure123456789}

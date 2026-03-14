@@ -13,7 +13,7 @@ import java.util.List;
  * 提供菜单管理接口
  */
 @RestController
-@RequestMapping("/api/menus")
+@RequestMapping("/menus")
 public class MenuController {
     
     private final MenuService menuService;

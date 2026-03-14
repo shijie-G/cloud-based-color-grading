@@ -41,9 +41,15 @@ export const useUserStore = defineStore('user', () => {
    */
   async function login(loginData: LoginRequest): Promise<void> {
     try {
+      console.log('=== 开始登录 ===')
+      console.log('登录数据:', loginData)
+      
       // 调用登录 API
       const response = await loginApi(loginData)
+      console.log('登录响应:', response)
+      
       const data: LoginResponse = response.data
+      console.log('登录数据:', data)
       
       // 保存用户信息
       token.value = data.token
@@ -53,9 +59,15 @@ export const useUserStore = defineStore('user', () => {
       roles.value = data.roles || []
       permissions.value = data.permissions || []
       
+      console.log('保存的权限列表:', permissions.value)
+      console.log('权限列表长度:', permissions.value.length)
+      
       // 保存 Token 到 localStorage
       saveToken(data.token)
+      
+      console.log('=== 登录完成 ===')
     } catch (error) {
+      console.error('=== 登录失败 ===', error)
       // 清理状态
       token.value = ''
       userId.value = null

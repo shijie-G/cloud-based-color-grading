@@ -1,21 +1,88 @@
-2026-03-09 16:17:44.263 [main] INFO  c.g.a.AuthzServiceApplication - Starting AuthzServiceApplication using Java 21.0.7 with PID 26535 (/Users/gaoshijie/u_Document/cloud-based-color-grading/cloud-based-color-grading/java/cloud-based-color-grading/authz-service/target/classes started by gaoshijie in /Users/gaoshijie/u_Document/cloud-based-color-grading/cloud-based-color-grading/java/cloud-based-color-grading)
-2026-03-09 16:17:44.266 [main] INFO  c.g.a.AuthzServiceApplication - No active profile set, falling back to 1 default profile: "default"
-2026-03-09 16:17:44.518 [main] INFO  o.s.d.r.c.RepositoryConfigurationDelegate - Multiple Spring Data modules found, entering strict repository configuration mode
-2026-03-09 16:17:44.519 [main] INFO  o.s.d.r.c.RepositoryConfigurationDelegate - Bootstrapping Spring Data Redis repositories in DEFAULT mode.
-2026-03-09 16:17:44.527 [main] INFO  o.s.d.r.c.RepositoryConfigurationDelegate - Finished Spring Data repository scanning in 4 ms. Found 0 Redis repository interfaces.
-2026-03-09 16:17:44.583 [main] INFO  o.s.cloud.context.scope.GenericScope - BeanFactory id=7a555bad-ad72-3e82-969a-2c5f14a96e50
-2026-03-09 16:17:44.699 [main] INFO  o.s.b.w.e.tomcat.TomcatWebServer - Tomcat initialized with port 8082 (http)
-2026-03-09 16:17:44.706 [main] INFO  o.a.catalina.core.StandardService - Starting service [Tomcat]
-2026-03-09 16:17:44.706 [main] INFO  o.a.catalina.core.StandardEngine - Starting Servlet engine: [Apache Tomcat/10.1.30]
-2026-03-09 16:17:44.730 [main] INFO  o.a.c.c.C.[Tomcat].[localhost].[/] - Initializing Spring embedded WebApplicationContext
-2026-03-09 16:17:44.730 [main] INFO  o.s.b.w.s.c.ServletWebServerApplicationContext - Root WebApplicationContext: initialization completed in 446 ms
-2026-03-09 16:17:44.801 [main] INFO  com.zaxxer.hikari.HikariDataSource - HikariPool-1 - Starting...
-2026-03-09 16:17:45.318 [main] INFO  com.zaxxer.hikari.pool.HikariPool - HikariPool-1 - Added connection com.mysql.cj.jdbc.ConnectionImpl@489f62a3
-2026-03-09 16:17:45.319 [main] INFO  com.zaxxer.hikari.HikariDataSource - HikariPool-1 - Start completed.
-2026-03-09 16:17:45.366 [main] WARN  c.b.m.c.injector.DefaultSqlInjector - class cn.gsjgsj.common.entity.MenuPermission ,Not found @TableId annotation, Cannot use Mybatis-Plus 'xxById' Method.
-2026-03-09 16:17:45.492 [main] WARN  c.b.m.c.injector.DefaultSqlInjector - class cn.gsjgsj.common.entity.RolePermission ,Not found @TableId annotation, Cannot use Mybatis-Plus 'xxById' Method.
-2026-03-09 16:17:45.498 [main] WARN  c.b.m.c.injector.DefaultSqlInjector - class cn.gsjgsj.common.entity.UserRole ,Not found @TableId annotation, Cannot use Mybatis-Plus 'xxById' Method.
-2026-03-09 16:17:45.671 [main] INFO  o.s.b.w.e.tomcat.TomcatWebServer - Tomcat started on port 8082 (http) with context path ''
-2026-03-09 16:17:45.676 [main] INFO  c.g.a.AuthzServiceApplication - Started AuthzServiceApplication in 1.6 seconds (process running for 1.855)
-2026-03-09 17:08:23.526 [SpringApplicationShutdownHook] INFO  com.zaxxer.hikari.HikariDataSource - HikariPool-1 - Shutdown initiated...
-2026-03-09 17:08:23.528 [SpringApplicationShutdownHook] INFO  com.zaxxer.hikari.HikariDataSource - HikariPool-1 - Shutdown completed.
+2026-03-14 18:22:55.996 [main] INFO  c.g.a.AuthzServiceApplication - Starting AuthzServiceApplication using Java 21.0.7 with PID 32095 (/Users/gaoshijie/u_Document/cloud-based-color-grading/cloud-based-color-grading/java/cloud-based-color-grading/authz-service/target/classes started by gaoshijie in /Users/gaoshijie/u_Document/cloud-based-color-grading/cloud-based-color-grading/java/cloud-based-color-grading)
+2026-03-14 18:22:55.999 [main] INFO  c.g.a.AuthzServiceApplication - No active profile set, falling back to 1 default profile: "default"
+2026-03-14 18:22:56.230 [main] INFO  o.s.d.r.c.RepositoryConfigurationDelegate - Multiple Spring Data modules found, entering strict repository configuration mode
+2026-03-14 18:22:56.231 [main] INFO  o.s.d.r.c.RepositoryConfigurationDelegate - Bootstrapping Spring Data Redis repositories in DEFAULT mode.
+2026-03-14 18:22:56.244 [main] INFO  o.s.d.r.c.RepositoryConfigurationDelegate - Finished Spring Data repository scanning in 5 ms. Found 0 Redis repository interfaces.
+2026-03-14 18:22:56.298 [main] INFO  o.s.cloud.context.scope.GenericScope - BeanFactory id=7a555bad-ad72-3e82-969a-2c5f14a96e50
+2026-03-14 18:22:56.412 [main] INFO  o.s.b.w.e.tomcat.TomcatWebServer - Tomcat initialized with port 8082 (http)
+2026-03-14 18:22:56.416 [main] INFO  o.a.catalina.core.StandardService - Starting service [Tomcat]
+2026-03-14 18:22:56.416 [main] INFO  o.a.catalina.core.StandardEngine - Starting Servlet engine: [Apache Tomcat/10.1.30]
+2026-03-14 18:22:56.433 [main] INFO  o.a.c.c.C.[Tomcat].[localhost].[/] - Initializing Spring embedded WebApplicationContext
+2026-03-14 18:22:56.433 [main] INFO  o.s.b.w.s.c.ServletWebServerApplicationContext - Root WebApplicationContext: initialization completed in 422 ms
+2026-03-14 18:22:56.486 [main] INFO  com.zaxxer.hikari.HikariDataSource - HikariPool-1 - Starting...
+2026-03-14 18:22:57.337 [main] INFO  com.zaxxer.hikari.pool.HikariPool - HikariPool-1 - Added connection com.mysql.cj.jdbc.ConnectionImpl@14ed7ddf
+2026-03-14 18:22:57.338 [main] INFO  com.zaxxer.hikari.HikariDataSource - HikariPool-1 - Start completed.
+2026-03-14 18:22:57.394 [main] WARN  c.b.m.c.injector.DefaultSqlInjector - class cn.gsjgsj.common.entity.MenuPermission ,Not found @TableId annotation, Cannot use Mybatis-Plus 'xxById' Method.
+2026-03-14 18:22:57.557 [main] WARN  c.b.m.c.injector.DefaultSqlInjector - class cn.gsjgsj.common.entity.RolePermission ,Not found @TableId annotation, Cannot use Mybatis-Plus 'xxById' Method.
+2026-03-14 18:22:57.562 [main] WARN  c.b.m.c.injector.DefaultSqlInjector - class cn.gsjgsj.common.entity.UserRole ,Not found @TableId annotation, Cannot use Mybatis-Plus 'xxById' Method.
+2026-03-14 18:22:57.862 [main] INFO  o.s.b.w.e.tomcat.TomcatWebServer - Tomcat started on port 8082 (http) with context path ''
+2026-03-14 18:22:57.870 [main] INFO  c.g.a.AuthzServiceApplication - Started AuthzServiceApplication in 2.056 seconds (process running for 2.287)
+2026-03-14 18:28:15.338 [http-nio-8082-exec-1] INFO  o.a.c.c.C.[Tomcat].[localhost].[/] - Initializing Spring DispatcherServlet 'dispatcherServlet'
+2026-03-14 18:28:15.339 [http-nio-8082-exec-1] INFO  o.s.web.servlet.DispatcherServlet - Initializing Servlet 'dispatcherServlet'
+2026-03-14 18:28:15.341 [http-nio-8082-exec-1] INFO  o.s.web.servlet.DispatcherServlet - Completed initialization in 2 ms
+2026-03-14 18:41:40.537 [SpringApplicationShutdownHook] INFO  com.zaxxer.hikari.HikariDataSource - HikariPool-1 - Shutdown initiated...
+2026-03-14 18:41:40.542 [SpringApplicationShutdownHook] INFO  com.zaxxer.hikari.HikariDataSource - HikariPool-1 - Shutdown completed.
+2026-03-14 18:41:42.275 [main] INFO  c.g.a.AuthzServiceApplication - Starting AuthzServiceApplication using Java 21.0.7 with PID 33965 (/Users/gaoshijie/u_Document/cloud-based-color-grading/cloud-based-color-grading/java/cloud-based-color-grading/authz-service/target/classes started by gaoshijie in /Users/gaoshijie/u_Document/cloud-based-color-grading/cloud-based-color-grading/java/cloud-based-color-grading)
+2026-03-14 18:41:42.276 [main] INFO  c.g.a.AuthzServiceApplication - No active profile set, falling back to 1 default profile: "default"
+2026-03-14 18:41:42.551 [main] INFO  o.s.d.r.c.RepositoryConfigurationDelegate - Multiple Spring Data modules found, entering strict repository configuration mode
+2026-03-14 18:41:42.552 [main] INFO  o.s.d.r.c.RepositoryConfigurationDelegate - Bootstrapping Spring Data Redis repositories in DEFAULT mode.
+2026-03-14 18:41:42.562 [main] INFO  o.s.d.r.c.RepositoryConfigurationDelegate - Finished Spring Data repository scanning in 5 ms. Found 0 Redis repository interfaces.
+2026-03-14 18:41:42.627 [main] INFO  o.s.cloud.context.scope.GenericScope - BeanFactory id=7a555bad-ad72-3e82-969a-2c5f14a96e50
+2026-03-14 18:41:42.748 [main] INFO  o.s.b.w.e.tomcat.TomcatWebServer - Tomcat initialized with port 8082 (http)
+2026-03-14 18:41:42.752 [main] INFO  o.a.catalina.core.StandardService - Starting service [Tomcat]
+2026-03-14 18:41:42.752 [main] INFO  o.a.catalina.core.StandardEngine - Starting Servlet engine: [Apache Tomcat/10.1.30]
+2026-03-14 18:41:42.775 [main] INFO  o.a.c.c.C.[Tomcat].[localhost].[/] - Initializing Spring embedded WebApplicationContext
+2026-03-14 18:41:42.776 [main] INFO  o.s.b.w.s.c.ServletWebServerApplicationContext - Root WebApplicationContext: initialization completed in 486 ms
+2026-03-14 18:41:42.839 [main] INFO  com.zaxxer.hikari.HikariDataSource - HikariPool-1 - Starting...
+2026-03-14 18:41:43.027 [main] INFO  com.zaxxer.hikari.pool.HikariPool - HikariPool-1 - Added connection com.mysql.cj.jdbc.ConnectionImpl@7c7ed72a
+2026-03-14 18:41:43.028 [main] INFO  com.zaxxer.hikari.HikariDataSource - HikariPool-1 - Start completed.
+2026-03-14 18:41:43.072 [main] WARN  c.b.m.c.injector.DefaultSqlInjector - class cn.gsjgsj.common.entity.MenuPermission ,Not found @TableId annotation, Cannot use Mybatis-Plus 'xxById' Method.
+2026-03-14 18:41:43.181 [main] WARN  c.b.m.c.injector.DefaultSqlInjector - class cn.gsjgsj.common.entity.RolePermission ,Not found @TableId annotation, Cannot use Mybatis-Plus 'xxById' Method.
+2026-03-14 18:41:43.185 [main] WARN  c.b.m.c.injector.DefaultSqlInjector - class cn.gsjgsj.common.entity.UserRole ,Not found @TableId annotation, Cannot use Mybatis-Plus 'xxById' Method.
+2026-03-14 18:41:43.360 [main] INFO  o.s.b.w.e.tomcat.TomcatWebServer - Tomcat started on port 8082 (http) with context path ''
+2026-03-14 18:41:43.366 [main] INFO  c.g.a.AuthzServiceApplication - Started AuthzServiceApplication in 1.291 seconds (process running for 1.642)
+2026-03-14 18:42:40.936 [http-nio-8082-exec-1] INFO  o.a.c.c.C.[Tomcat].[localhost].[/] - Initializing Spring DispatcherServlet 'dispatcherServlet'
+2026-03-14 18:42:40.936 [http-nio-8082-exec-1] INFO  o.s.web.servlet.DispatcherServlet - Initializing Servlet 'dispatcherServlet'
+2026-03-14 18:42:40.936 [http-nio-8082-exec-1] INFO  o.s.web.servlet.DispatcherServlet - Completed initialization in 0 ms
+2026-03-14 19:08:20.251 [SpringApplicationShutdownHook] INFO  com.zaxxer.hikari.HikariDataSource - HikariPool-1 - Shutdown initiated...
+2026-03-14 19:08:20.255 [SpringApplicationShutdownHook] INFO  com.zaxxer.hikari.HikariDataSource - HikariPool-1 - Shutdown completed.
+2026-03-14 19:08:21.248 [main] INFO  c.g.a.AuthzServiceApplication - Starting AuthzServiceApplication using Java 21.0.7 with PID 34813 (/Users/gaoshijie/u_Document/cloud-based-color-grading/cloud-based-color-grading/java/cloud-based-color-grading/authz-service/target/classes started by gaoshijie in /Users/gaoshijie/u_Document/cloud-based-color-grading/cloud-based-color-grading/java/cloud-based-color-grading)
+2026-03-14 19:08:21.249 [main] INFO  c.g.a.AuthzServiceApplication - No active profile set, falling back to 1 default profile: "default"
+2026-03-14 19:08:21.509 [main] INFO  o.s.d.r.c.RepositoryConfigurationDelegate - Multiple Spring Data modules found, entering strict repository configuration mode
+2026-03-14 19:08:21.510 [main] INFO  o.s.d.r.c.RepositoryConfigurationDelegate - Bootstrapping Spring Data Redis repositories in DEFAULT mode.
+2026-03-14 19:08:21.519 [main] INFO  o.s.d.r.c.RepositoryConfigurationDelegate - Finished Spring Data repository scanning in 4 ms. Found 0 Redis repository interfaces.
+2026-03-14 19:08:21.569 [main] INFO  o.s.cloud.context.scope.GenericScope - BeanFactory id=7a555bad-ad72-3e82-969a-2c5f14a96e50
+2026-03-14 19:08:21.673 [main] INFO  o.s.b.w.e.tomcat.TomcatWebServer - Tomcat initialized with port 8082 (http)
+2026-03-14 19:08:21.696 [main] INFO  o.s.b.w.s.c.ServletWebServerApplicationContext - Root WebApplicationContext: initialization completed in 431 ms
+2026-03-14 19:08:21.754 [main] INFO  com.zaxxer.hikari.HikariDataSource - HikariPool-1 - Starting...
+2026-03-14 19:08:21.982 [main] INFO  com.zaxxer.hikari.pool.HikariPool - HikariPool-1 - Added connection com.mysql.cj.jdbc.ConnectionImpl@6c96403e
+2026-03-14 19:08:21.983 [main] INFO  com.zaxxer.hikari.HikariDataSource - HikariPool-1 - Start completed.
+2026-03-14 19:08:22.034 [main] WARN  c.b.m.c.injector.DefaultSqlInjector - class cn.gsjgsj.common.entity.MenuPermission ,Not found @TableId annotation, Cannot use Mybatis-Plus 'xxById' Method.
+2026-03-14 19:08:22.142 [main] WARN  c.b.m.c.injector.DefaultSqlInjector - class cn.gsjgsj.common.entity.RolePermission ,Not found @TableId annotation, Cannot use Mybatis-Plus 'xxById' Method.
+2026-03-14 19:08:22.146 [main] WARN  c.b.m.c.injector.DefaultSqlInjector - class cn.gsjgsj.common.entity.UserRole ,Not found @TableId annotation, Cannot use Mybatis-Plus 'xxById' Method.
+2026-03-14 19:08:22.303 [main] INFO  o.s.b.w.e.tomcat.TomcatWebServer - Tomcat started on port 8082 (http) with context path ''
+2026-03-14 19:08:22.309 [main] INFO  c.g.a.AuthzServiceApplication - Started AuthzServiceApplication in 1.242 seconds (process running for 1.498)
+2026-03-14 19:08:22.317 [SpringApplicationShutdownHook] INFO  com.zaxxer.hikari.HikariDataSource - HikariPool-1 - Shutdown initiated...
+2026-03-14 19:08:22.371 [SpringApplicationShutdownHook] INFO  com.zaxxer.hikari.HikariDataSource - HikariPool-1 - Shutdown completed.
+2026-03-14 19:08:23.472 [main] INFO  c.g.a.AuthzServiceApplication - Starting AuthzServiceApplication using Java 21.0.7 with PID 34820 (/Users/gaoshijie/u_Document/cloud-based-color-grading/cloud-based-color-grading/java/cloud-based-color-grading/authz-service/target/classes started by gaoshijie in /Users/gaoshijie/u_Document/cloud-based-color-grading/cloud-based-color-grading/java/cloud-based-color-grading)
+2026-03-14 19:08:23.473 [main] INFO  c.g.a.AuthzServiceApplication - No active profile set, falling back to 1 default profile: "default"
+2026-03-14 19:08:23.679 [main] INFO  o.s.d.r.c.RepositoryConfigurationDelegate - Multiple Spring Data modules found, entering strict repository configuration mode
+2026-03-14 19:08:23.680 [main] INFO  o.s.d.r.c.RepositoryConfigurationDelegate - Bootstrapping Spring Data Redis repositories in DEFAULT mode.
+2026-03-14 19:08:23.687 [main] INFO  o.s.d.r.c.RepositoryConfigurationDelegate - Finished Spring Data repository scanning in 3 ms. Found 0 Redis repository interfaces.
+2026-03-14 19:08:23.738 [main] INFO  o.s.cloud.context.scope.GenericScope - BeanFactory id=7a555bad-ad72-3e82-969a-2c5f14a96e50
+2026-03-14 19:08:23.845 [main] INFO  o.s.b.w.e.tomcat.TomcatWebServer - Tomcat initialized with port 8082 (http)
+2026-03-14 19:08:23.849 [main] INFO  o.a.catalina.core.StandardService - Starting service [Tomcat]
+2026-03-14 19:08:23.849 [main] INFO  o.a.catalina.core.StandardEngine - Starting Servlet engine: [Apache Tomcat/10.1.30]
+2026-03-14 19:08:23.867 [main] INFO  o.a.c.c.C.[Tomcat].[localhost].[/] - Initializing Spring embedded WebApplicationContext
+2026-03-14 19:08:23.867 [main] INFO  o.s.b.w.s.c.ServletWebServerApplicationContext - Root WebApplicationContext: initialization completed in 369 ms
+2026-03-14 19:08:23.922 [main] INFO  com.zaxxer.hikari.HikariDataSource - HikariPool-1 - Starting...
+2026-03-14 19:08:24.111 [main] INFO  com.zaxxer.hikari.pool.HikariPool - HikariPool-1 - Added connection com.mysql.cj.jdbc.ConnectionImpl@2353354a
+2026-03-14 19:08:24.112 [main] INFO  com.zaxxer.hikari.HikariDataSource - HikariPool-1 - Start completed.
+2026-03-14 19:08:24.158 [main] WARN  c.b.m.c.injector.DefaultSqlInjector - class cn.gsjgsj.common.entity.MenuPermission ,Not found @TableId annotation, Cannot use Mybatis-Plus 'xxById' Method.
+2026-03-14 19:08:24.279 [main] WARN  c.b.m.c.injector.DefaultSqlInjector - class cn.gsjgsj.common.entity.RolePermission ,Not found @TableId annotation, Cannot use Mybatis-Plus 'xxById' Method.
+2026-03-14 19:08:24.284 [main] WARN  c.b.m.c.injector.DefaultSqlInjector - class cn.gsjgsj.common.entity.UserRole ,Not found @TableId annotation, Cannot use Mybatis-Plus 'xxById' Method.
+2026-03-14 19:08:24.433 [main] INFO  o.s.b.w.e.tomcat.TomcatWebServer - Tomcat started on port 8082 (http) with context path ''
+2026-03-14 19:08:24.438 [main] INFO  c.g.a.AuthzServiceApplication - Started AuthzServiceApplication in 1.194 seconds (process running for 1.462)
+2026-03-14 19:08:50.252 [http-nio-8082-exec-1] INFO  o.a.c.c.C.[Tomcat].[localhost].[/] - Initializing Spring DispatcherServlet 'dispatcherServlet'
+2026-03-14 19:08:50.252 [http-nio-8082-exec-1] INFO  o.s.web.servlet.DispatcherServlet - Initializing Servlet 'dispatcherServlet'
+2026-03-14 19:08:50.253 [http-nio-8082-exec-1] INFO  o.s.web.servlet.DispatcherServlet - Completed initialization in 1 ms

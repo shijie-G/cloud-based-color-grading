@@ -12,7 +12,7 @@ import java.util.List;
  * 提供角色管理接口
  */
 @RestController
-@RequestMapping("/api/roles")
+@RequestMapping("/roles")
 public class RoleController {
     
     private final RoleService roleService;

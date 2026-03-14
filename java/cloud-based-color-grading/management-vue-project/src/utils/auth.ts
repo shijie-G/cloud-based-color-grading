@@ -10,7 +10,11 @@ const TOKEN_KEY = 'access_token'
  * @param token JWT Token
  */
 export function setToken(token: string): void {
+  console.log('=== setToken ===')
+  console.log('保存Token到localStorage, key:', TOKEN_KEY)
+  console.log('Token:', token.substring(0, 50) + '...')
   localStorage.setItem(TOKEN_KEY, token)
+  console.log('保存后验证:', localStorage.getItem(TOKEN_KEY) ? '成功' : '失败')
 }
 
 /**
@@ -18,7 +22,11 @@ export function setToken(token: string): void {
  * @returns JWT Token 或 null
  */
 export function getToken(): string | null {
-  return localStorage.getItem(TOKEN_KEY)
+  const token = localStorage.getItem(TOKEN_KEY)
+  console.log('=== getToken ===')
+  console.log('从localStorage获取Token, key:', TOKEN_KEY)
+  console.log('获取到的Token:', token ? token.substring(0, 50) + '...' : 'null')
+  return token
 }
 
 /**
