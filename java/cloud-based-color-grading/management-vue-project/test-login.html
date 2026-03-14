@@ -1,0 +1,217 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>登录API测试</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            max-width: 800px;
+            margin: 50px auto;
+            padding: 20px;
+        }
+        .test-section {
+            margin: 20px 0;
+            padding: 20px;
+            border: 1px solid #ddd;
+            border-radius: 5px;
+        }
+        input, button {
+            padding: 10px;
+            margin: 5px;
+            font-size: 14px;
+        }
+        button {
+            background: #409eff;
+            color: white;
+            border: none;
+            cursor: pointer;
+            border-radius: 4px;
+        }
+        button:hover {
+            background: #66b1ff;
+        }
+        .result {
+            margin-top: 10px;
+            padding: 10px;
+            background: #f5f5f5;
+            border-radius: 4px;
+            white-space: pre-wrap;
+            word-wrap: break-word;
+        }
+        .success {
+            background: #f0f9ff;
+            border-left: 4px solid #67c23a;
+        }
+        .error {
+            background: #fef0f0;
+            border-left: 4px solid #f56c6c;
+        }
+    </style>
+</head>
+<body>
+    <h1>登录API测试工具</h1>
+    
+    <div class="test-section">
+        <h2>1. 测试登录接口</h2>
+        <div>
+            <input type="text" id="username" placeholder="用户名" value="admin">
+            <input type="password" id="password" placeholder="密码" value="admin123">
+            <button onclick="testLogin()">测试登录</button>
+        </div>
+        <div id="loginResult" class="result" style="display:none;"></div>
+    </div>
+
+    <div class="test-section">
+        <h2>2. 测试登出接口</h2>
+        <div>
+            <button onclick="testLogout()">测试登出</button>
+        </div>
+        <div id="logoutResult" class="result" style="display:none;"></div>
+    </div>
+
+    <div class="test-section">
+        <h2>3. 测试获取用户信息</h2>
+        <div>
+            <button onclick="testGetUserInfo()">获取用户信息</button>
+        </div>
+        <div id="userInfoResult" class="result" style="display:none;"></div>
+    </div>
+
+    <div class="test-section">
+        <h2>4. 当前Token</h2>
+        <div id="currentToken" class="result">未登录</div>
+    </div>
+
+    <script>
+        const API_BASE_URL = 'http://localhost:8080';
+        let currentToken = null;
+
+        function updateTokenDisplay() {
+            const tokenDiv = document.getElementById('currentToken');
+            if (currentToken) {
+                tokenDiv.textContent = `Token: ${currentToken.substring(0, 50)}...`;
+                tokenDiv.className = 'result success';
+            } else {
+                tokenDiv.textContent = '未登录';
+                tokenDiv.className = 'result';
+            }
+        }
+
+        async function testLogin() {
+            const username = document.getElementById('username').value;
+            const password = document.getElementById('password').value;
+            const resultDiv = document.getElementById('loginResult');
+            
+            resultDiv.style.display = 'block';
+            resultDiv.textContent = '请求中...';
+            resultDiv.className = 'result';
+
+            try {
+                const response = await fetch(`${API_BASE_URL}/auth/login`, {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json'
+                    },
+                    body: JSON.stringify({ username, password })
+                });
+
+                const data = await response.json();
+                
+                if (data.code === 200) {
+                    currentToken = data.data.token;
+                    updateTokenDisplay();
+                    resultDiv.className = 'result success';
+                    resultDiv.textContent = `✓ 登录成功！\n\n${JSON.stringify(data, null, 2)}`;
+                } else {
+                    resultDiv.className = 'result error';
+                    resultDiv.textContent = `✗ 登录失败！\n\n${JSON.stringify(data, null, 2)}`;
+                }
+            } catch (error) {
+                resultDiv.className = 'result error';
+                resultDiv.textContent = `✗ 请求失败！\n\n错误: ${error.message}\n\n请确保：\n1. Gateway服务运行在 http://localhost:8080\n2. Auth Service运行在 http://localhost:8081\n3. Redis服务正常运行`;
+            }
+        }
+
+        async function testLogout() {
+            const resultDiv = document.getElementById('logoutResult');
+            
+            if (!currentToken) {
+                resultDiv.style.display = 'block';
+                resultDiv.className = 'result error';
+                resultDiv.textContent = '✗ 请先登录！';
+                return;
+            }
+
+            resultDiv.style.display = 'block';
+            resultDiv.textContent = '请求中...';
+            resultDiv.className = 'result';
+
+            try {
+                const response = await fetch(`${API_BASE_URL}/auth/logout`, {
+                    method: 'POST',
+                    headers: {
+                        'Authorization': `Bearer ${currentToken}`
+                    }
+                });
+
+                const data = await response.json();
+                
+                if (data.code === 200) {
+                    currentToken = null;
+                    updateTokenDisplay();
+                    resultDiv.className = 'result success';
+                    resultDiv.textContent = `✓ 登出成功！\n\n${JSON.stringify(data, null, 2)}`;
+                } else {
+                    resultDiv.className = 'result error';
+                    resultDiv.textContent = `✗ 登出失败！\n\n${JSON.stringify(data, null, 2)}`;
+                }
+            } catch (error) {
+                resultDiv.className = 'result error';
+                resultDiv.textContent = `✗ 请求失败！\n\n错误: ${error.message}`;
+            }
+        }
+
+        async function testGetUserInfo() {
+            const resultDiv = document.getElementById('userInfoResult');
+            
+            if (!currentToken) {
+                resultDiv.style.display = 'block';
+                resultDiv.className = 'result error';
+                resultDiv.textContent = '✗ 请先登录！';
+                return;
+            }
+
+            resultDiv.style.display = 'block';
+            resultDiv.textContent = '请求中...';
+            resultDiv.className = 'result';
+
+            try {
+                const response = await fetch(`${API_BASE_URL}/users/info`, {
+                    method: 'GET',
+                    headers: {
+                        'Authorization': `Bearer ${currentToken}`
+                    }
+                });
+
+                const data = await response.json();
+                
+                if (data.code === 200) {
+                    resultDiv.className = 'result success';
+                    resultDiv.textContent = `✓ 获取成功！\n\n${JSON.stringify(data, null, 2)}`;
+                } else {
+                    resultDiv.className = 'result error';
+                    resultDiv.textContent = `✗ 获取失败！\n\n${JSON.stringify(data, null, 2)}`;
+                }
+            } catch (error) {
+                resultDiv.className = 'result error';
+                resultDiv.textContent = `✗ 请求失败！\n\n错误: ${error.message}`;
+            }
+        }
+
+        // 页面加载时更新Token显示
+        updateTokenDisplay();
+    </script>
+</body>
+</html>
