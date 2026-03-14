@@ -4065,3 +4065,75 @@ java.lang.NoSuchMethodError: 'java.util.Set org.springframework.http.HttpHeaders
 2026-01-13 16:43:40.170 [main] INFO  c.gsjgsj.gateway.GatewayApplication - Started GatewayApplication in 0.947 seconds (process running for 1.217)
 2026-01-13 16:49:35.648 [reactor-http-nio-9] WARN  c.g.g.f.PermissionAuthorizationFilter - User 9 does not have permission to access GET /users
 2026-01-13 16:50:02.609 [reactor-http-nio-9] WARN  c.g.g.f.PermissionAuthorizationFilter - User 9 does not have permission to access GET /users
+2026-03-14 19:42:12.947 [main] INFO  c.gsjgsj.gateway.GatewayApplication - Starting GatewayApplication using Java 21.0.7 with PID 36127 (/Users/gaoshijie/u_Document/cloud-based-color-grading/cloud-based-color-grading/java/cloud-based-color-grading/gateway/target/classes started by gaoshijie in /Users/gaoshijie/u_Document/cloud-based-color-grading/cloud-based-color-grading/java/cloud-based-color-grading)
+2026-03-14 19:42:12.948 [main] INFO  c.gsjgsj.gateway.GatewayApplication - No active profile set, falling back to 1 default profile: "default"
+2026-03-14 19:42:13.226 [main] INFO  o.s.d.r.c.RepositoryConfigurationDelegate - Multiple Spring Data modules found, entering strict repository configuration mode
+2026-03-14 19:42:13.227 [main] INFO  o.s.d.r.c.RepositoryConfigurationDelegate - Bootstrapping Spring Data Redis repositories in DEFAULT mode.
+2026-03-14 19:42:13.238 [main] INFO  o.s.d.r.c.RepositoryConfigurationDelegate - Finished Spring Data repository scanning in 5 ms. Found 0 Redis repository interfaces.
+2026-03-14 19:42:13.296 [main] INFO  o.s.cloud.context.scope.GenericScope - BeanFactory id=b620cb07-3f5b-3dc3-81e4-af0b822c50e8
+2026-03-14 19:42:13.485 [main] ERROR i.n.r.d.DnsServerAddressStreamProviders - Unable to load io.netty.resolver.dns.macos.MacOSDnsServerAddressStreamProvider, fallback to system defaults. This may result in incorrect DNS resolutions on MacOS. Check whether you have a dependency on 'io.netty:netty-resolver-dns-native-macos'. Use DEBUG level to see the full stack: java.lang.UnsatisfiedLinkError: failed to load the required native library
+2026-03-14 19:42:13.768 [main] INFO  o.s.c.g.r.RouteDefinitionRouteLocator - Loaded RoutePredicateFactory [After]
+2026-03-14 19:42:13.769 [main] INFO  o.s.c.g.r.RouteDefinitionRouteLocator - Loaded RoutePredicateFactory [Before]
+2026-03-14 19:42:13.769 [main] INFO  o.s.c.g.r.RouteDefinitionRouteLocator - Loaded RoutePredicateFactory [Between]
+2026-03-14 19:42:13.769 [main] INFO  o.s.c.g.r.RouteDefinitionRouteLocator - Loaded RoutePredicateFactory [Cookie]
+2026-03-14 19:42:13.769 [main] INFO  o.s.c.g.r.RouteDefinitionRouteLocator - Loaded RoutePredicateFactory [Header]
+2026-03-14 19:42:13.769 [main] INFO  o.s.c.g.r.RouteDefinitionRouteLocator - Loaded RoutePredicateFactory [Host]
+2026-03-14 19:42:13.769 [main] INFO  o.s.c.g.r.RouteDefinitionRouteLocator - Loaded RoutePredicateFactory [Method]
+2026-03-14 19:42:13.769 [main] INFO  o.s.c.g.r.RouteDefinitionRouteLocator - Loaded RoutePredicateFactory [Path]
+2026-03-14 19:42:13.769 [main] INFO  o.s.c.g.r.RouteDefinitionRouteLocator - Loaded RoutePredicateFactory [Query]
+2026-03-14 19:42:13.769 [main] INFO  o.s.c.g.r.RouteDefinitionRouteLocator - Loaded RoutePredicateFactory [ReadBody]
+2026-03-14 19:42:13.769 [main] INFO  o.s.c.g.r.RouteDefinitionRouteLocator - Loaded RoutePredicateFactory [RemoteAddr]
+2026-03-14 19:42:13.769 [main] INFO  o.s.c.g.r.RouteDefinitionRouteLocator - Loaded RoutePredicateFactory [XForwardedRemoteAddr]
+2026-03-14 19:42:13.769 [main] INFO  o.s.c.g.r.RouteDefinitionRouteLocator - Loaded RoutePredicateFactory [Weight]
+2026-03-14 19:42:13.769 [main] INFO  o.s.c.g.r.RouteDefinitionRouteLocator - Loaded RoutePredicateFactory [CloudFoundryRouteService]
+2026-03-14 19:42:14.005 [main] INFO  o.s.b.w.e.netty.NettyWebServer - Netty started on port 8080
+2026-03-14 19:42:14.049 [main] INFO  c.gsjgsj.gateway.GatewayApplication - Started GatewayApplication in 1.461 seconds (process running for 1.879)
+2026-03-14 19:47:51.091 [reactor-http-nio-3] WARN  c.g.g.filter.JwtAuthenticationFilter - Invalid or expired JWT token for path: /users
+2026-03-14 19:48:21.968 [reactor-http-nio-3] WARN  c.g.g.filter.JwtAuthenticationFilter - Invalid or expired JWT token for path: /users
+2026-03-14 19:48:28.938 [reactor-http-nio-3] WARN  c.g.g.filter.JwtAuthenticationFilter - Invalid or expired JWT token for path: /users
+2026-03-14 22:27:46.276 [main] INFO  c.gsjgsj.gateway.GatewayApplication - Starting GatewayApplication using Java 21.0.7 with PID 42863 (/Users/gaoshijie/u_Document/cloud-based-color-grading/cloud-based-color-grading/java/cloud-based-color-grading/gateway/target/classes started by gaoshijie in /Users/gaoshijie/u_Document/cloud-based-color-grading/cloud-based-color-grading/java/cloud-based-color-grading)
+2026-03-14 22:27:46.277 [main] INFO  c.gsjgsj.gateway.GatewayApplication - No active profile set, falling back to 1 default profile: "default"
+2026-03-14 22:27:46.519 [main] INFO  o.s.d.r.c.RepositoryConfigurationDelegate - Multiple Spring Data modules found, entering strict repository configuration mode
+2026-03-14 22:27:46.523 [main] INFO  o.s.d.r.c.RepositoryConfigurationDelegate - Bootstrapping Spring Data Redis repositories in DEFAULT mode.
+2026-03-14 22:27:46.534 [main] INFO  o.s.d.r.c.RepositoryConfigurationDelegate - Finished Spring Data repository scanning in 5 ms. Found 0 Redis repository interfaces.
+2026-03-14 22:27:46.590 [main] INFO  o.s.cloud.context.scope.GenericScope - BeanFactory id=b620cb07-3f5b-3dc3-81e4-af0b822c50e8
+2026-03-14 22:27:46.747 [main] ERROR i.n.r.d.DnsServerAddressStreamProviders - Unable to load io.netty.resolver.dns.macos.MacOSDnsServerAddressStreamProvider, fallback to system defaults. This may result in incorrect DNS resolutions on MacOS. Check whether you have a dependency on 'io.netty:netty-resolver-dns-native-macos'. Use DEBUG level to see the full stack: java.lang.UnsatisfiedLinkError: failed to load the required native library
+2026-03-14 22:27:46.949 [main] INFO  o.s.c.g.r.RouteDefinitionRouteLocator - Loaded RoutePredicateFactory [After]
+2026-03-14 22:27:46.949 [main] INFO  o.s.c.g.r.RouteDefinitionRouteLocator - Loaded RoutePredicateFactory [Before]
+2026-03-14 22:27:46.949 [main] INFO  o.s.c.g.r.RouteDefinitionRouteLocator - Loaded RoutePredicateFactory [Between]
+2026-03-14 22:27:46.949 [main] INFO  o.s.c.g.r.RouteDefinitionRouteLocator - Loaded RoutePredicateFactory [Cookie]
+2026-03-14 22:27:46.949 [main] INFO  o.s.c.g.r.RouteDefinitionRouteLocator - Loaded RoutePredicateFactory [Header]
+2026-03-14 22:27:46.949 [main] INFO  o.s.c.g.r.RouteDefinitionRouteLocator - Loaded RoutePredicateFactory [Host]
+2026-03-14 22:27:46.949 [main] INFO  o.s.c.g.r.RouteDefinitionRouteLocator - Loaded RoutePredicateFactory [Method]
+2026-03-14 22:27:46.949 [main] INFO  o.s.c.g.r.RouteDefinitionRouteLocator - Loaded RoutePredicateFactory [Path]
+2026-03-14 22:27:46.949 [main] INFO  o.s.c.g.r.RouteDefinitionRouteLocator - Loaded RoutePredicateFactory [Query]
+2026-03-14 22:27:46.949 [main] INFO  o.s.c.g.r.RouteDefinitionRouteLocator - Loaded RoutePredicateFactory [ReadBody]
+2026-03-14 22:27:46.949 [main] INFO  o.s.c.g.r.RouteDefinitionRouteLocator - Loaded RoutePredicateFactory [RemoteAddr]
+2026-03-14 22:27:46.949 [main] INFO  o.s.c.g.r.RouteDefinitionRouteLocator - Loaded RoutePredicateFactory [XForwardedRemoteAddr]
+2026-03-14 22:27:46.949 [main] INFO  o.s.c.g.r.RouteDefinitionRouteLocator - Loaded RoutePredicateFactory [Weight]
+2026-03-14 22:27:46.949 [main] INFO  o.s.c.g.r.RouteDefinitionRouteLocator - Loaded RoutePredicateFactory [CloudFoundryRouteService]
+2026-03-14 22:27:47.053 [main] INFO  o.s.b.w.e.netty.NettyWebServer - Netty started on port 8080
+2026-03-14 22:27:47.072 [main] INFO  c.gsjgsj.gateway.GatewayApplication - Started GatewayApplication in 1.012 seconds (process running for 1.329)
+2026-03-14 22:27:53.403 [main] INFO  c.gsjgsj.gateway.GatewayApplication - Starting GatewayApplication using Java 21.0.7 with PID 42880 (/Users/gaoshijie/u_Document/cloud-based-color-grading/cloud-based-color-grading/java/cloud-based-color-grading/gateway/target/classes started by gaoshijie in /Users/gaoshijie/u_Document/cloud-based-color-grading/cloud-based-color-grading/java/cloud-based-color-grading)
+2026-03-14 22:27:53.404 [main] INFO  c.gsjgsj.gateway.GatewayApplication - No active profile set, falling back to 1 default profile: "default"
+2026-03-14 22:27:53.630 [main] INFO  o.s.d.r.c.RepositoryConfigurationDelegate - Multiple Spring Data modules found, entering strict repository configuration mode
+2026-03-14 22:27:53.630 [main] INFO  o.s.d.r.c.RepositoryConfigurationDelegate - Bootstrapping Spring Data Redis repositories in DEFAULT mode.
+2026-03-14 22:27:53.639 [main] INFO  o.s.d.r.c.RepositoryConfigurationDelegate - Finished Spring Data repository scanning in 4 ms. Found 0 Redis repository interfaces.
+2026-03-14 22:27:53.685 [main] INFO  o.s.cloud.context.scope.GenericScope - BeanFactory id=b620cb07-3f5b-3dc3-81e4-af0b822c50e8
+2026-03-14 22:27:53.822 [main] ERROR i.n.r.d.DnsServerAddressStreamProviders - Unable to load io.netty.resolver.dns.macos.MacOSDnsServerAddressStreamProvider, fallback to system defaults. This may result in incorrect DNS resolutions on MacOS. Check whether you have a dependency on 'io.netty:netty-resolver-dns-native-macos'. Use DEBUG level to see the full stack: java.lang.UnsatisfiedLinkError: failed to load the required native library
+2026-03-14 22:27:54.027 [main] INFO  o.s.c.g.r.RouteDefinitionRouteLocator - Loaded RoutePredicateFactory [After]
+2026-03-14 22:27:54.027 [main] INFO  o.s.c.g.r.RouteDefinitionRouteLocator - Loaded RoutePredicateFactory [Before]
+2026-03-14 22:27:54.027 [main] INFO  o.s.c.g.r.RouteDefinitionRouteLocator - Loaded RoutePredicateFactory [Between]
+2026-03-14 22:27:54.027 [main] INFO  o.s.c.g.r.RouteDefinitionRouteLocator - Loaded RoutePredicateFactory [Cookie]
+2026-03-14 22:27:54.027 [main] INFO  o.s.c.g.r.RouteDefinitionRouteLocator - Loaded RoutePredicateFactory [Header]
+2026-03-14 22:27:54.027 [main] INFO  o.s.c.g.r.RouteDefinitionRouteLocator - Loaded RoutePredicateFactory [Host]
+2026-03-14 22:27:54.027 [main] INFO  o.s.c.g.r.RouteDefinitionRouteLocator - Loaded RoutePredicateFactory [Method]
+2026-03-14 22:27:54.027 [main] INFO  o.s.c.g.r.RouteDefinitionRouteLocator - Loaded RoutePredicateFactory [Path]
+2026-03-14 22:27:54.027 [main] INFO  o.s.c.g.r.RouteDefinitionRouteLocator - Loaded RoutePredicateFactory [Query]
+2026-03-14 22:27:54.027 [main] INFO  o.s.c.g.r.RouteDefinitionRouteLocator - Loaded RoutePredicateFactory [ReadBody]
+2026-03-14 22:27:54.027 [main] INFO  o.s.c.g.r.RouteDefinitionRouteLocator - Loaded RoutePredicateFactory [RemoteAddr]
+2026-03-14 22:27:54.027 [main] INFO  o.s.c.g.r.RouteDefinitionRouteLocator - Loaded RoutePredicateFactory [XForwardedRemoteAddr]
+2026-03-14 22:27:54.027 [main] INFO  o.s.c.g.r.RouteDefinitionRouteLocator - Loaded RoutePredicateFactory [Weight]
+2026-03-14 22:27:54.027 [main] INFO  o.s.c.g.r.RouteDefinitionRouteLocator - Loaded RoutePredicateFactory [CloudFoundryRouteService]
+2026-03-14 22:27:54.125 [main] INFO  o.s.b.w.e.netty.NettyWebServer - Netty started on port 8080
+2026-03-14 22:27:54.144 [main] INFO  c.gsjgsj.gateway.GatewayApplication - Started GatewayApplication in 1.094 seconds (process running for 1.331)

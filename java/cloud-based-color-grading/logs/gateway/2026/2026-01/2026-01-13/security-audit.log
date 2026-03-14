@@ -9,6 +9,3 @@
 2026-01-13 16:50:02.534 [reactor-http-nio-9] INFO  cn.gsjgsj.gateway.security - AUTHENTICATION_SUCCESS - UserId: 9, Username: gaoshijie, Path: /users, IP: 0:0:0:0:0:0:0:1
 2026-01-13 16:50:02.609 [reactor-http-nio-9] WARN  cn.gsjgsj.gateway.security - AUTHORIZATION_FAILURE - UserId: 9, Username: gaoshijie, Method: GET, Path: /users, IP: 0:0:0:0:0:0:0:1
 2026-01-13 16:50:40.120 [reactor-http-nio-9] INFO  cn.gsjgsj.gateway.security - AUTHENTICATION_SUCCESS - UserId: 1, Username: admin, Path: /users, IP: 0:0:0:0:0:0:0:1
-2026-03-14 19:47:51.092 [reactor-http-nio-3] WARN  cn.gsjgsj.gateway.security - INVALID_TOKEN - Token: sk-6a9e92c..., Path: /users, IP: 0:0:0:0:0:0:0:1
-2026-03-14 19:48:21.970 [reactor-http-nio-3] WARN  cn.gsjgsj.gateway.security - INVALID_TOKEN - Token: sk-6a9e92c..., Path: /users, IP: 0:0:0:0:0:0:0:1
-2026-03-14 19:48:28.947 [reactor-http-nio-3] WARN  cn.gsjgsj.gateway.security - INVALID_TOKEN - Token: sk-6a9e92c..., Path: /users, IP: 0:0:0:0:0:0:0:1

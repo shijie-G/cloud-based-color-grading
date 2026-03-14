@@ -1,0 +1,281 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>登录调试工具</title>
+    <style>
+        body {
+            font-family: 'Courier New', monospace;
+            max-width: 1200px;
+            margin: 20px auto;
+            padding: 20px;
+            background: #f5f5f5;
+        }
+        .section {
+            background: white;
+            padding: 20px;
+            margin: 20px 0;
+            border-radius: 8px;
+            box-shadow: 0 2px 8px rgba(0,0,0,0.1);
+        }
+        h2 {
+            margin-top: 0;
+            color: #333;
+        }
+        .input-group {
+            margin: 10px 0;
+        }
+        input {
+            padding: 8px;
+            margin: 5px;
+            border: 1px solid #ddd;
+            border-radius: 4px;
+            width: 200px;
+        }
+        button {
+            padding: 10px 20px;
+            margin: 5px;
+            background: #409eff;
+            color: white;
+            border: none;
+            border-radius: 4px;
+            cursor: pointer;
+        }
+        button:hover {
+            background: #66b1ff;
+        }
+        .result {
+            background: #f9f9f9;
+            padding: 15px;
+            margin: 10px 0;
+            border-radius: 4px;
+            border-left: 4px solid #409eff;
+            white-space: pre-wrap;
+            word-wrap: break-word;
+            font-size: 12px;
+        }
+        .success {
+            border-left-color: #67c23a;
+            background: #f0f9ff;
+        }
+        .error {
+            border-left-color: #f56c6c;
+            background: #fef0f0;
+        }
+        .warning {
+            border-left-color: #e6a23c;
+            background: #fdf6ec;
+        }
+        .info-item {
+            margin: 5px 0;
+            padding: 5px;
+            background: #f0f0f0;
+            border-radius: 3px;
+        }
+        .label {
+            font-weight: bold;
+            color: #606266;
+        }
+    </style>
+</head>
+<body>
+    <h1>🔍 登录状态调试工具</h1>
+
+    <div class="section">
+        <h2>1. 登录测试</h2>
+        <div class="input-group">
+            <input type="text" id="username" placeholder="用户名" value="admin">
+            <input type="password" id="password" placeholder="密码" value="admin123">
+            <button onclick="testLogin()">登录</button>
+        </div>
+        <div id="loginResult"></div>
+    </div>
+
+    <div class="section">
+        <h2>2. 登录响应详情</h2>
+        <div id="loginDetails"></div>
+    </div>
+
+    <div class="section">
+        <h2>3. LocalStorage 状态</h2>
+        <button onclick="checkLocalStorage()">检查 LocalStorage</button>
+        <div id="storageResult"></div>
+    </div>
+
+    <div class="section">
+        <h2>4. 路由权限检查模拟</h2>
+        <div id="permissionCheck"></div>
+    </div>
+
+    <script>
+        const API_BASE = 'http://localhost:8080';
+        let loginData = null;
+
+        async function testLogin() {
+            const username = document.getElementById('username').value;
+            const password = document.getElementById('password').value;
+            const resultDiv = document.getElementById('loginResult');
+            const detailsDiv = document.getElementById('loginDetails');
+            
+            resultDiv.innerHTML = '<div class="result">登录中...</div>';
+            detailsDiv.innerHTML = '';
+
+            try {
+                const response = await fetch(`${API_BASE}/auth/login`, {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json'
+                    },
+                    body: JSON.stringify({ username, password })
+                });
+
+                const data = await response.json();
+                loginData = data;
+
+                if (data.code === 200) {
+                    resultDiv.innerHTML = '<div class="result success">✅ 登录成功！</div>';
+                    
+                    // 保存到 localStorage
+                    if (data.data && data.data.token) {
+                        localStorage.setItem('token', data.data.token);
+                    }
+                    
+                    // 显示详细信息
+                    showLoginDetails(data.data);
+                    
+                    // 自动检查权限
+                    checkPermissions(data.data);
+                } else {
+                    resultDiv.innerHTML = `<div class="result error">❌ 登录失败！<br>${data.message}</div>`;
+                }
+            } catch (error) {
+                resultDiv.innerHTML = `<div class="result error">❌ 请求失败！<br>${error.message}</div>`;
+            }
+        }
+
+        function showLoginDetails(data) {
+            const detailsDiv = document.getElementById('loginDetails');
+            
+            const html = `
+                <div class="info-item">
+                    <span class="label">Token:</span> ${data.token ? data.token.substring(0, 50) + '...' : '无'}
+                </div>
+                <div class="info-item">
+                    <span class="label">用户ID:</span> ${data.userId || '无'}
+                </div>
+                <div class="info-item">
+                    <span class="label">用户名:</span> ${data.username || '无'}
+                </div>
+                <div class="info-item">
+                    <span class="label">昵称:</span> ${data.nickname || '无'}
+                </div>
+                <div class="info-item">
+                    <span class="label">角色:</span> ${JSON.stringify(data.roles || [])}
+                </div>
+                <div class="info-item">
+                    <span class="label">权限:</span> ${JSON.stringify(data.permissions || [])}
+                </div>
+                <div class="info-item">
+                    <span class="label">菜单:</span> ${JSON.stringify(data.menus || [])}
+                </div>
+            `;
+            
+            detailsDiv.innerHTML = html;
+        }
+
+        function checkPermissions(data) {
+            const checkDiv = document.getElementById('permissionCheck');
+            
+            const permissions = data.permissions || [];
+            const requiredPermissions = [
+                'system:role:view',
+                'system:menu:view',
+                'system:permission:view'
+            ];
+            
+            let html = '<h3>路由权限检查结果：</h3>';
+            
+            if (permissions.length === 0) {
+                html += '<div class="result warning">⚠️ 权限列表为空！<br>根据路由守卫逻辑，应该允许访问所有页面。</div>';
+            } else {
+                html += '<div class="result success">✅ 权限列表不为空，将进行权限检查。</div>';
+            }
+            
+            requiredPermissions.forEach(perm => {
+                const hasPermission = permissions.includes(perm);
+                const status = hasPermission ? '✅' : '❌';
+                const className = hasPermission ? 'success' : 'error';
+                
+                html += `
+                    <div class="result ${className}">
+                        ${status} ${perm}: ${hasPermission ? '有权限' : '无权限'}
+                    </div>
+                `;
+            });
+            
+            // 路由守卫逻辑说明
+            html += `
+                <div class="result warning">
+                    <strong>路由守卫逻辑：</strong><br>
+                    if (permissions.length > 0 && !hasPermission) {<br>
+                    &nbsp;&nbsp;// 跳转到403<br>
+                    }<br><br>
+                    <strong>结论：</strong><br>
+                    ${permissions.length === 0 
+                        ? '权限列表为空，所以不会检查权限，应该能访问所有页面。' 
+                        : permissions.some(p => requiredPermissions.includes(p))
+                            ? '有部分权限，可以访问对应的页面。'
+                            : '权限列表不为空但没有所需权限，会跳转到403！'
+                    }
+                </div>
+            `;
+            
+            checkDiv.innerHTML = html;
+        }
+
+        function checkLocalStorage() {
+            const resultDiv = document.getElementById('storageResult');
+            
+            const token = localStorage.getItem('token');
+            
+            let html = '<h3>LocalStorage 内容：</h3>';
+            
+            if (token) {
+                html += `
+                    <div class="result success">
+                        <strong>Token:</strong><br>
+                        ${token.substring(0, 100)}...<br><br>
+                        <strong>长度:</strong> ${token.length} 字符
+                    </div>
+                `;
+            } else {
+                html += '<div class="result error">❌ LocalStorage 中没有 token</div>';
+            }
+            
+            // 显示所有 localStorage 内容
+            html += '<h3>所有 LocalStorage 键值：</h3>';
+            if (localStorage.length === 0) {
+                html += '<div class="result warning">LocalStorage 为空</div>';
+            } else {
+                for (let i = 0; i < localStorage.length; i++) {
+                    const key = localStorage.key(i);
+                    const value = localStorage.getItem(key);
+                    html += `
+                        <div class="info-item">
+                            <span class="label">${key}:</span> ${value ? value.substring(0, 50) + '...' : '空'}
+                        </div>
+                    `;
+                }
+            }
+            
+            resultDiv.innerHTML = html;
+        }
+
+        // 页面加载时自动检查
+        window.onload = function() {
+            checkLocalStorage();
+        };
+    </script>
+</body>
+</html>

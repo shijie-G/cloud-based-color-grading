@@ -1,0 +1,21 @@
+2026-03-09 16:17:44.263 [main] INFO  c.g.a.AuthzServiceApplication - Starting AuthzServiceApplication using Java 21.0.7 with PID 26535 (/Users/gaoshijie/u_Document/cloud-based-color-grading/cloud-based-color-grading/java/cloud-based-color-grading/authz-service/target/classes started by gaoshijie in /Users/gaoshijie/u_Document/cloud-based-color-grading/cloud-based-color-grading/java/cloud-based-color-grading)
+2026-03-09 16:17:44.266 [main] INFO  c.g.a.AuthzServiceApplication - No active profile set, falling back to 1 default profile: "default"
+2026-03-09 16:17:44.518 [main] INFO  o.s.d.r.c.RepositoryConfigurationDelegate - Multiple Spring Data modules found, entering strict repository configuration mode
+2026-03-09 16:17:44.519 [main] INFO  o.s.d.r.c.RepositoryConfigurationDelegate - Bootstrapping Spring Data Redis repositories in DEFAULT mode.
+2026-03-09 16:17:44.527 [main] INFO  o.s.d.r.c.RepositoryConfigurationDelegate - Finished Spring Data repository scanning in 4 ms. Found 0 Redis repository interfaces.
+2026-03-09 16:17:44.583 [main] INFO  o.s.cloud.context.scope.GenericScope - BeanFactory id=7a555bad-ad72-3e82-969a-2c5f14a96e50
+2026-03-09 16:17:44.699 [main] INFO  o.s.b.w.e.tomcat.TomcatWebServer - Tomcat initialized with port 8082 (http)
+2026-03-09 16:17:44.706 [main] INFO  o.a.catalina.core.StandardService - Starting service [Tomcat]
+2026-03-09 16:17:44.706 [main] INFO  o.a.catalina.core.StandardEngine - Starting Servlet engine: [Apache Tomcat/10.1.30]
+2026-03-09 16:17:44.730 [main] INFO  o.a.c.c.C.[Tomcat].[localhost].[/] - Initializing Spring embedded WebApplicationContext
+2026-03-09 16:17:44.730 [main] INFO  o.s.b.w.s.c.ServletWebServerApplicationContext - Root WebApplicationContext: initialization completed in 446 ms
+2026-03-09 16:17:44.801 [main] INFO  com.zaxxer.hikari.HikariDataSource - HikariPool-1 - Starting...
+2026-03-09 16:17:45.318 [main] INFO  com.zaxxer.hikari.pool.HikariPool - HikariPool-1 - Added connection com.mysql.cj.jdbc.ConnectionImpl@489f62a3
+2026-03-09 16:17:45.319 [main] INFO  com.zaxxer.hikari.HikariDataSource - HikariPool-1 - Start completed.
+2026-03-09 16:17:45.366 [main] WARN  c.b.m.c.injector.DefaultSqlInjector - class cn.gsjgsj.common.entity.MenuPermission ,Not found @TableId annotation, Cannot use Mybatis-Plus 'xxById' Method.
+2026-03-09 16:17:45.492 [main] WARN  c.b.m.c.injector.DefaultSqlInjector - class cn.gsjgsj.common.entity.RolePermission ,Not found @TableId annotation, Cannot use Mybatis-Plus 'xxById' Method.
+2026-03-09 16:17:45.498 [main] WARN  c.b.m.c.injector.DefaultSqlInjector - class cn.gsjgsj.common.entity.UserRole ,Not found @TableId annotation, Cannot use Mybatis-Plus 'xxById' Method.
+2026-03-09 16:17:45.671 [main] INFO  o.s.b.w.e.tomcat.TomcatWebServer - Tomcat started on port 8082 (http) with context path ''
+2026-03-09 16:17:45.676 [main] INFO  c.g.a.AuthzServiceApplication - Started AuthzServiceApplication in 1.6 seconds (process running for 1.855)
+2026-03-09 17:08:23.526 [SpringApplicationShutdownHook] INFO  com.zaxxer.hikari.HikariDataSource - HikariPool-1 - Shutdown initiated...
+2026-03-09 17:08:23.528 [SpringApplicationShutdownHook] INFO  com.zaxxer.hikari.HikariDataSource - HikariPool-1 - Shutdown completed.

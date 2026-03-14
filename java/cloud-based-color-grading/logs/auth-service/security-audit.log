@@ -15,3 +15,26 @@
 2026-01-13 16:34:27.331 [http-nio-8081-exec-10] INFO  cn.gsjgsj.authservice.security - LOGIN_SUCCESS - Username: admin, UserId: 1, IP: unknown
 2026-01-13 16:43:49.991 [http-nio-8081-exec-1] INFO  cn.gsjgsj.authservice.security - LOGIN_SUCCESS - Username: admin, UserId: 1, IP: unknown
 2026-01-13 16:49:10.766 [http-nio-8081-exec-8] INFO  cn.gsjgsj.authservice.security - LOGIN_SUCCESS - Username: gaoshijie, UserId: 9, IP: unknown
+2026-03-14 21:28:59.506 [http-nio-8081-exec-1] WARN  cn.gsjgsj.authservice.security - LOGIN_FAILURE - Username: 12345678908, Reason: User not found, IP: unknown
+2026-03-14 21:29:05.726 [http-nio-8081-exec-2] WARN  cn.gsjgsj.authservice.security - LOGIN_FAILURE - Username: 12345678908, Reason: User not found, IP: unknown
+2026-03-14 21:33:06.452 [http-nio-8081-exec-4] WARN  cn.gsjgsj.authservice.security - LOGIN_FAILURE - Username: 17759766761, Reason: Invalid password, IP: unknown
+2026-03-14 21:33:23.586 [http-nio-8081-exec-5] WARN  cn.gsjgsj.authservice.security - LOGIN_FAILURE - Username: 17759766761, Reason: Invalid password, IP: unknown
+2026-03-14 21:33:34.336 [http-nio-8081-exec-6] WARN  cn.gsjgsj.authservice.security - LOGIN_FAILURE - Username: 17759766761, Reason: Invalid password, IP: unknown
+2026-03-14 21:33:58.131 [http-nio-8081-exec-7] INFO  cn.gsjgsj.authservice.security - LOGIN_SUCCESS - Username: 17759766761, UserId: 9, IP: unknown
+2026-03-14 21:34:08.688 [http-nio-8081-exec-8] INFO  cn.gsjgsj.authservice.security - LOGIN_SUCCESS - Username: 17759766761, UserId: 9, IP: unknown
+2026-03-14 21:34:37.003 [http-nio-8081-exec-10] INFO  cn.gsjgsj.authservice.security - LOGIN_SUCCESS - Username: 17759766761, UserId: 9, IP: unknown
+2026-03-14 21:34:37.713 [http-nio-8081-exec-1] INFO  cn.gsjgsj.authservice.security - LOGIN_SUCCESS - Username: 17759766761, UserId: 9, IP: unknown
+2026-03-14 21:34:38.200 [http-nio-8081-exec-2] INFO  cn.gsjgsj.authservice.security - LOGIN_SUCCESS - Username: 17759766761, UserId: 9, IP: unknown
+2026-03-14 21:41:31.486 [http-nio-8081-exec-4] INFO  cn.gsjgsj.authservice.security - LOGIN_SUCCESS - Username: 17759766761, UserId: 9, IP: unknown
+2026-03-14 21:44:15.668 [http-nio-8081-exec-6] INFO  cn.gsjgsj.authservice.security - LOGIN_SUCCESS - Username: 17759766761, UserId: 9, IP: unknown
+2026-03-14 21:44:20.721 [http-nio-8081-exec-7] INFO  cn.gsjgsj.authservice.security - LOGIN_SUCCESS - Username: 17759766761, UserId: 9, IP: unknown
+2026-03-14 21:44:21.588 [http-nio-8081-exec-8] INFO  cn.gsjgsj.authservice.security - LOGIN_SUCCESS - Username: 17759766761, UserId: 9, IP: unknown
+2026-03-14 21:44:22.074 [http-nio-8081-exec-9] INFO  cn.gsjgsj.authservice.security - LOGIN_SUCCESS - Username: 17759766761, UserId: 9, IP: unknown
+2026-03-14 21:46:27.449 [http-nio-8081-exec-1] INFO  cn.gsjgsj.authservice.security - LOGIN_SUCCESS - Username: 17759766761, UserId: 9, IP: unknown
+2026-03-14 21:47:21.582 [http-nio-8081-exec-2] INFO  cn.gsjgsj.authservice.security - LOGIN_SUCCESS - Username: 17759766761, UserId: 9, IP: unknown
+2026-03-14 22:21:16.893 [http-nio-8081-exec-4] INFO  cn.gsjgsj.authservice.security - LOGIN_SUCCESS - Username: 17759766761, UserId: 9, IP: unknown
+2026-03-14 22:22:16.171 [http-nio-8081-exec-5] INFO  cn.gsjgsj.authservice.security - LOGIN_SUCCESS - Username: 17759766761, UserId: 9, IP: unknown
+2026-03-14 22:25:00.224 [http-nio-8081-exec-7] INFO  cn.gsjgsj.authservice.security - LOGIN_SUCCESS - Username: 17759766761, UserId: 9, IP: unknown
+2026-03-14 22:25:42.629 [http-nio-8081-exec-8] INFO  cn.gsjgsj.authservice.security - LOGIN_SUCCESS - Username: 17759766761, UserId: 9, IP: unknown
+2026-03-14 22:28:02.563 [http-nio-8081-exec-1] WARN  cn.gsjgsj.authservice.security - LOGIN_FAILURE - Username: test@example.com, Reason: User not found, IP: unknown
+2026-03-14 22:30:44.393 [http-nio-8081-exec-3] INFO  cn.gsjgsj.authservice.security - LOGIN_SUCCESS - Username: admin, UserId: 1, IP: unknown
