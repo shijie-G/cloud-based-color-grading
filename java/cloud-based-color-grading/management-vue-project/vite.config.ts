@@ -12,12 +12,21 @@ export default defineConfig({
   },
   server: {
     port: 3000,
-    proxy: {
-      '/api': {
-        target: 'http://localhost:8080',
-        changeOrigin: true
-      }
-    }
+    // 移除代理配置，直接使用CORS
+    // proxy: {
+    //   '/api': {
+    //     target: 'http://localhost:8080',
+    //     changeOrigin: true
+    //   },
+    //   '/auth': {
+    //     target: 'http://localhost:8080',
+    //     changeOrigin: true
+    //   },
+    //   '/users': {
+    //     target: 'http://localhost:8080',
+    //     changeOrigin: true
+    //   }
+    // }
   },
   test: {
     globals: true,

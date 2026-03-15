@@ -49,9 +49,16 @@ public class JwtAuthenticationFilter implements GlobalFilter, Ordered {
     public Mono<Void> filter(ServerWebExchange exchange, GatewayFilterChain chain) {
         ServerHttpRequest request = exchange.getRequest();
         String path = request.getURI().getPath();
+        String method = request.getMethod().name();
         String ipAddress = getClientIp(request);
 
-        // 1. 检查是否在白名单中
+        // 1. 对于OPTIONS请求（CORS预检），直接放行
+        if ("OPTIONS".equals(method)) {
+            logger.debug("OPTIONS request for path {}, skipping authentication for CORS preflight", path);
+            return chain.filter(exchange);
+        }
+
+        // 2. 检查是否在白名单中
         if (isWhitelisted(path)) {
             logger.debug("Path {} is whitelisted, skipping authentication", path);
             securityAuditLogger.logWhitelistAccess(path, ipAddress);

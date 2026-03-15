@@ -22,7 +22,7 @@ const routes: RouteRecordRaw[] = [
   {
     path: '/workstation',
     name: 'Workstation',
-    component: () => import('../views/WorkstationPage.vue'),
+    component: () => import('../views/workstation/WorkstationPage.vue'),
     meta: {
       requiresAuth: true
     }

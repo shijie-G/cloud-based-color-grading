@@ -28,20 +28,20 @@ spring:
           filters:
             - StripPrefix=0
       
-      # Global CORS Configuration
-      globalcors:
-        cors-configurations:
-          '[/**]':
-            allowedOrigins: "*"
-            allowedMethods:
-              - GET
-              - POST
-              - PUT
-              - DELETE
-              - OPTIONS
-            allowedHeaders: "*"
-            allowCredentials: false
-            maxAge: 3600
+      # Global CORS Configuration - 使用 CorsConfig.java 代替
+      # globalcors:
+      #   cors-configurations:
+      #     '[/**]':
+      #       allowedOrigins: "*"
+      #       allowedMethods:
+      #         - GET
+      #         - POST
+      #         - PUT
+      #         - DELETE
+      #         - OPTIONS
+      #       allowedHeaders: "*"
+      #       allowCredentials: false
+      #       maxAge: 3600
   
   data:
     redis:

@@ -109,7 +109,8 @@ export function useLoginForm(): UseLoginFormReturn {
 
     } catch (error: any) {
       console.error('登录失败:', error);
-      // 处理错误
+      
+      // 处理错误并显示提示
       if (error.response) {
         // HTTP 错误响应
         const status = error.response.status;
@@ -125,15 +126,20 @@ export function useLoginForm(): UseLoginFormReturn {
             ElMessage.error('登录失败，请稍后重试');
             break;
           default:
-            ElMessage.error('登录失败，请稍后重试');
+            ElMessage.error(error.response.data?.message || '登录失败，请稍后重试');
         }
       } else if (error.request) {
         // 网络错误
         console.error('网络错误:', error.request);
         ElMessage.error('网络连接失败，请检查网络设置');
+      } else if (error.message) {
+        // 其他错误（包括业务逻辑错误）
+        console.error('业务错误:', error.message);
+        ElMessage.error(error.message);
       } else {
-        // 表单验证错误或其他错误
-        console.error('Login error:', error);
+        // 表单验证错误或其他未知错误
+        console.error('未知错误:', error);
+        ElMessage.error('登录失败，请稍后重试');
       }
     } finally {
       // 恢复按钮状态

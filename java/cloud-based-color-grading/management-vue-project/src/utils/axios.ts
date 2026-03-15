@@ -8,8 +8,9 @@ import router from '../router';
  * 配置 baseURL 和 timeout
  */
 const axiosInstance: AxiosInstance = axios.create({
-  baseURL: 'http://localhost:8081',
+  baseURL: 'http://localhost:8080',  // 使用网关端口
   timeout: 10000,
+  withCredentials: true,  // 支持CORS凭证
   headers: {
     'Content-Type': 'application/json'
   }

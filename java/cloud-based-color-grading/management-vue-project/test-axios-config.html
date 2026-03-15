@@ -1,0 +1,59 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Test Axios Config</title>
+    <script src="https://cdn.jsdelivr.net/npm/axios/dist/axios.min.js"></script>
+</head>
+<body>
+    <h1>Test Axios Configuration</h1>
+    <button onclick="testAxios()">Test Axios</button>
+    <div id="result"></div>
+
+    <script>
+        // 创建与前端相同的axios实例
+        const axiosInstance = axios.create({
+            baseURL: 'http://localhost:8080',
+            timeout: 10000,
+            withCredentials: true,
+            headers: {
+                'Content-Type': 'application/json'
+            }
+        });
+
+        async function testAxios() {
+            const resultDiv = document.getElementById('result');
+            resultDiv.innerHTML = 'Testing axios...';
+            
+            try {
+                console.log('Testing axios with same config as frontend...');
+                
+                const response = await axiosInstance.post('/auth/login', {
+                    username: 'admin',
+                    password: 'admin123'
+                });
+                
+                console.log('Axios response:', response);
+                console.log('Response data:', response.data);
+                
+                resultDiv.innerHTML = `
+                    <h3>✅ Axios Success!</h3>
+                    <p><strong>Status:</strong> ${response.status}</p>
+                    <p><strong>Data:</strong> ${JSON.stringify(response.data, null, 2)}</p>
+                `;
+                
+            } catch (error) {
+                console.error('Axios error:', error);
+                console.error('Error response:', error.response);
+                console.error('Error config:', error.config);
+                
+                resultDiv.innerHTML = `
+                    <h3>❌ Axios Error!</h3>
+                    <p><strong>Message:</strong> ${error.message}</p>
+                    <p><strong>Status:</strong> ${error.response?.status || 'N/A'}</p>
+                    <p><strong>Data:</strong> ${JSON.stringify(error.response?.data, null, 2) || 'N/A'}</p>
+                `;
+            }
+        }
+    </script>
+</body>
+</html>

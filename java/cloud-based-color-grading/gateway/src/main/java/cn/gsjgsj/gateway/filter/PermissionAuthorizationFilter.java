@@ -49,7 +49,13 @@ public class PermissionAuthorizationFilter implements GlobalFilter, Ordered {
         String method = request.getMethod().name();
         String ipAddress = getClientIp(request);
         
-        // 1. 检查是否在白名单中（白名单路径已经在认证过滤器中处理，这里再次检查以确保安全）
+        // 1. 对于OPTIONS请求（CORS预检），直接放行
+        if ("OPTIONS".equals(method)) {
+            logger.debug("OPTIONS request for path {}, skipping authorization for CORS preflight", path);
+            return chain.filter(exchange);
+        }
+        
+        // 2. 检查是否在白名单中（白名单路径已经在认证过滤器中处理，这里再次检查以确保安全）
         if (isWhitelisted(path)) {
             logger.debug("Path {} is whitelisted, skipping authorization", path);
             return chain.filter(exchange);
