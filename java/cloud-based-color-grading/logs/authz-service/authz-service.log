@@ -17,3 +17,5 @@
 2026-03-15 21:02:18.990 [main] WARN  c.b.m.c.injector.DefaultSqlInjector - class cn.gsjgsj.common.entity.UserRole ,Not found @TableId annotation, Cannot use Mybatis-Plus 'xxById' Method.
 2026-03-15 21:02:19.201 [main] INFO  o.s.b.w.e.tomcat.TomcatWebServer - Tomcat started on port 8082 (http) with context path ''
 2026-03-15 21:02:19.207 [main] INFO  c.g.a.AuthzServiceApplication - Started AuthzServiceApplication in 1.799 seconds (process running for 2.128)
+2026-03-15 23:23:58.766 [SpringApplicationShutdownHook] INFO  com.zaxxer.hikari.HikariDataSource - HikariPool-1 - Shutdown initiated...
+2026-03-15 23:23:58.767 [SpringApplicationShutdownHook] INFO  com.zaxxer.hikari.HikariDataSource - HikariPool-1 - Shutdown completed.
