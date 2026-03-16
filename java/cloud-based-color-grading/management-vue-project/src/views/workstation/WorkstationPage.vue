@@ -1,85 +1,91 @@
 <template>
   <div class="editor-container">
-    <!-- 左侧图片显示区 -->
-    <div class="image-display" :style="{ width: leftPanelWidth + '%' }">
-      <!-- 上方图片预览区 -->
-      <div class="image-preview-area" :style="{ height: `${100 - galleryHeight}vh` }">
-        <div class="image-wrapper">
-          <img
-            ref="previewImage"
-            :src="imageSrc"
-            alt="预览图片"
-            :style="{ display: imageSrc ? 'block' : 'none', filter: imageFilter }"
-          />
-          <div class="upload-tips" v-if="!imageSrc">点击右侧上传按钮选择图片开始修图</div>
-        </div>
-      </div>
-      
-      <!-- 图片全览区的上边框拖拽线 -->
-      <div 
-        class="gallery-resizer"
-        @mousedown="startGalleryResize"
-        :class="{ 'resizing': isGalleryResizing }"
-      >
-        <div class="gallery-resizer-handle">
-          <div class="gallery-resizer-dots">
-            <div class="dot"></div>
-            <div class="dot"></div>
-            <div class="dot"></div>
-          </div>
-        </div>
-      </div>
-      
-      <!-- 下方图片全览区 -->
-      <div class="image-gallery" :style="{ height: galleryHeight + 'vh' }">
-        <div class="gallery-header">
-          <h3>图片全览</h3>
-          <div class="gallery-controls">
-            <span class="image-count">{{ uploadedImages.length }} 张图片</span>
-            <button class="reset-layout-btn" @click="resetLayout" title="重置布局">
-              <svg width="14" height="14" viewBox="0 0 24 24" fill="currentColor">
-                <path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm-1 17.93c-3.94-.49-7-3.85-7-7.93 0-.62.08-1.21.21-1.79L9 15v1c0 1.1.9 2 2 2v1.93zm6.9-2.54c-.26-.81-1-1.39-1.9-1.39h-1v-3c0-.55-.45-1-1-1H8v-2h2c.55 0 1-.45 1-1V7h2c1.1 0 2-.9 2-2v-.41c2.93 1.19 5 4.06 5 7.41 0 2.08-.8 3.97-2.1 5.39z"/>
-              </svg>
-            </button>
+    <!-- 顶部导航栏 -->
+    <div class="top-navbar">
+    </div>
+    
+    <!-- 主要内容区域 -->
+    <div class="main-content">
+      <!-- 左侧图片显示区 -->
+      <div class="image-display" :style="{ width: leftPanelWidth + '%' }">
+        <!-- 上方图片预览区 -->
+        <div class="image-preview-area" :style="{ height: `${100 - galleryHeight}vh` }">
+          <div class="image-wrapper">
+            <img
+              ref="previewImage"
+              :src="imageSrc"
+              alt="预览图片"
+              :style="{ display: imageSrc ? 'block' : 'none', filter: imageFilter }"
+            />
+            <div class="upload-tips" v-if="!imageSrc">点击右侧上传按钮选择图片开始修图</div>
           </div>
         </div>
         
-        <div class="gallery-content">
-          <div class="image-grid">
-            <div 
-              v-for="(image, index) in uploadedImages" 
-              :key="image.id"
-              class="gallery-item"
-              :class="{ active: selectedImageId === image.id }"
-              @click="selectImage(image)"
-            >
-              <img :src="image.src" :alt="image.name" />
-              <div class="image-overlay">
-                <span class="image-name">{{ image.name }}</span>
+        <!-- 图片全览区的上边框拖拽线 -->
+        <div 
+          class="gallery-resizer"
+          @mousedown="startGalleryResize"
+          :class="{ 'resizing': isGalleryResizing }"
+        >
+          <div class="gallery-resizer-handle">
+            <div class="gallery-resizer-dots">
+              <div class="dot"></div>
+              <div class="dot"></div>
+              <div class="dot"></div>
+            </div>
+          </div>
+        </div>
+        
+        <!-- 下方图片全览区 -->
+        <div class="image-gallery" :style="{ height: galleryHeight + 'vh' }">
+          <div class="gallery-header">
+            <h3>图片全览</h3>
+            <div class="gallery-controls">
+              <span class="image-count">{{ uploadedImages.length }} 张图片</span>
+              <button class="reset-layout-btn" @click="resetLayout" title="重置布局">
+                <svg width="14" height="14" viewBox="0 0 24 24" fill="currentColor">
+                  <path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm-1 17.93c-3.94-.49-7-3.85-7-7.93 0-.62.08-1.21.21-1.79L9 15v1c0 1.1.9 2 2 2v1.93zm6.9-2.54c-.26-.81-1-1.39-1.9-1.39h-1v-3c0-.55-.45-1-1-1H8v-2h2c.55 0 1-.45 1-1V7h2c1.1 0 2-.9 2-2v-.41c2.93 1.19 5 4.06 5 7.41 0 2.08-.8 3.97-2.1 5.39z"/>
+                </svg>
+              </button>
+            </div>
+          </div>
+          
+          <div class="gallery-content">
+            <div class="image-grid">
+              <div 
+                v-for="(image, index) in uploadedImages" 
+                :key="image.id"
+                class="gallery-item"
+                :class="{ active: selectedImageId === image.id }"
+                @click="selectImage(image)"
+              >
+                <img :src="image.src" :alt="image.name" />
+                <div class="image-overlay">
+                  <span class="image-name">{{ image.name }}</span>
+                </div>
               </div>
             </div>
           </div>
         </div>
       </div>
-    </div>
 
-    <!-- 可拖拽的分割线 -->
-    <div 
-      class="resizer"
-      @mousedown="startResize"
-      :class="{ 'resizing': isResizing }"
-    >
-      <div class="resizer-handle">
-        <div class="resizer-dots">
-          <div class="dot"></div>
-          <div class="dot"></div>
-          <div class="dot"></div>
+      <!-- 可拖拽的分割线 -->
+      <div 
+        class="resizer"
+        @mousedown="startResize"
+        :class="{ 'resizing': isResizing }"
+      >
+        <div class="resizer-handle">
+          <div class="resizer-dots">
+            <div class="dot"></div>
+            <div class="dot"></div>
+            <div class="dot"></div>
+          </div>
         </div>
       </div>
-    </div>
 
-    <!-- 右侧调色区 -->
-    <div class="adjust-panel" :style="{ width: rightPanelWidth + '%' }">
+      <!-- 右侧调色区 -->
+      <div class="adjust-panel" :style="{ width: rightPanelWidth + '%' }">
       <h2 class="panel-title">图片调整</h2>
 
       <!-- 上传区域 -->
@@ -172,6 +178,7 @@
       <div class="action-buttons">
         <button id="reset-btn" @click="resetAdjustments">重置参数</button>
         <button id="save-btn" @click="saveImage">保存图片</button>
+      </div>
       </div>
     </div>
   </div>
@@ -460,10 +467,27 @@ const saveImage = () => {
 
 .editor-container {
   display: flex;
+  flex-direction: column;
   width: 100vw;
   height: 100vh;
   max-width: 100%;
   max-height: 100%;
+  overflow: hidden;
+}
+
+/* 顶部导航栏 */
+.top-navbar {
+  width: 100%;
+  height: 5vh;
+  background-color: #666;
+  flex-shrink: 0;
+}
+
+/* 主要内容区域 */
+.main-content {
+  display: flex;
+  flex: 1;
+  height: 95vh;
   overflow: hidden;
 }
 
