@@ -4,12 +4,12 @@
     @mousedown="startResize"
     :class="{ 'resizing': isResizing }"
   >
+    <div class="gallery-resizer-line"></div>
     <div class="gallery-resizer-handle">
-      <div class="gallery-resizer-dots">
-        <div class="dot"></div>
-        <div class="dot"></div>
-        <div class="dot"></div>
-      </div>
+      <svg class="handle-icon" viewBox="0 0 24 6" xmlns="http://www.w3.org/2000/svg">
+        <rect x="0" y="0" width="24" height="2" rx="1" />
+        <rect x="0" y="4" width="24" height="2" rx="1" />
+      </svg>
     </div>
   </div>
 </template>
@@ -95,54 +95,101 @@ onUnmounted(() => {
 
 <style scoped>
 .gallery-resizer {
-  height: 4px;
+  height: 8px;
   width: 100%;
-  background-color: #444;
   cursor: row-resize;
   position: relative;
   display: flex;
   align-items: center;
   justify-content: center;
-  transition: background-color 0.2s ease;
   flex-shrink: 0;
+  z-index: 10;
 }
 
-.gallery-resizer:hover {
-  background-color: #555;
+.gallery-resizer-line {
+  position: absolute;
+  top: 50%;
+  left: 0;
+  right: 0;
+  height: 1px;
+  background: linear-gradient(
+    90deg,
+    transparent 0%,
+    rgba(255, 255, 255, 0.1) 20%,
+    rgba(255, 255, 255, 0.2) 50%,
+    rgba(255, 255, 255, 0.1) 80%,
+    transparent 100%
+  );
+  transform: translateY(-50%);
+  transition: all 0.3s ease;
 }
 
-.gallery-resizer.resizing {
-  background-color: #409eff;
+.gallery-resizer:hover .gallery-resizer-line {
+  height: 2px;
+  background: linear-gradient(
+    90deg,
+    transparent 0%,
+    rgba(255, 255, 255, 0.2) 20%,
+    rgba(255, 255, 255, 0.4) 50%,
+    rgba(255, 255, 255, 0.2) 80%,
+    transparent 100%
+  );
+}
+
+.gallery-resizer.resizing .gallery-resizer-line {
+  height: 2px;
+  background: linear-gradient(
+    90deg,
+    transparent 0%,
+    rgba(64, 158, 255, 0.3) 20%,
+    rgba(64, 158, 255, 0.6) 50%,
+    rgba(64, 158, 255, 0.3) 80%,
+    transparent 100%
+  );
 }
 
 .gallery-resizer-handle {
-  height: 100%;
-  width: 6vw;
-  display: flex;
-  align-items: center;
-  justify-content: center;
   position: relative;
+  z-index: 2;
+  padding: 4px 16px;
+  background-color: rgba(60, 60, 60, 0.8);
+  border-radius: 12px;
+  backdrop-filter: blur(8px);
+  -webkit-backdrop-filter: blur(8px);
+  transition: all 0.3s ease;
+  opacity: 0;
+  transform: scale(0.9);
 }
 
-.gallery-resizer-dots {
-  display: flex;
-  gap: 0.3vw;
-  align-items: center;
+.gallery-resizer:hover .gallery-resizer-handle {
+  opacity: 1;
+  transform: scale(1);
+  background-color: rgba(70, 70, 70, 0.9);
 }
 
-.dot {
-  width: 0.3vw;
-  height: 0.3vw;
-  background-color: #888;
-  border-radius: 50%;
-  transition: background-color 0.2s ease;
+.gallery-resizer.resizing .gallery-resizer-handle {
+  opacity: 1;
+  transform: scale(1);
+  background-color: rgba(64, 158, 255, 0.2);
+  box-shadow: 0 0 12px rgba(64, 158, 255, 0.3);
 }
 
-.gallery-resizer:hover .dot {
-  background-color: #bbb;
+.handle-icon {
+  width: 24px;
+  height: 6px;
+  display: block;
 }
 
-.gallery-resizer.resizing .dot {
-  background-color: #fff;
+.handle-icon rect {
+  fill: rgba(255, 255, 255, 0.4);
+  transition: fill 0.3s ease;
+}
+
+.gallery-resizer:hover .handle-icon rect {
+  fill: rgba(255, 255, 255, 0.7);
+}
+
+.gallery-resizer.resizing .handle-icon rect {
+  fill: rgba(64, 158, 255, 0.9);
 }
 </style>

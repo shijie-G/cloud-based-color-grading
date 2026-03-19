@@ -4,7 +4,7 @@
  */
 
 const DB_NAME = 'WorkstationDB'
-const DB_VERSION = 1
+const DB_VERSION = 2
 const STORE_NAME = 'images'
 
 export interface ImageDBItem {
@@ -14,6 +14,7 @@ export interface ImageDBItem {
   src: string
   uploadTime: Date
   lastModified: Date
+  fileHash?: string // 文件唯一标识：名称+大小+格式
 }
 
 class ImageDatabase {
@@ -37,12 +38,22 @@ class ImageDatabase {
 
       request.onupgradeneeded = (event) => {
         const db = (event.target as IDBOpenDBRequest).result
+        const oldVersion = event.oldVersion
+        const transaction = (event.target as IDBOpenDBRequest).transaction!
 
         // 创建图片存储表
         if (!db.objectStoreNames.contains(STORE_NAME)) {
           const objectStore = db.createObjectStore(STORE_NAME, { keyPath: 'id' })
           objectStore.createIndex('uploadTime', 'uploadTime', { unique: false })
           objectStore.createIndex('name', 'name', { unique: false })
+          objectStore.createIndex('fileHash', 'fileHash', { unique: false })
+        } else if (oldVersion < 2) {
+          // 从版本1升级到版本2：添加 fileHash 索引
+          const objectStore = transaction.objectStore(STORE_NAME)
+          
+          if (!objectStore.indexNames.contains('fileHash')) {
+            objectStore.createIndex('fileHash', 'fileHash', { unique: false })
+          }
         }
       }
     })
@@ -130,6 +141,38 @@ class ImageDatabase {
 
       request.onsuccess = () => resolve()
       request.onerror = () => reject(new Error('Failed to clear images'))
+    })
+  }
+
+  /**
+   * 根据文件哈希检查图片是否已存在
+   */
+  async existsByHash(fileHash: string): Promise<boolean> {
+    if (!this.db) await this.init()
+
+    return new Promise((resolve) => {
+      try {
+        const transaction = this.db!.transaction([STORE_NAME], 'readonly')
+        const objectStore = transaction.objectStore(STORE_NAME)
+        
+        // 检查索引是否存在
+        if (!objectStore.indexNames.contains('fileHash')) {
+          resolve(false)
+          return
+        }
+        
+        const index = objectStore.index('fileHash')
+        const request = index.get(fileHash)
+
+        request.onsuccess = () => resolve(!!request.result)
+        request.onerror = () => {
+          console.warn('检查图片是否存在时出错')
+          resolve(false)
+        }
+      } catch (error) {
+        console.warn('检查图片是否存在时出错:', error)
+        resolve(false)
+      }
     })
   }
 

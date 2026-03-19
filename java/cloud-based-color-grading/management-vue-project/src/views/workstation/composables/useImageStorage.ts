@@ -21,9 +21,34 @@ export interface UseImageStorageReturn {
   
   // 获取存储的图片数量
   getStoredImageCount: () => Promise<number>
+  
+  // 生成文件哈希
+  generateFileHash: (file: File) => string
+  
+  // 检查文件是否已存在
+  checkFileExists: (fileHash: string) => Promise<boolean>
 }
 
 export function useImageStorage(): UseImageStorageReturn {
+  
+  /**
+   * 生成文件哈希（名称+大小+格式）
+   */
+  const generateFileHash = (file: File): string => {
+    return `${file.name}_${file.size}_${file.type}`
+  }
+  
+  /**
+   * 检查文件是否已存在
+   */
+  const checkFileExists = async (fileHash: string): Promise<boolean> => {
+    try {
+      return await imageDB.existsByHash(fileHash)
+    } catch (error) {
+      console.error('检查文件是否存在失败:', error)
+      return false
+    }
+  }
   
   /**
    * 将ImageItem转换为ImageDBItem并保存
@@ -39,7 +64,8 @@ export function useImageStorage(): UseImageStorageReturn {
         blob: blob,
         src: image.src,
         uploadTime: new Date(),
-        lastModified: new Date()
+        lastModified: new Date(),
+        fileHash: image.fileHash
       }
       
       await imageDB.saveImage(dbItem)
@@ -61,7 +87,8 @@ export function useImageStorage(): UseImageStorageReturn {
         id: item.id,
         name: item.name,
         src: item.src,
-        originalFile: new File([item.blob], item.name, { type: item.blob.type })
+        originalFile: new File([item.blob], item.name, { type: item.blob.type }),
+        fileHash: item.fileHash
       }))
       
       console.log(`从IndexedDB加载了 ${images.length} 张图片`)
@@ -116,6 +143,8 @@ export function useImageStorage(): UseImageStorageReturn {
     loadImagesFromDB,
     deleteImageFromDB,
     clearAllImagesFromDB,
-    getStoredImageCount
+    getStoredImageCount,
+    generateFileHash,
+    checkFileExists
   }
 }

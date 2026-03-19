@@ -7,6 +7,7 @@ export interface ImageItem {
   name: string
   src: string
   originalFile: File
+  fileHash?: string // 文件唯一标识：名称+大小+格式
 }
 
 // 调整参数接口

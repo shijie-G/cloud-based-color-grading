@@ -38,6 +38,8 @@
         :adjustments="adjustments"
         :canSave="!!imageSrc"
         :canReset="!!imageSrc"
+        :imageSrc="imageSrc"
+        :imageFilter="imageFilter"
         @update:adjustments="setAdjustments"
         @action:uploadImage="handleImageUpload"
         @action:save="handleSaveImage"

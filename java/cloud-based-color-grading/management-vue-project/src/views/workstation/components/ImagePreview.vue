@@ -1,7 +1,7 @@
 <template>
   <div 
     class="image-preview-area" 
-    :style="{ height: `calc(100% - ${galleryHeight}vh - 4px)` }"
+    :style="{ height: `calc(100% - ${galleryHeight}vh - 8px)` }"
     :class="{ 'drag-over': isDragOver, 'has-image': !!imageSrc }"
     @drop="handleDrop"
     @dragover="handleDragOver"

@@ -40,21 +40,39 @@ export function useImageState(): UseImageStateReturn {
     saveImageToDB,
     loadImagesFromDB,
     deleteImageFromDB,
-    clearAllImagesFromDB
+    clearAllImagesFromDB,
+    generateFileHash,
+    checkFileExists
   } = useImageStorage()
 
   // 处理图片上传
-  const handleImageUpload = (file: File): void => {
+  const handleImageUpload = async (file: File): Promise<void> => {
     if (file) {
+      // 生成文件哈希
+      const fileHash = generateFileHash(file)
+      
+      // 检查文件是否已存在
+      try {
+        const exists = await checkFileExists(fileHash)
+        if (exists) {
+          console.log(`图片已存在，跳过上传: ${file.name}`)
+          alert(`图片 "${file.name}" 已存在，无法重复添加`)
+          return
+        }
+      } catch (error) {
+        console.warn('检查文件是否存在时出错，继续上传:', error)
+      }
+      
       const reader = new FileReader()
       reader.onload = async (event: ProgressEvent<FileReader>) => {
         const result = event.target?.result
         if (typeof result === 'string') {
           const imageData: ImageItem = {
-            id: Date.now(),
+            id: Date.now() + Math.random(), // 添加随机数避免ID冲突
             name: file.name,
             src: result,
-            originalFile: file
+            originalFile: file,
+            fileHash: fileHash
           }
           
           // 添加到已上传图片列表
