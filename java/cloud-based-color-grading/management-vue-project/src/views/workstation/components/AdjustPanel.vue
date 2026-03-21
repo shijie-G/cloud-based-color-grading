@@ -99,7 +99,7 @@ const handleReset = () => {
 <style scoped>
 .adjust-panel {
   height: 100%;
-  background: linear-gradient(180deg, #f8f9fa 0%, #f1f3f5 100%);
+  background: #2a2d31;
   display: flex;
   flex-direction: column;
   transition: width 0.1s ease;
@@ -116,16 +116,16 @@ const handleReset = () => {
   background: linear-gradient(
     180deg,
     transparent 0%,
-    rgba(0, 0, 0, 0.08) 10%,
-    rgba(0, 0, 0, 0.08) 90%,
+    rgba(255, 255, 255, 0.08) 10%,
+    rgba(255, 255, 255, 0.08) 90%,
     transparent 100%
   );
 }
 
 .panel-header {
-  padding: 24px 24px 20px;
-  background: linear-gradient(135deg, #ffffff 0%, #f8f9fa 100%);
-  border-bottom: 1px solid #e9ecef;
+  padding: 20px 20px 16px;
+  background: #23262a;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.06);
   position: relative;
   flex-shrink: 0;
 }
@@ -133,46 +133,46 @@ const handleReset = () => {
 .header-content {
   display: flex;
   align-items: center;
-  gap: 12px;
+  gap: 10px;
 }
 
 .header-icon {
-  width: 24px;
-  height: 24px;
-  color: #6c757d;
+  width: 20px;
+  height: 20px;
+  color: #9ca3af;
   flex-shrink: 0;
 }
 
 .panel-title {
-  font-size: 18px;
+  font-size: 16px;
   font-weight: 600;
   margin: 0;
-  color: #495057;
+  color: #e5e7eb;
   letter-spacing: 0.3px;
 }
 
 .header-decoration {
   position: absolute;
   bottom: 0;
-  left: 24px;
-  right: 24px;
-  height: 2px;
+  left: 20px;
+  right: 20px;
+  height: 1px;
   background: linear-gradient(
     90deg,
     transparent 0%,
-    #adb5bd 50%,
+    rgba(255, 255, 255, 0.1) 50%,
     transparent 100%
   );
-  opacity: 0.3;
+  opacity: 0.5;
 }
 
 .panel-content {
   flex: 1;
   overflow-y: auto;
-  padding: 20px 24px 24px;
+  padding: 16px;
   display: flex;
   flex-direction: column;
-  gap: 20px;
+  gap: 16px;
 }
 
 /* 自定义滚动条 */
@@ -181,57 +181,52 @@ const handleReset = () => {
 }
 
 .panel-content::-webkit-scrollbar-track {
-  background: rgba(0, 0, 0, 0.02);
+  background: rgba(0, 0, 0, 0.2);
   border-radius: 3px;
 }
 
 .panel-content::-webkit-scrollbar-thumb {
-  background: rgba(0, 0, 0, 0.15);
+  background: rgba(255, 255, 255, 0.15);
   border-radius: 3px;
   transition: background 0.2s ease;
 }
 
 .panel-content::-webkit-scrollbar-thumb:hover {
-  background: rgba(0, 0, 0, 0.25);
+  background: rgba(255, 255, 255, 0.25);
 }
 
 .section {
-  background: #ffffff;
-  border-radius: 12px;
-  padding: 20px;
-  box-shadow: 
-    0 1px 3px rgba(0, 0, 0, 0.04),
-    0 1px 2px rgba(0, 0, 0, 0.06);
-  border: 1px solid #e9ecef;
+  background: #32363b;
+  border-radius: 8px;
+  padding: 16px;
+  border: 1px solid rgba(255, 255, 255, 0.05);
   transition: all 0.3s ease;
 }
 
 .section:hover {
-  box-shadow: 
-    0 4px 6px rgba(0, 0, 0, 0.05),
-    0 2px 4px rgba(0, 0, 0, 0.08);
-  border-color: #dee2e6;
+  background: #35393e;
+  border-color: rgba(255, 255, 255, 0.08);
 }
 
 .section-actions {
   margin-top: auto;
-  background: linear-gradient(135deg, #ffffff 0%, #f8f9fa 100%);
-  border: 1px solid #dee2e6;
+  background: #2e3238;
+  border-color: rgba(255, 255, 255, 0.08);
 }
 
 /* 响应式调整 */
 @media (max-width: 1200px) {
   .panel-header {
-    padding: 20px 20px 16px;
+    padding: 16px 16px 12px;
   }
   
   .panel-content {
-    padding: 16px 20px 20px;
-    gap: 16px;
+    padding: 12px;
+    gap: 12px;
   }
   
   .section {
-    padding: 16px;
+    padding: 12px;
   }
 }
 </style>

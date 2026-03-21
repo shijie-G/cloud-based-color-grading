@@ -7,30 +7,45 @@
     @dragover="handleDragOver"
     @dragenter="handleDragEnter"
     @dragleave="handleDragLeave"
+    @wheel.prevent="handleWheel"
   >
-    <!-- 全屏磨砂遮罩层 -->
+    <!-- 文件拖拽遮罩 -->
     <div class="drag-backdrop" v-if="isDragOver"></div>
-    
+
     <div class="image-wrapper">
       <img
         ref="previewImage"
         :src="imageSrc"
         alt="预览图片"
-        :style="{ display: imageSrc ? 'block' : 'none', filter: imageFilter }"
+        :style="{
+          display: imageSrc ? 'block' : 'none',
+          filter: imageFilter,
+          transform: `translate(${offsetX}px, ${offsetY}px) scale(${scale})`,
+          cursor: scale > 1 ? (isPanning ? 'grabbing' : 'grab') : 'default',
+          transition: isPanning ? 'none' : 'transform 0.2s ease'
+        }"
+        @dblclick="handleDoubleClick"
+        @mousedown="handleMouseDown"
       />
-      
-      <!-- 上传提示区域 -->
+
+      <!-- 缩放比例指示器 -->
+      <div class="scale-indicator" v-if="imageSrc && scale !== 1">
+        {{ Math.round(scale * 100) }}%
+        <button class="reset-btn" @click="resetTransform" title="复位 (ESC)">复位</button>
+      </div>
+
+      <!-- 上传提示 -->
       <div class="upload-area" v-if="showUploadTips">
         <div class="upload-content">
           <div class="upload-icon">📁</div>
           <div class="upload-text">
-            <p class="primary-text">拖拽图片到此处或点击选择</p>
+            <p class="primary-text">拖拽图片到此处</p>
             <p class="secondary-text">支持 JPG、PNG、GIF 格式</p>
           </div>
         </div>
       </div>
-      
-      <!-- 拖拽覆盖层 -->
+
+      <!-- 文件拖拽覆盖层 -->
       <div class="drag-overlay" v-if="isDragOver">
         <div class="drag-content">
           <p>释放以上传图片</p>
@@ -41,7 +56,7 @@
 </template>
 
 <script setup lang="ts">
-import { ref } from 'vue'
+import { ref, onMounted, onUnmounted } from 'vue'
 
 // ImagePreview 组件 - 图片预览
 interface ImagePreviewProps {
@@ -51,36 +66,120 @@ interface ImagePreviewProps {
   galleryHeight: number
 }
 
-// 事件定义
 interface ImagePreviewEvents {
   'upload:image': [file: File]
 }
 
-// 使用 defineProps 和 defineEmits 定义接口
 const props = defineProps<ImagePreviewProps>()
 const emit = defineEmits<ImagePreviewEvents>()
 
-// 图片DOM引用
+// ── DOM 引用 ─────────────────────────────
 const previewImage = ref<HTMLImageElement | null>(null)
-// 拖拽状态
+
+// ── 文件拖拽上传状态 ──────────────────────
 const isDragOver = ref(false)
-// 拖拽计数器（用于处理嵌套元素的dragenter/dragleave）
 const dragCounter = ref(0)
 
-// 处理文件选择（保留用于拖拽功能）
-const handleFileSelect = (event: Event) => {
-  const target = event.target as HTMLInputElement
-  const file = target.files?.[0]
-  if (file && isValidImageFile(file)) {
-    emit('upload:image', file)
-  }
-  // 清空input值，允许重复选择同一文件
-  if (target) {
-    target.value = ''
+// ── 图片变换状态 ──────────────────────────
+const scale   = ref(1)
+const offsetX = ref(0)
+const offsetY = ref(0)
+
+// 是否正在拖动平移（用于切换 transition）
+const isPanning = ref(false)
+
+// 复位
+const resetTransform = () => {
+  scale.value   = 1
+  offsetX.value = 0
+  offsetY.value = 0
+}
+
+// ── 1. 双击放大 ───────────────────────────
+// 原始状态双击放大到 150%；有任何移动或放大则双击复原
+const handleDoubleClick = () => {
+  if (!props.imageSrc) return
+  const isTransformed = scale.value !== 1 || offsetX.value !== 0 || offsetY.value !== 0
+  if (isTransformed) {
+    resetTransform()
+  } else {
+    scale.value = 1.5
   }
 }
 
-// 处理拖拽进入
+// ── 2. 滚轮精细缩放（每次 ±0.1）─────────
+const handleWheel = (event: WheelEvent) => {
+  if (!props.imageSrc) return
+  event.preventDefault()
+  const delta = event.deltaY < 0 ? 0.1 : -0.1
+  scale.value = Math.min(4, Math.max(0.2, parseFloat((scale.value + delta).toFixed(1))))
+}
+
+// ── 3. 拖拽平移（仅放大后生效）───────────
+let panStartX = 0
+let panStartY = 0
+let panStartOffsetX = 0
+let panStartOffsetY = 0
+let hasMoved = false
+const MOVE_THRESHOLD = 4
+
+const handleMouseDown = (event: MouseEvent) => {
+  if (!props.imageSrc || event.button !== 0) return
+  // 只有放大后才允许平移
+  if (scale.value <= 1) return
+
+  event.preventDefault()
+  panStartX = event.clientX
+  panStartY = event.clientY
+  panStartOffsetX = offsetX.value
+  panStartOffsetY = offsetY.value
+  hasMoved = false
+
+  document.addEventListener('mousemove', onPanMove)
+  document.addEventListener('mouseup', onPanEnd)
+  document.body.style.userSelect = 'none'
+}
+
+const onPanMove = (event: MouseEvent) => {
+  const dx = event.clientX - panStartX
+  const dy = event.clientY - panStartY
+  if (!hasMoved && Math.sqrt(dx * dx + dy * dy) > MOVE_THRESHOLD) {
+    hasMoved = true
+    isPanning.value = true
+    document.body.style.cursor = 'grabbing'
+  }
+  if (hasMoved) {
+    offsetX.value = panStartOffsetX + dx
+    offsetY.value = panStartOffsetY + dy
+  }
+}
+
+const onPanEnd = () => {
+  isPanning.value = false
+  hasMoved = false
+  document.removeEventListener('mousemove', onPanMove)
+  document.removeEventListener('mouseup', onPanEnd)
+  document.body.style.cursor = ''
+  document.body.style.userSelect = ''
+}
+
+// ── 4. ESC 复位 ───────────────────────────
+const handleKeyDown = (event: KeyboardEvent) => {
+  if (event.key === 'Escape') resetTransform()
+}
+
+// ── 生命周期 ──────────────────────────────
+onMounted(() => {
+  window.addEventListener('keydown', handleKeyDown)
+})
+
+onUnmounted(() => {
+  document.removeEventListener('mousemove', onPanMove)
+  document.removeEventListener('mouseup', onPanEnd)
+  window.removeEventListener('keydown', handleKeyDown)
+})
+
+// ── 文件上传拖拽 ──────────────────────────
 const handleDragEnter = (event: DragEvent) => {
   event.preventDefault()
   event.stopPropagation()
@@ -88,69 +187,55 @@ const handleDragEnter = (event: DragEvent) => {
   isDragOver.value = true
 }
 
-// 处理拖拽离开
 const handleDragLeave = (event: DragEvent) => {
   event.preventDefault()
   event.stopPropagation()
   dragCounter.value--
-  // 只有当计数器归零时才隐藏效果
   if (dragCounter.value <= 0) {
     dragCounter.value = 0
     isDragOver.value = false
   }
 }
 
-// 处理拖拽悬停
 const handleDragOver = (event: DragEvent) => {
   event.preventDefault()
   event.stopPropagation()
-  // 确保拖拽状态保持激活
   if (!isDragOver.value) {
     isDragOver.value = true
     dragCounter.value = 1
   }
 }
 
-// 处理文件拖拽放置
 const handleDrop = (event: DragEvent) => {
   event.preventDefault()
   event.stopPropagation()
   isDragOver.value = false
   dragCounter.value = 0
-  
-  // 移除showUploadTips限制，始终允许拖拽上传
+
   const files = event.dataTransfer?.files
-  if (files && files.length > 0) {
-    // 限制最多10张图片
-    const maxFiles = 10
-    const fileArray = Array.from(files)
-    
-    if (fileArray.length > maxFiles) {
-      alert(`一次最多只能上传 ${maxFiles} 张图片，当前选择了 ${fileArray.length} 张`)
-      return
-    }
-    
-    // 遍历所有文件，支持多张图片上传
-    fileArray.forEach(file => {
-      if (isValidImageFile(file)) {
-        emit('upload:image', file)
-      } else {
-        alert(`文件 ${file.name} 不是有效的图片格式（支持 JPG、PNG、GIF）`)
-      }
-    })
+  if (!files || files.length === 0) return
+
+  const maxFiles = 10
+  const fileArray = Array.from(files)
+  if (fileArray.length > maxFiles) {
+    alert(`一次最多只能上传 ${maxFiles} 张图片，当前选择了 ${fileArray.length} 张`)
+    return
   }
+  fileArray.forEach(file => {
+    if (isValidImageFile(file)) {
+      emit('upload:image', file)
+    } else {
+      alert(`文件 ${file.name} 不是有效的图片格式（支持 JPG、PNG、GIF）`)
+    }
+  })
 }
 
-// 验证是否为有效的图片文件
 const isValidImageFile = (file: File): boolean => {
   const validTypes = ['image/jpeg', 'image/jpg', 'image/png', 'image/gif']
   return validTypes.includes(file.type)
 }
 
-// 暴露previewImage引用供父组件使用（用于保存功能）
-defineExpose({
-  previewImage
-})
+defineExpose({ previewImage, resetTransform })
 </script>
 
 <style scoped>
@@ -174,26 +259,20 @@ defineExpose({
 
 .drag-backdrop {
   position: absolute;
-  top: 0;
-  left: 0;
-  right: 0;
-  bottom: 0;
+  top: 0; left: 0; right: 0; bottom: 0;
   background-color: rgba(0, 0, 0, 0.6);
   z-index: 5;
   pointer-events: none;
-  will-change: opacity;
-  transition: opacity 0.1s ease;
 }
 
 .image-wrapper {
-  max-width: 100%;
-  max-height: 100%;
   position: relative;
   display: flex;
   align-items: center;
   justify-content: center;
   width: 100%;
   height: 100%;
+  overflow: hidden;
 }
 
 .image-wrapper img {
@@ -202,6 +281,45 @@ defineExpose({
   object-fit: contain;
   border: 1px solid rgba(255,255,255,0.1);
   border-radius: 4px;
+  transform-origin: center center;
+  user-select: none;
+  -webkit-user-drag: none;
+  will-change: transform;
+}
+
+/* 缩放比例指示器 */
+.scale-indicator {
+  position: absolute;
+  top: 10px;
+  left: 10px;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  background: rgba(0, 0, 0, 0.55);
+  color: #ffffff;
+  font-size: 12px;
+  font-family: 'Courier New', monospace;
+  padding: 4px 10px;
+  border-radius: 20px;
+  pointer-events: auto;
+  z-index: 20;
+  user-select: none;
+}
+
+.reset-btn {
+  background: rgba(255, 255, 255, 0.15);
+  border: none;
+  color: rgba(255, 255, 255, 0.8);
+  font-size: 11px;
+  padding: 2px 8px;
+  border-radius: 10px;
+  cursor: pointer;
+  transition: background 0.15s ease;
+  outline: none;
+}
+
+.reset-btn:hover {
+  background: rgba(255, 255, 255, 0.28);
 }
 
 .upload-area {
@@ -247,8 +365,7 @@ defineExpose({
 
 .drag-overlay {
   position: absolute;
-  top: 50%;
-  left: 50%;
+  top: 50%; left: 50%;
   transform: translate(-50%, -50%);
   width: 300px;
   height: 200px;
@@ -260,8 +377,6 @@ defineExpose({
   justify-content: center;
   z-index: 10;
   pointer-events: none;
-  will-change: transform, opacity;
-  transition: opacity 0.1s ease;
 }
 
 .drag-content {

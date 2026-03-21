@@ -25,6 +25,12 @@
       <div v-show="activeTab === 'histogram'" class="chart-container">
         <div class="chart-wrapper">
           <canvas ref="histogramCanvas" class="chart-canvas"></canvas>
+          
+          <!-- 坐标提示 -->
+          <div v-if="showTooltip" class="chart-tooltip">
+            {{ tooltipValue }}
+          </div>
+          
           <div v-if="isAnalyzing" class="analyzing-overlay">
             <div class="spinner"></div>
             <p>分析中...</p>
@@ -85,7 +91,7 @@
 </template>
 
 <script setup lang="ts">
-import { ref, watch, onMounted, nextTick } from 'vue'
+import { ref, watch, onMounted, onUnmounted, nextTick } from 'vue'
 
 interface RGBAnalysisProps {
   imageSrc: string
@@ -118,6 +124,13 @@ const switchTab = (tab: 'histogram' | 'waveform') => {
 
 // 缓存图片数据
 let cachedImageData: ImageData | null = null
+let histogramData: { r: Uint32Array; g: Uint32Array; b: Uint32Array; max: number } | null = null
+
+// 鼠标悬停坐标显示
+const showTooltip = ref(false)
+const tooltipX = ref(0)
+const tooltipY = ref(0)
+const tooltipValue = ref('')
 
 // 防抖分析
 const debounceAnalyze = () => {
@@ -234,6 +247,14 @@ const drawHistogram = (imageData: ImageData) => {
   let maxValue = 0
   for (let i = 0; i < 256; i++) {
     maxValue = Math.max(maxValue, rHistogram[i], gHistogram[i], bHistogram[i])
+  }
+
+  // 缓存直方图数据供鼠标悬停使用
+  histogramData = {
+    r: rHistogram,
+    g: gHistogram,
+    b: bHistogram,
+    max: maxValue
   }
 
   // 清空画布
@@ -366,10 +387,57 @@ const drawWaveform = (imageData: ImageData) => {
   ctx.strokeRect(0.5, 0.5, width - 1, height - 1)
 }
 
+// 处理鼠标移动
+const handleMouseMove = (event: MouseEvent) => {
+  if (!histogramCanvas.value || !histogramData || activeTab.value !== 'histogram') return
+
+  const canvas = histogramCanvas.value
+  const rect = canvas.getBoundingClientRect()
+  const x = event.clientX - rect.left
+  const y = event.clientY - rect.top
+
+  // 计算对应的像素值（横坐标：0-255）
+  const pixelValue = Math.floor((x / rect.width) * 256)
+  
+  if (pixelValue >= 0 && pixelValue < 256) {
+    // 获取该像素值的 RGB 计数
+    const rCount = histogramData.r[pixelValue]
+    const gCount = histogramData.g[pixelValue]
+    const bCount = histogramData.b[pixelValue]
+    
+    // 计算纵坐标对应的像素计数值（根据鼠标位置反推）
+    const yRatio = 1 - (y / rect.height)
+    const countValue = Math.floor(yRatio * histogramData.max)
+    
+    // 显示工具提示
+    showTooltip.value = true
+    tooltipValue.value = `像素值: ${pixelValue} | 计数: ${countValue} | R:${rCount} G:${gCount} B:${bCount}`
+  }
+}
+
+// 处理鼠标离开
+const handleMouseLeave = () => {
+  showTooltip.value = false
+}
+
 // 组件挂载时初始化
 onMounted(() => {
   if (props.imageSrc) {
     debounceAnalyze()
+  }
+  
+  // 添加鼠标事件监听
+  if (histogramCanvas.value) {
+    histogramCanvas.value.addEventListener('mousemove', handleMouseMove)
+    histogramCanvas.value.addEventListener('mouseleave', handleMouseLeave)
+  }
+})
+
+// 组件卸载时清理
+onUnmounted(() => {
+  if (histogramCanvas.value) {
+    histogramCanvas.value.removeEventListener('mousemove', handleMouseMove)
+    histogramCanvas.value.removeEventListener('mouseleave', handleMouseLeave)
   }
 })
 </script>
@@ -392,49 +460,49 @@ onMounted(() => {
   display: flex;
   justify-content: space-between;
   align-items: center;
-  margin-bottom: 16px;
-  padding-bottom: 12px;
-  border-bottom: 1px solid #e9ecef;
+  margin-bottom: 14px;
+  padding-bottom: 10px;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.06);
 }
 
 .analysis-title {
-  font-size: 14px;
+  font-size: 13px;
   font-weight: 600;
-  color: #495057;
+  color: #d1d5db;
   margin: 0;
   display: flex;
   align-items: center;
-  gap: 8px;
+  gap: 7px;
   letter-spacing: 0.3px;
 }
 
 .title-icon {
-  width: 16px;
-  height: 16px;
-  color: #6c757d;
+  width: 15px;
+  height: 15px;
+  color: #9ca3af;
 }
 
 .analysis-tabs {
   display: flex;
   gap: 4px;
-  background-color: #f1f3f5;
+  background-color: rgba(0, 0, 0, 0.2);
   padding: 3px;
-  border-radius: 8px;
-  box-shadow: inset 0 1px 2px rgba(0, 0, 0, 0.05);
+  border-radius: 6px;
+  box-shadow: inset 0 1px 2px rgba(0, 0, 0, 0.3);
 }
 
 .tab-btn {
-  padding: 6px 12px;
+  padding: 5px 10px;
   background-color: transparent;
   border: none;
-  border-radius: 6px;
+  border-radius: 4px;
   cursor: pointer;
-  font-size: 12px;
-  color: #6c757d;
+  font-size: 11px;
+  color: #9ca3af;
   transition: all 0.2s ease;
   display: flex;
   align-items: center;
-  gap: 5px;
+  gap: 4px;
   font-weight: 500;
   position: relative;
   overflow: hidden;
@@ -447,21 +515,21 @@ onMounted(() => {
   left: 0;
   right: 0;
   bottom: 0;
-  background: linear-gradient(135deg, #868e96 0%, #6c757d 100%);
+  background: linear-gradient(135deg, #4b5563 0%, #374151 100%);
   opacity: 0;
   transition: opacity 0.2s ease;
   z-index: -1;
 }
 
 .tab-btn:hover {
-  color: #495057;
-  background-color: rgba(108, 117, 125, 0.08);
+  color: #d1d5db;
+  background-color: rgba(255, 255, 255, 0.05);
 }
 
 .tab-btn.active {
   color: #ffffff;
-  background-color: #6c757d;
-  box-shadow: 0 2px 4px rgba(108, 117, 125, 0.25);
+  background-color: #4b5563;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.3);
 }
 
 .tab-btn.active::before {
@@ -469,8 +537,8 @@ onMounted(() => {
 }
 
 .tab-icon {
-  width: 13px;
-  height: 13px;
+  width: 12px;
+  height: 12px;
 }
 
 .analysis-content {
@@ -495,18 +563,38 @@ onMounted(() => {
 .chart-wrapper {
   position: relative;
   background-color: #0a0a0a;
-  border-radius: 8px;
+  border-radius: 6px;
   overflow: hidden;
   box-shadow: 
-    inset 0 2px 8px rgba(0, 0, 0, 0.3),
-    0 1px 3px rgba(0, 0, 0, 0.1);
-  border: 1px solid #212529;
+    inset 0 2px 6px rgba(0, 0, 0, 0.5),
+    0 1px 2px rgba(0, 0, 0, 0.3);
+  border: 1px solid rgba(255, 255, 255, 0.05);
 }
 
 .chart-canvas {
   width: 100%;
   height: 200px;
   display: block;
+  cursor: crosshair;
+}
+
+.chart-tooltip {
+  position: absolute;
+  top: 8px;
+  left: 8px;
+  background: rgba(0, 0, 0, 0.85);
+  color: #e5e7eb;
+  padding: 6px 10px;
+  border-radius: 4px;
+  font-size: 11px;
+  font-family: 'Courier New', monospace;
+  font-weight: 500;
+  pointer-events: none;
+  z-index: 20;
+  border: 1px solid rgba(255, 255, 255, 0.15);
+  box-shadow: 0 2px 6px rgba(0, 0, 0, 0.4);
+  white-space: nowrap;
+  letter-spacing: 0.3px;
 }
 
 .analyzing-overlay {
@@ -515,24 +603,24 @@ onMounted(() => {
   left: 0;
   right: 0;
   bottom: 0;
-  background-color: rgba(10, 10, 10, 0.85);
+  background-color: rgba(10, 10, 10, 0.9);
   backdrop-filter: blur(4px);
   -webkit-backdrop-filter: blur(4px);
   display: flex;
   flex-direction: column;
   align-items: center;
   justify-content: center;
-  gap: 12px;
-  color: #adb5bd;
-  font-size: 13px;
+  gap: 10px;
+  color: #9ca3af;
+  font-size: 12px;
   z-index: 10;
 }
 
 .spinner {
-  width: 32px;
-  height: 32px;
-  border: 3px solid rgba(173, 181, 189, 0.2);
-  border-top-color: #6c757d;
+  width: 28px;
+  height: 28px;
+  border: 2px solid rgba(156, 163, 175, 0.2);
+  border-top-color: #6b7280;
   border-radius: 50%;
   animation: spin 0.8s linear infinite;
 }
@@ -546,29 +634,29 @@ onMounted(() => {
 .chart-legend {
   display: flex;
   justify-content: center;
-  gap: 16px;
-  margin-top: 12px;
-  padding: 8px;
-  background-color: #f8f9fa;
-  border-radius: 6px;
-  border: 1px solid #e9ecef;
+  gap: 14px;
+  margin-top: 10px;
+  padding: 7px;
+  background-color: rgba(0, 0, 0, 0.2);
+  border-radius: 5px;
+  border: 1px solid rgba(255, 255, 255, 0.05);
 }
 
 .legend-item {
   display: flex;
   align-items: center;
-  gap: 6px;
+  gap: 5px;
   font-size: 11px;
-  color: #6c757d;
+  color: #9ca3af;
   font-weight: 500;
 }
 
 .legend-color {
-  width: 12px;
-  height: 12px;
-  border-radius: 3px;
+  width: 11px;
+  height: 11px;
+  border-radius: 2px;
   display: inline-block;
-  box-shadow: 0 1px 2px rgba(0, 0, 0, 0.15);
+  box-shadow: 0 1px 2px rgba(0, 0, 0, 0.3);
 }
 
 .legend-color.red {
@@ -593,18 +681,18 @@ onMounted(() => {
   left: 50%;
   transform: translate(-50%, -50%);
   text-align: center;
-  color: #adb5bd;
-  font-size: 13px;
+  color: #6b7280;
+  font-size: 12px;
   display: flex;
   flex-direction: column;
   align-items: center;
-  gap: 12px;
+  gap: 10px;
 }
 
 .tip-icon {
-  width: 48px;
-  height: 48px;
-  color: #ced4da;
+  width: 40px;
+  height: 40px;
+  color: #4b5563;
   opacity: 0.5;
 }
 
