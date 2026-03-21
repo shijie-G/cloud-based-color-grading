@@ -45,6 +45,27 @@ export function useImageState(): UseImageStateReturn {
     checkFileExists
   } = useImageStorage()
 
+  // 生成缩略图（压缩到最大 200px，保持比例）
+  const generateThumbnail = (src: string): Promise<string> => {
+    return new Promise((resolve) => {
+      const img = new Image()
+      img.onload = () => {
+        const MAX = 200
+        const ratio = Math.min(MAX / img.width, MAX / img.height, 1)
+        const w = Math.round(img.width * ratio)
+        const h = Math.round(img.height * ratio)
+        const canvas = document.createElement('canvas')
+        canvas.width = w
+        canvas.height = h
+        const ctx = canvas.getContext('2d')!
+        ctx.drawImage(img, 0, 0, w, h)
+        resolve(canvas.toDataURL('image/jpeg', 0.7))
+      }
+      img.onerror = () => resolve(src) // 失败时降级用原图
+      img.src = src
+    })
+  }
+
   // 处理图片上传
   const handleImageUpload = async (file: File): Promise<void> => {
     if (file) {
@@ -67,10 +88,14 @@ export function useImageState(): UseImageStateReturn {
       reader.onload = async (event: ProgressEvent<FileReader>) => {
         const result = event.target?.result
         if (typeof result === 'string') {
+          // 生成缩略图
+          const thumbnail = await generateThumbnail(result)
+
           const imageData: ImageItem = {
             id: Date.now() + Math.random(), // 添加随机数避免ID冲突
             name: file.name,
             src: result,
+            thumbnail,
             originalFile: file,
             fileHash: fileHash
           }

@@ -6,6 +6,7 @@ export interface ImageItem {
   id: number
   name: string
   src: string
+  thumbnail?: string // 压缩缩略图（用于全览区显示）
   originalFile: File
   fileHash?: string // 文件唯一标识：名称+大小+格式
 }

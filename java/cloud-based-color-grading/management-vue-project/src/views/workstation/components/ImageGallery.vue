@@ -36,7 +36,7 @@
           :style="itemStyle"
           @click="handleSelectImage(image)"
         >
-          <img :src="image.src" :alt="image.name" />
+          <img :src="image.thumbnail || image.src" :alt="image.name" />
           <div class="image-overlay">
             <span class="image-name">{{ image.name }}</span>
           </div>

@@ -4,7 +4,7 @@
  */
 
 const DB_NAME = 'WorkstationDB'
-const DB_VERSION = 2
+const DB_VERSION = 3
 const STORE_NAME = 'images'
 
 export interface ImageDBItem {
@@ -12,6 +12,7 @@ export interface ImageDBItem {
   name: string
   blob: Blob
   src: string
+  thumbnail?: string // 压缩缩略图 base64（用于全览区显示）
   uploadTime: Date
   lastModified: Date
   fileHash?: string // 文件唯一标识：名称+大小+格式

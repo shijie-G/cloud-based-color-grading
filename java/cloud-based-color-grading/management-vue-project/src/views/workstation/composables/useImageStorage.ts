@@ -63,6 +63,7 @@ export function useImageStorage(): UseImageStorageReturn {
         name: image.name,
         blob: blob,
         src: image.src,
+        thumbnail: image.thumbnail,
         uploadTime: new Date(),
         lastModified: new Date(),
         fileHash: image.fileHash
@@ -87,6 +88,7 @@ export function useImageStorage(): UseImageStorageReturn {
         id: item.id,
         name: item.name,
         src: item.src,
+        thumbnail: item.thumbnail,
         originalFile: new File([item.blob], item.name, { type: item.blob.type }),
         fileHash: item.fileHash
       }))
