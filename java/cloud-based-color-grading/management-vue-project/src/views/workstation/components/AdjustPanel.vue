@@ -16,6 +16,7 @@
       <div class="section">
         <RGBAnalysis
           :imageSrc="imageSrc ?? ''"
+          :processedSrc="processedSrc ?? ''"
           :imageFilter="imageFilter ?? ''"
         />
       </div>
@@ -69,6 +70,7 @@ interface AdjustPanelProps {
   maxFileSize?: number
   imageSrc?: string
   imageFilter?: string
+  processedSrc?: string
 }
 
 interface AdjustPanelEvents {

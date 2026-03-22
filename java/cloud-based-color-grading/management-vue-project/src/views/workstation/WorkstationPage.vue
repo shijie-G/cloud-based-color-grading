@@ -42,6 +42,7 @@
         :canReset="!!imageSrc"
         :imageSrc="imageSrc"
         :imageFilter="imageFilter"
+        :processedSrc="processedSrc"
         @update:adjustments="setAdjustments"
         @update:hslAdjustments="(v) => Object.assign(hslAdjustments, v)"
         @action:uploadImage="handleImageUpload"

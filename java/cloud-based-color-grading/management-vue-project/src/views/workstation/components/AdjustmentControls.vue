@@ -52,9 +52,8 @@ interface SliderDef {
 }
 
 const basicItems: SliderDef[] = [
-  { key: 'exposure',   label: '曝光度',  min: -5,   max: 5,   unit: ' EV' },
   { key: 'brightness', label: '亮度',    min: -150,  max: 150 },
-  { key: 'contrast',   label: '对比度',  min: -50,   max: 100 },
+  { key: 'contrast',   label: '对比度',  min: -100,  max: 100 },
   { key: 'clarity',    label: '清晰度',  min: -100,  max: 100 },
 ]
 
