@@ -15,8 +15,8 @@
       <!-- RGB 波形图和直方图 -->
       <div class="section">
         <RGBAnalysis
-          :imageSrc="imageSrc"
-          :imageFilter="imageFilter"
+          :imageSrc="imageSrc ?? ''"
+          :imageFilter="imageFilter ?? ''"
         />
       </div>
 
@@ -25,6 +25,14 @@
         <AdjustmentControls
           :adjustments="adjustments"
           @update:adjustments="handleUpdateAdjustments"
+        />
+      </div>
+
+      <!-- HSL 颜色范围调节 -->
+      <div class="section">
+        <HSLControls
+          :hslAdjustments="hslAdjustments"
+          @update:hslAdjustments="handleUpdateHSL"
         />
       </div>
 
@@ -39,22 +47,22 @@
         />
       </div>
     </div>
-  </div>
+
+</div>
 </template>
 
 <script setup lang="ts">
 import type { AdjustmentValues } from '../component-interfaces'
-import UploadSection from './UploadSection.vue'
+import type { HSLAdjustments } from '../composables/useHSLState'
 import RGBAnalysis from './RGBAnalysis.vue'
 import AdjustmentControls from './AdjustmentControls.vue'
+import HSLControls from './HSLControls.vue'
 import ActionButtons from './ActionButtons.vue'
 
-// AdjustPanel 组件 - 右侧调整面板容器
-
-// Props 接口
 interface AdjustPanelProps {
   rightPanelWidth: number
   adjustments: AdjustmentValues
+  hslAdjustments: HSLAdjustments
   canSave: boolean
   canReset: boolean
   acceptedFormats?: string
@@ -63,170 +71,119 @@ interface AdjustPanelProps {
   imageFilter?: string
 }
 
-// 事件定义
 interface AdjustPanelEvents {
   'update:adjustments': [adjustments: AdjustmentValues]
+  'update:hslAdjustments': [hsl: HSLAdjustments]
   'action:uploadImage': [file: File]
-  'action:save': []
+  'action:save': [format: 'png' | 'jpeg']
   'action:reset': []
 }
 
-// 使用 defineProps 和 defineEmits 定义接口
 const props = defineProps<AdjustPanelProps>()
 const emit = defineEmits<AdjustPanelEvents>()
 
-// 处理上传图片事件
-const handleUploadImage = (file: File) => {
-  emit('action:uploadImage', file)
-}
-
-// 处理调整参数更新事件
-const handleUpdateAdjustments = (adjustments: AdjustmentValues) => {
-  emit('update:adjustments', adjustments)
-}
-
-// 处理保存事件
-const handleSave = () => {
-  emit('action:save')
-}
-
-// 处理重置事件
-const handleReset = () => {
-  emit('action:reset')
-}
+const handleUploadImage = (file: File) => emit('action:uploadImage', file)
+const handleUpdateAdjustments = (adjustments: AdjustmentValues) => emit('update:adjustments', adjustments)
+const handleUpdateHSL = (hsl: HSLAdjustments) => emit('update:hslAdjustments', hsl)
+const handleSave = (format: 'png' | 'jpeg') => emit('action:save', format)
+const handleReset = () => emit('action:reset')
 </script>
 
 <style scoped>
 .adjust-panel {
   height: 100%;
-  background: #2a2d31;
+  background: #1c1e22;
   display: flex;
   flex-direction: column;
   transition: width 0.1s ease;
   position: relative;
+  border-left: 1px solid rgba(255, 255, 255, 0.06);
 }
 
-.adjust-panel::before {
-  content: '';
-  position: absolute;
-  left: 0;
-  top: 0;
-  bottom: 0;
-  width: 1px;
-  background: linear-gradient(
-    180deg,
-    transparent 0%,
-    rgba(255, 255, 255, 0.08) 10%,
-    rgba(255, 255, 255, 0.08) 90%,
-    transparent 100%
-  );
-}
-
+/* 顶部标题栏 */
 .panel-header {
-  padding: 20px 20px 16px;
-  background: #23262a;
+  padding: 16px 18px;
+  background: #1c1e22;
   border-bottom: 1px solid rgba(255, 255, 255, 0.06);
-  position: relative;
   flex-shrink: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 0;
 }
 
 .header-content {
   display: flex;
   align-items: center;
-  gap: 10px;
+  gap: 8px;
 }
 
 .header-icon {
-  width: 20px;
-  height: 20px;
-  color: #9ca3af;
+  width: 16px;
+  height: 16px;
+  color: #5b6af0;
   flex-shrink: 0;
 }
 
 .panel-title {
-  font-size: 16px;
+  font-size: 13px;
   font-weight: 600;
   margin: 0;
-  color: #e5e7eb;
-  letter-spacing: 0.3px;
+  color: #e2e4e9;
+  letter-spacing: 0.5px;
+  text-transform: uppercase;
 }
 
 .header-decoration {
-  position: absolute;
-  bottom: 0;
-  left: 20px;
-  right: 20px;
-  height: 1px;
-  background: linear-gradient(
-    90deg,
-    transparent 0%,
-    rgba(255, 255, 255, 0.1) 50%,
-    transparent 100%
-  );
-  opacity: 0.5;
+  display: none;
 }
 
+/* 内容区 */
 .panel-content {
   flex: 1;
   overflow-y: auto;
-  padding: 16px;
+  padding: 12px;
   display: flex;
   flex-direction: column;
-  gap: 16px;
+  gap: 8px;
 }
 
-/* 自定义滚动条 */
 .panel-content::-webkit-scrollbar {
-  width: 6px;
+  width: 4px;
 }
 
 .panel-content::-webkit-scrollbar-track {
-  background: rgba(0, 0, 0, 0.2);
-  border-radius: 3px;
+  background: transparent;
 }
 
 .panel-content::-webkit-scrollbar-thumb {
-  background: rgba(255, 255, 255, 0.15);
-  border-radius: 3px;
-  transition: background 0.2s ease;
+  background: rgba(255, 255, 255, 0.1);
+  border-radius: 2px;
 }
 
 .panel-content::-webkit-scrollbar-thumb:hover {
-  background: rgba(255, 255, 255, 0.25);
+  background: rgba(255, 255, 255, 0.2);
 }
 
+/* 卡片区块 */
 .section {
-  background: #32363b;
-  border-radius: 8px;
-  padding: 16px;
+  background: #24272d;
+  border-radius: 10px;
+  padding: 14px;
   border: 1px solid rgba(255, 255, 255, 0.05);
-  transition: all 0.3s ease;
+  transition: border-color 0.2s ease;
 }
 
 .section:hover {
-  background: #35393e;
-  border-color: rgba(255, 255, 255, 0.08);
+  border-color: rgba(255, 255, 255, 0.09);
 }
 
 .section-actions {
-  margin-top: auto;
-  background: #2e3238;
-  border-color: rgba(255, 255, 255, 0.08);
+  background: transparent;
+  border: none;
+  padding: 4px 0 0;
 }
 
-/* 响应式调整 */
-@media (max-width: 1200px) {
-  .panel-header {
-    padding: 16px 16px 12px;
-  }
-  
-  .panel-content {
-    padding: 12px;
-    gap: 12px;
-  }
-  
-  .section {
-    padding: 12px;
-  }
+.section-actions:hover {
+  border-color: transparent;
 }
 </style>

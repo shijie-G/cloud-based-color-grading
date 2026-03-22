@@ -11,13 +11,19 @@ export interface ImageItem {
   fileHash?: string // 文件唯一标识：名称+大小+格式
 }
 
-// 调整参数接口
+// 调整参数接口（PS 风格，默认值均为 0，除 temperature/tint 外）
 export interface AdjustmentValues {
-  brightness: number
-  contrast: number
-  saturation: number
-  temperature: number
-  exposure: number
+  // 基础
+  exposure: number      // 曝光度  -5 ~ +5 EV，默认 0
+  brightness: number    // 亮度    -150 ~ +150，默认 0
+  contrast: number      // 对比度  -50 ~ +100，默认 0
+  // 色彩
+  saturation: number    // 饱和度  -100 ~ +100，默认 0
+  vibrance: number      // 自然饱和度 -100 ~ +100，默认 0
+  hue: number           // 色相    -180 ~ +180，默认 0
+  temperature: number   // 色温    -100(冷) ~ +100(暖)，默认 0
+  // 细节
+  clarity: number       // 清晰度  -100 ~ +100，默认 0
 }
 
 // 布局状态接口

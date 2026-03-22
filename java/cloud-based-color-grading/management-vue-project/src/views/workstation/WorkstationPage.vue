@@ -11,6 +11,7 @@
         :images="uploadedImages"
         :selectedImageId="selectedImageId"
         :imageSrc="imageSrc"
+        :processedSrc="processedSrc"
         :imageFilter="imageFilter"
         :showUploadTips="!imageSrc"
         :galleryHeight="galleryHeight"
@@ -36,21 +37,24 @@
       <AdjustPanel
         :rightPanelWidth="rightPanelWidth"
         :adjustments="adjustments"
+        :hslAdjustments="hslAdjustments"
         :canSave="!!imageSrc"
         :canReset="!!imageSrc"
         :imageSrc="imageSrc"
         :imageFilter="imageFilter"
         @update:adjustments="setAdjustments"
+        @update:hslAdjustments="(v) => Object.assign(hslAdjustments, v)"
         @action:uploadImage="handleImageUpload"
         @action:save="handleSaveImage"
-        @action:reset="resetAdjustments"
+        @action:reset="() => { resetAdjustments(); resetHSL() }"
       />
     </div>
   </div>
 </template>
 
-<script setup>
-import { ref } from 'vue';
+<script setup lang="ts">
+import { ref, watch } from 'vue';
+import type { ImageItem } from './component-interfaces'
 import TopNavbar from './components/TopNavbar.vue';
 import ImageDisplay from './components/ImageDisplay.vue';
 import PanelResizer from './components/PanelResizer.vue';
@@ -60,6 +64,7 @@ import AdjustPanel from './components/AdjustPanel.vue';
 import { useLayoutState } from './composables/useLayoutState'
 import { useImageState } from './composables/useImageState'
 import { useAdjustmentState } from './composables/useAdjustmentState'
+import { useHSLState } from './composables/useHSLState'
 
 // 使用布局状态管理
 const {
@@ -81,7 +86,6 @@ const {
   selectedImageId,
   handleImageUpload,
   selectImage,
-  hasSelectedImage
 } = useImageState();
 
 // 使用调整状态管理
@@ -90,11 +94,24 @@ const {
   imageFilter,
   resetAdjustments,
   setAdjustments,
-  saveImage
 } = useAdjustmentState();
 
-// 图片显示组件引用
-const imageDisplayRef = ref(null);
+// HSL 颜色范围调节
+const {
+  hslAdjustments,
+  processedSrc,
+  resetHSL,
+  setSourceImage,
+  exportProcessed,
+} = useHSLState()
+
+// 当选中图片变化时，通知 HSL 处理器
+watch(imageSrc, (src) => {
+  setSourceImage(src)
+}, { immediate: true })
+
+// 图片显示组件引用（供模板 ref 使用）
+const imageDisplayRef = ref(null)
 
 // 处理面板拖拽开始
 const handlePanelResizeStart = () => {
@@ -104,12 +121,11 @@ const handlePanelResizeStart = () => {
 // 处理面板拖拽结束
 const handlePanelResizeEnd = () => {
   isResizing.value = false;
-  // 保存布局设置
   saveLayoutSettings();
 };
 
 // 更新面板宽度
-const updatePanelWidth = (width) => {
+const updatePanelWidth = (width: number) => {
   leftPanelWidth.value = width;
 };
 
@@ -121,51 +137,63 @@ const handleGalleryResizeStart = () => {
 // 处理图片全览区拖拽结束
 const handleGalleryResizeEnd = () => {
   isGalleryResizing.value = false;
-  // 保存布局设置
   saveLayoutSettings();
 };
 
 // 更新图片全览区高度
-const updateGalleryHeight = (height) => {
+const updateGalleryHeight = (height: number) => {
   galleryHeight.value = height;
 };
 
 // 处理图片选择
-const handleSelectImage = (image) => {
+const handleSelectImage = (image: ImageItem) => {
   selectImage(image);
-  // 重置调整参数
   resetAdjustments();
 };
 
 // 暴露方法供测试使用
-const selectImageForTest = (image) => {
+const selectImageForTest = (image: ImageItem) => {
   handleSelectImage(image);
 };
 
-// 处理保存图片
-const handleSaveImage = () => {
+// 处理保存图片（format: 'png' | 'jpeg'）
+const handleSaveImage = async (format: 'png' | 'jpeg' = 'png') => {
   if (!imageSrc.value) {
-    alert('请先上传图片！');
-    return;
+    alert('请先上传图片！')
+    return
   }
 
-  // 直接创建 canvas 和下载链接，不依赖异步图片加载
-  const canvas = document.createElement('canvas');
-  const ctx = canvas.getContext('2d');
-  
-  // 设置默认尺寸
-  canvas.width = 800;
-  canvas.height = 600;
-  
-  // 应用滤镜
-  ctx.filter = imageFilter.value;
-  
-  // 生成下载链接
-  const link = document.createElement('a');
-  link.download = `edited-${Date.now()}.png`;
-  link.href = canvas.toDataURL('image/png');
-  link.click();
-};
+  // 1. 获取 HSL 处理后的原图 dataURL（无 HSL 调整时直接用原图）
+  const hslDataUrl = await exportProcessed(format, format === 'jpeg' ? 0.95 : 1)
+
+  // 2. 把 HSL 结果画到 canvas，再叠加 CSS filter
+  const img = new Image()
+  await new Promise<void>((resolve, reject) => {
+    img.onload = () => resolve()
+    img.onerror = reject
+    img.src = hslDataUrl
+  })
+
+  const canvas = document.createElement('canvas')
+  canvas.width  = img.naturalWidth
+  canvas.height = img.naturalHeight
+  const ctx = canvas.getContext('2d')!
+
+  // 应用 CSS filter（brightness/contrast/saturate 等）
+  const filter = imageFilter.value
+  if (filter && filter !== 'none') ctx.filter = filter
+  ctx.drawImage(img, 0, 0)
+
+  // 3. 导出并下载
+  const mimeType = format === 'png' ? 'image/png' : 'image/jpeg'
+  const quality  = format === 'jpeg' ? 0.95 : 1
+  const dataUrl  = canvas.toDataURL(mimeType, quality)
+
+  const link = document.createElement('a')
+  link.download = `edited-${Date.now()}.${format}`
+  link.href = dataUrl
+  link.click()
+}
 
 // 暴露属性和方法供测试使用
 defineExpose({
@@ -180,6 +208,7 @@ defineExpose({
   selectedImageId,
   adjustments,
   imageFilter,
+  imageDisplayRef,
   
   // 方法
   selectImage: selectImageForTest,

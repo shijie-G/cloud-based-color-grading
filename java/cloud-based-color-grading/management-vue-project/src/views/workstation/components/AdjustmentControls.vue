@@ -1,151 +1,212 @@
 <template>
   <div class="adjustment-controls">
-    <div class="adjust-items">
-      <!-- 亮度 -->
-      <div class="adjust-item">
-        <label class="adjust-label">亮度</label>
-        <input
-          type="range"
-          class="adjust-slider"
-          min="0"
-          max="200"
-          :value="adjustments.brightness"
-          @input="updateAdjustment('brightness', $event)"
-        />
-        <span class="adjust-value">{{ adjustments.brightness }}%</span>
-      </div>
 
-      <!-- 对比度 -->
-      <div class="adjust-item">
-        <label class="adjust-label">对比度</label>
-        <input
-          type="range"
-          class="adjust-slider"
-          min="0"
-          max="200"
-          :value="adjustments.contrast"
-          @input="updateAdjustment('contrast', $event)"
-        />
-        <span class="adjust-value">{{ adjustments.contrast }}%</span>
+    <!-- 基础 -->
+    <div class="group-label">基础</div>
+    <div class="adjust-item" v-for="item in basicItems" :key="item.key">
+      <div class="item-header">
+        <span class="item-label">{{ item.label }}</span>
+        <span class="item-value" :class="{ active: adjustments[item.key] !== 0 }">
+          {{ fmtVal(adjustments[item.key], item) }}
+        </span>
+        <button class="reset-btn" :style="{ visibility: adjustments[item.key] !== 0 ? 'visible' : 'hidden' }" @click="resetOne(item.key)">↺</button>
       </div>
-
-      <!-- 饱和度 -->
-      <div class="adjust-item">
-        <label class="adjust-label">饱和度</label>
-        <input
-          type="range"
-          class="adjust-slider"
-          min="0"
-          max="200"
-          :value="adjustments.saturation"
-          @input="updateAdjustment('saturation', $event)"
-        />
-        <span class="adjust-value">{{ adjustments.saturation }}%</span>
-      </div>
-
-      <!-- 色温 -->
-      <div class="adjust-item">
-        <label class="adjust-label">色温</label>
-        <input
-          type="range"
-          class="adjust-slider"
-          min="0"
-          max="200"
-          :value="adjustments.temperature"
-          @input="updateAdjustment('temperature', $event)"
-        />
-        <span class="adjust-value">{{ adjustments.temperature }}%</span>
-      </div>
-
-      <!-- 曝光度 -->
-      <div class="adjust-item">
-        <label class="adjust-label">曝光度</label>
-        <input
-          type="range"
-          class="adjust-slider"
-          min="0"
-          max="200"
-          :value="adjustments.exposure"
-          @input="updateAdjustment('exposure', $event)"
-        />
-        <span class="adjust-value">{{ adjustments.exposure }}%</span>
+      <input type="range" class="slider" :min="item.min" :max="item.max" :value="adjustments[item.key]" @input="onInput(item.key, $event)" />
+      <div class="track-labels">
+        <span>{{ item.min }}</span>
+        <span class="center-tick">0</span>
+        <span>{{ item.max }}</span>
       </div>
     </div>
+
+    <!-- 色彩 -->
+    <div class="group-label" style="margin-top:16px">色彩</div>
+    <div class="adjust-item" v-for="item in colorItems" :key="item.key">
+      <div class="item-header">
+        <span class="item-label">{{ item.label }}</span>
+        <span class="item-value" :class="{ active: adjustments[item.key] !== 0 }">
+          {{ fmtVal(adjustments[item.key], item) }}
+        </span>
+        <button class="reset-btn" :style="{ visibility: adjustments[item.key] !== 0 ? 'visible' : 'hidden' }" @click="resetOne(item.key)">↺</button>
+      </div>
+      <input type="range" class="slider" :class="item.key" :min="item.min" :max="item.max" :value="adjustments[item.key]" @input="onInput(item.key, $event)" />
+      <div class="track-labels">
+        <span>{{ item.min }}</span>
+        <span class="center-tick">0</span>
+        <span>{{ item.max }}</span>
+      </div>
+    </div>
+
   </div>
 </template>
 
 <script setup lang="ts">
 import type { AdjustmentValues } from '../component-interfaces'
 
-// AdjustmentControls 组件 - 参数调整控件
-
-// Props 接口
-interface AdjustmentControlsProps {
-  adjustments: AdjustmentValues
+interface SliderDef {
+  key: keyof AdjustmentValues
+  label: string
+  min: number
+  max: number
+  unit?: string
 }
 
-// 事件定义
-interface AdjustmentControlsEvents {
-  'update:adjustments': [adjustments: AdjustmentValues]
+const basicItems: SliderDef[] = [
+  { key: 'exposure',   label: '曝光度',  min: -5,   max: 5,   unit: ' EV' },
+  { key: 'brightness', label: '亮度',    min: -150,  max: 150 },
+  { key: 'contrast',   label: '对比度',  min: -50,   max: 100 },
+  { key: 'clarity',    label: '清晰度',  min: -100,  max: 100 },
+]
+
+const colorItems: SliderDef[] = [
+  { key: 'saturation',  label: '饱和度',     min: -100, max: 100 },
+  { key: 'vibrance',    label: '自然饱和度',  min: -100, max: 100 },
+  { key: 'hue',         label: '色相',       min: -180, max: 180, unit: '°' },
+  { key: 'temperature', label: '色温',       min: -100, max: 100 },
+]
+
+interface Props { adjustments: AdjustmentValues }
+interface Emits { 'update:adjustments': [adjustments: AdjustmentValues] }
+
+const props = defineProps<Props>()
+const emit = defineEmits<Emits>()
+
+const fmtVal = (val: number, item: SliderDef): string => {
+  const prefix = val > 0 ? '+' : ''
+  if (item.unit) return `${prefix}${val}${item.unit}`
+  return `${prefix}${val}`
 }
 
-// 使用 defineProps 和 defineEmits 定义接口
-const props = defineProps<AdjustmentControlsProps>()
-const emit = defineEmits<AdjustmentControlsEvents>()
+const onInput = (key: keyof AdjustmentValues, e: Event) => {
+  const val = Number((e.target as HTMLInputElement).value)
+  emit('update:adjustments', { ...props.adjustments, [key]: val })
+}
 
-// 更新单个调整参数
-const updateAdjustment = (key: keyof AdjustmentValues, event: Event) => {
-  const target = event.target as HTMLInputElement
-  const value = parseInt(target.value)
-  
-  const newAdjustments = {
-    ...props.adjustments,
-    [key]: value
-  }
-  
-  emit('update:adjustments', newAdjustments)
+const resetOne = (key: keyof AdjustmentValues) => {
+  emit('update:adjustments', { ...props.adjustments, [key]: 0 })
 }
 </script>
 
 <style scoped>
 .adjustment-controls {
-  margin-bottom: 2vh;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
 }
 
-/* 调色参数项 */
+.group-label {
+  font-size: 10px;
+  font-weight: 700;
+  color: #4b5563;
+  text-transform: uppercase;
+  letter-spacing: 1px;
+  padding-bottom: 6px;
+  border-bottom: 1px solid rgba(255,255,255,0.04);
+}
+
 .adjust-item {
-  margin-bottom: 2vh;
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
 }
 
-.adjust-label {
-  display: block;
-  margin-bottom: 0.8vh;
-  font-size: 14px;
-  color: #555;
+.item-header {
+  display: flex;
+  align-items: center;
+  gap: 6px;
 }
 
-.adjust-slider {
-  width: 100%;
-  height: 0.6vh;
-  -webkit-appearance: none;
-  background: #eee;
-  border-radius: 0.3vh;
+.item-label {
+  font-size: 12px;
+  color: #9ca3af;
+  flex: 1;
+}
+
+.item-value {
+  font-size: 11px;
+  font-family: 'Courier New', monospace;
+  color: #4b5563;
+  min-width: 44px;
+  text-align: right;
+  transition: color 0.15s;
+}
+
+.item-value.active {
+  color: #5b6af0;
+}
+
+.reset-btn {
+  background: none;
+  border: none;
+  color: #4b5563;
+  font-size: 12px;
+  cursor: pointer;
+  padding: 0;
+  width: 16px;
+  text-align: center;
   outline: none;
+  transition: color 0.15s;
+  flex-shrink: 0;
 }
 
-.adjust-slider::-webkit-slider-thumb {
+.reset-btn:hover { color: #9ca3af; }
+
+/* 滑块 */
+.slider {
   -webkit-appearance: none;
-  width: 1.8vh;
-  height: 1.8vh;
-  border-radius: 50%;
-  background: #409eff;
+  appearance: none;
+  width: 100%;
+  height: 3px;
+  background: rgba(255,255,255,0.08);
+  border-radius: 2px;
+  outline: none;
   cursor: pointer;
 }
 
-.adjust-value {
-  font-size: 12px;
-  color: #888;
-  margin-top: 0.5vh;
-  text-align: right;
+.slider::-webkit-slider-thumb {
+  -webkit-appearance: none;
+  width: 13px;
+  height: 13px;
+  border-radius: 50%;
+  background: #5b6af0;
+  border: 2px solid #1c1e22;
+  box-shadow: 0 0 0 1px rgba(91,106,240,0.4);
+  cursor: pointer;
+  transition: box-shadow 0.15s, transform 0.15s;
+}
+
+.slider::-webkit-slider-thumb:hover {
+  box-shadow: 0 0 0 3px rgba(91,106,240,0.3);
+  transform: scale(1.15);
+}
+
+/* 色温渐变轨道 */
+.slider.temperature {
+  background: linear-gradient(to right, #7eb8f7, rgba(255,255,255,0.08) 50%, #f5a623);
+}
+
+/* 饱和度渐变轨道 */
+.slider.saturation {
+  background: linear-gradient(to right, #666, rgba(255,255,255,0.08) 30%, #f472b6);
+}
+
+/* 色相彩虹轨道 */
+.slider.hue {
+  background: linear-gradient(to right, #f00, #ff0, #0f0, #0ff, #00f, #f0f, #f00);
+}
+
+/* 刻度标签 */
+.track-labels {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  font-size: 9px;
+  color: #374151;
+  padding: 0 1px;
+  margin-top: -1px;
+}
+
+.center-tick {
+  color: #4b5563;
 }
 </style>

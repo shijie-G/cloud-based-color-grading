@@ -83,7 +83,7 @@ import { useLoginForm } from './useLoginForm';
  */
 
 // 使用登录表单组合式函数
-const { formData, formRef, rules, loading, isFormValid, handleLogin } = useLoginForm();
+const { formData, rules, loading, isFormValid, handleLogin } = useLoginForm();
 
 // 账号输入框引用（用于自动聚焦）
 const usernameInputRef = ref();

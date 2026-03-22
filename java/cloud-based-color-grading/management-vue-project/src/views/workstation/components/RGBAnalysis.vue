@@ -128,8 +128,6 @@ let histogramData: { r: Uint32Array; g: Uint32Array; b: Uint32Array; max: number
 
 // 鼠标悬停坐标显示
 const showTooltip = ref(false)
-const tooltipX = ref(0)
-const tooltipY = ref(0)
 const tooltipValue = ref('')
 
 // 防抖分析

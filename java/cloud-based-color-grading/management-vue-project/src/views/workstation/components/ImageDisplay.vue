@@ -3,6 +3,7 @@
     <!-- 上方图片预览区 -->
     <ImagePreview
       :imageSrc="imageSrc"
+      :processedSrc="processedSrc"
       :imageFilter="imageFilter"
       :showUploadTips="showUploadTips"
       :galleryHeight="galleryHeight"
@@ -45,6 +46,7 @@ interface ImageDisplayProps {
   images: ImageItem[]
   selectedImageId: number | null
   imageSrc: string
+  processedSrc: string
   imageFilter: string
   showUploadTips: boolean
   galleryHeight: number

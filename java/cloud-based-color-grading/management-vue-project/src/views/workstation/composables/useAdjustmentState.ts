@@ -22,39 +22,84 @@ interface UseAdjustmentStateReturn {
 }
 
 export function useAdjustmentState(): UseAdjustmentStateReturn {
-  // 调色参数（响应式）
+  // 调色参数（响应式）— 默认值全部为 0（PS 风格）
   const adjustments = reactive<AdjustmentValues>({
-    brightness: 100,
-    contrast: 100,
-    saturation: 100,
-    temperature: 100,
-    exposure: 100
+    exposure:    0,
+    brightness:  0,
+    contrast:    0,
+    saturation:  0,
+    vibrance:    0,
+    hue:         0,
+    temperature: 0,
+    clarity:     0,
   })
 
-  // 计算图片滤镜样式（响应式）
+  // 计算图片滤镜样式（PS 风格数值 → CSS filter）
   const imageFilter = computed(() => {
-    const brightness = adjustments.brightness / 100
-    const contrast = adjustments.contrast / 100
-    const saturation = adjustments.saturation / 100
-    const temperature = adjustments.temperature / 100
-    const exposure = adjustments.exposure / 100
+    // 曝光度：PS -5~+5 EV，每 EV 亮度 ×2
+    // exposure=0 → brightness(1.0)，+1EV → ×2，-1EV → ×0.5
+    const exposureMul = Math.pow(2, adjustments.exposure)
 
-    return `
-      brightness(${brightness}) 
-      contrast(${contrast}) 
-      saturate(${saturation}) 
-      sepia(${1 - temperature * 0.5})
-      exposure(${exposure})
-    `.replace(/\s+/g, ' ').trim()
+    // 亮度：PS -150~+150，线性映射到 CSS brightness 0.0~2.0
+    // PS 0 → 1.0，+150 → 2.0，-150 → 0.0（近似）
+    const brightnessMul = 1 + adjustments.brightness / 150
+
+    // 对比度：PS -50~+100，映射到 CSS contrast 0.5~2.0
+    // PS 0 → 1.0，+100 → 2.0，-50 → 0.5
+    const contrastMul = adjustments.contrast >= 0
+      ? 1 + adjustments.contrast / 100
+      : 1 + adjustments.contrast / 100  // -50 → 0.5
+
+    // 饱和度：PS -100~+100，映射到 CSS saturate 0~2
+    // PS 0 → 1.0，+100 → 2.0，-100 → 0（灰度）
+    const saturateMul = 1 + adjustments.saturation / 100
+
+    // 自然饱和度：用较弱的 saturate 叠加模拟（PS 有保护肤色，CSS 无法精确复现）
+    // vibrance ±100 → saturate 0.7~1.3 范围内叠加
+    const vibranceMul = 1 + adjustments.vibrance / 333
+
+    // 色相：PS -180~+180 → CSS hue-rotate -180deg~+180deg，1:1
+    const hueRotateDeg = adjustments.hue
+
+    // 色温：PS 冷暖滑块 -100~+100
+    // 暖色（+）→ hue-rotate 负方向（偏黄红）+ 轻微 sepia
+    // 冷色（-）→ hue-rotate 正方向（偏蓝）
+    const tempHueDeg = -adjustments.temperature * 0.2  // ±20deg
+    const tempSepia  = adjustments.temperature > 0
+      ? (adjustments.temperature / 100) * 0.15  // 最多 15% sepia 增加暖感
+      : 0
+
+    // 清晰度：用 contrast 轻微叠加模拟（CSS 无锐化，只能近似）
+    // clarity ±100 → contrast ×0.9~1.1
+    const clarityMul = 1 + adjustments.clarity / 1000
+
+    // 合并所有 brightness 相关值
+    const finalBrightness = (exposureMul * brightnessMul * clarityMul).toFixed(4)
+    const finalContrast   = (contrastMul).toFixed(4)
+    const finalSaturate   = (saturateMul * vibranceMul).toFixed(4)
+    const finalHue        = (hueRotateDeg + tempHueDeg).toFixed(1)
+    const finalSepia      = tempSepia.toFixed(4)
+
+    const parts = [
+      `brightness(${finalBrightness})`,
+      `contrast(${finalContrast})`,
+      `saturate(${finalSaturate})`,
+      `hue-rotate(${finalHue}deg)`,
+    ]
+    if (tempSepia > 0) parts.push(`sepia(${finalSepia})`)
+
+    return parts.join(' ')
   })
 
-  // 重置所有调色参数
   const resetAdjustments = (): void => {
-    adjustments.brightness = 100
-    adjustments.contrast = 100
-    adjustments.saturation = 100
-    adjustments.temperature = 100
-    adjustments.exposure = 100
+    adjustments.exposure    = 0
+    adjustments.brightness  = 0
+    adjustments.contrast    = 0
+    adjustments.saturation  = 0
+    adjustments.vibrance    = 0
+    adjustments.hue         = 0
+    adjustments.temperature = 0
+    adjustments.clarity     = 0
   }
 
   // 设置单个调整参数
@@ -79,13 +124,15 @@ export function useAdjustmentState(): UseAdjustmentStateReturn {
     return { ...adjustments }
   }
 
-  // 检查是否有调整（非默认值）
   const hasAdjustments = (): boolean => {
-    return adjustments.brightness !== 100 ||
-           adjustments.contrast !== 100 ||
-           adjustments.saturation !== 100 ||
-           adjustments.temperature !== 100 ||
-           adjustments.exposure !== 100
+    return adjustments.exposure    !== 0 ||
+           adjustments.brightness  !== 0 ||
+           adjustments.contrast    !== 0 ||
+           adjustments.saturation  !== 0 ||
+           adjustments.vibrance    !== 0 ||
+           adjustments.hue         !== 0 ||
+           adjustments.temperature !== 0 ||
+           adjustments.clarity     !== 0
   }
 
   // 保存图片（应用滤镜效果）
