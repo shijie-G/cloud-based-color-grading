@@ -4,7 +4,7 @@
  */
 
 const DB_NAME = 'WorkstationDB'
-const DB_VERSION = 3
+const DB_VERSION = 4
 const STORE_NAME = 'images'
 
 export interface ImageDBItem {
@@ -12,10 +12,11 @@ export interface ImageDBItem {
   name: string
   blob: Blob
   src: string
-  thumbnail?: string // 压缩缩略图 base64（用于全览区显示）
+  thumbnail?: string
   uploadTime: Date
   lastModified: Date
-  fileHash?: string // 文件唯一标识：名称+大小+格式
+  fileHash?: string
+  adjustmentsJson?: string // JSON 格式存储调色参数，便于后续扩展
 }
 
 class ImageDatabase {
@@ -42,20 +43,18 @@ class ImageDatabase {
         const oldVersion = event.oldVersion
         const transaction = (event.target as IDBOpenDBRequest).transaction!
 
-        // 创建图片存储表
         if (!db.objectStoreNames.contains(STORE_NAME)) {
           const objectStore = db.createObjectStore(STORE_NAME, { keyPath: 'id' })
           objectStore.createIndex('uploadTime', 'uploadTime', { unique: false })
           objectStore.createIndex('name', 'name', { unique: false })
           objectStore.createIndex('fileHash', 'fileHash', { unique: false })
         } else if (oldVersion < 2) {
-          // 从版本1升级到版本2：添加 fileHash 索引
           const objectStore = transaction.objectStore(STORE_NAME)
-          
           if (!objectStore.indexNames.contains('fileHash')) {
             objectStore.createIndex('fileHash', 'fileHash', { unique: false })
           }
         }
+        // v3→v4: adjustmentsJson 是普通字段，无需建索引，自动兼容旧记录（值为 undefined）
       }
     })
   }
@@ -110,6 +109,44 @@ class ImageDatabase {
 
       request.onsuccess = () => resolve(request.result || null)
       request.onerror = () => reject(new Error('Failed to get image'))
+    })
+  }
+
+  /**
+   * 仅更新某条记录的 adjustmentsJson 字段（不重写 blob，性能更好）
+   */
+  async updateAdjustments(id: number, adjustmentsJson: string): Promise<void> {
+    if (!this.db) await this.init()
+
+    return new Promise((resolve, reject) => {
+      const transaction = this.db!.transaction([STORE_NAME], 'readwrite')
+      const objectStore = transaction.objectStore(STORE_NAME)
+      const getReq = objectStore.get(id)
+      getReq.onsuccess = () => {
+        const record = getReq.result
+        if (!record) { resolve(); return }
+        record.adjustmentsJson = adjustmentsJson
+        record.lastModified = new Date()
+        const putReq = objectStore.put(record)
+        putReq.onsuccess = () => resolve()
+        putReq.onerror  = () => reject(new Error('Failed to update adjustments'))
+      }
+      getReq.onerror = () => reject(new Error('Failed to get record for update'))
+    })
+  }
+
+  /**
+   * 获取某条记录的 adjustmentsJson 字段
+   */
+  async getAdjustments(id: number): Promise<string | null> {
+    if (!this.db) await this.init()
+
+    return new Promise((resolve, reject) => {
+      const transaction = this.db!.transaction([STORE_NAME], 'readonly')
+      const objectStore = transaction.objectStore(STORE_NAME)
+      const request = objectStore.get(id)
+      request.onsuccess = () => resolve(request.result?.adjustmentsJson ?? null)
+      request.onerror  = () => reject(new Error('Failed to get adjustments'))
     })
   }
 

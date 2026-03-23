@@ -161,13 +161,13 @@ public class AuthServiceImpl implements AuthService {
         if (!jwtTokenProvider.validateToken(token)) {
             return false;
         }
-        
+
         // 2. 从令牌中提取用户ID
         Long userId = jwtTokenProvider.getUserIdFromToken(token);
-        
+
         // 3. 检查Redis中是否存在该令牌
         String storedToken = redisService.getToken(userId);
-        
+
         // 4. 比对令牌是否一致
         return storedToken != null && storedToken.equals(token);
     }

@@ -2,6 +2,7 @@ package cn.gsjgsj.gateway.config;
 
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
+import org.springframework.core.annotation.Order;
 import org.springframework.web.cors.CorsConfiguration;
 import org.springframework.web.cors.reactive.CorsWebFilter;
 import org.springframework.web.cors.reactive.UrlBasedCorsConfigurationSource;
@@ -10,6 +11,7 @@ import org.springframework.web.cors.reactive.UrlBasedCorsConfigurationSource;
 public class CorsConfig {
 
     @Bean
+    @Order(-200)
     public CorsWebFilter corsWebFilter() {
         CorsConfiguration config = new CorsConfiguration();
 
@@ -46,8 +48,6 @@ public class CorsConfig {
         source.registerCorsConfiguration("/**", config);
 
         CorsWebFilter corsFilter = new CorsWebFilter(source);
-        // 设置最高优先级，确保CORS过滤器最先执行
-        corsFilter.setOrder(-200);
         return corsFilter;
     }
 }

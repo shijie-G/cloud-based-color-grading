@@ -66,6 +66,7 @@ import { useLayoutState } from './composables/useLayoutState'
 import { useImageState } from './composables/useImageState'
 import { useAdjustmentState } from './composables/useAdjustmentState'
 import { useHSLState } from './composables/useHSLState'
+import { useImageStorage } from './composables/useImageStorage'
 
 // 使用布局状态管理
 const {
@@ -106,9 +107,62 @@ const {
   exportProcessed,
 } = useHSLState()
 
-// 当选中图片变化时，通知 HSL 处理器
+// 调色参数持久化
+const { saveAdjustments, loadAdjustments } = useImageStorage()
+
+// 防抖保存 timer
+let saveTimer: ReturnType<typeof setTimeout> | null = null
+// 加载参数期间不触发保存
+let isLoadingAdjustments = false
+
+// 序列化当前所有调色参数为 JSON
+const serializeAdjustments = () => JSON.stringify({
+  adjustments: { ...adjustments },
+  hslAdjustments: JSON.parse(JSON.stringify(hslAdjustments)),
+})
+
+// 防抖自动保存（500ms 无操作后写入 DB）
+const scheduleSave = () => {
+  if (!selectedImageId.value || isLoadingAdjustments) return
+  if (saveTimer) clearTimeout(saveTimer)
+  saveTimer = setTimeout(() => {
+    saveAdjustments(selectedImageId.value!, serializeAdjustments())
+  }, 500)
+}
+
+// 从 DB 加载并应用调色参数
+const applyStoredAdjustments = async (imageId: number) => {
+  isLoadingAdjustments = true
+  try {
+    const json = await loadAdjustments(imageId)
+    if (!json) {
+      resetAdjustments()
+      resetHSL()
+      return
+    }
+    const data = JSON.parse(json)
+    if (data.adjustments) setAdjustments(data.adjustments)
+    if (data.hslAdjustments) Object.assign(hslAdjustments, data.hslAdjustments)
+  } catch {
+    resetAdjustments()
+    resetHSL()
+  } finally {
+    isLoadingAdjustments = false
+  }
+}
+
+// 监听调色参数变化 → 自动保存
+watch(adjustments, scheduleSave, { deep: true })
+watch(hslAdjustments, scheduleSave, { deep: true })
+
+// 当选中图片变化时，通知 HSL 处理器 + 加载该图片的调色参数
 watch(imageSrc, (src) => {
   setSourceImage(src)
+}, { immediate: true })
+
+// selectedImageId 变化时（含页面刷新后 onMounted 恢复）加载调色参数
+watch(selectedImageId, (id) => {
+  if (id != null) applyStoredAdjustments(id)
 }, { immediate: true })
 
 // 图片显示组件引用（供模板 ref 使用）
@@ -147,15 +201,15 @@ const updateGalleryHeight = (height: number) => {
 };
 
 // 处理图片选择
-const handleSelectImage = (image: ImageItem) => {
-  selectImage(image);
-  resetAdjustments();
-};
+const handleSelectImage = async (image: ImageItem) => {
+  selectImage(image)
+  await applyStoredAdjustments(image.id)
+}
 
 // 暴露方法供测试使用
 const selectImageForTest = (image: ImageItem) => {
-  handleSelectImage(image);
-};
+  handleSelectImage(image)
+}
 
 // 处理保存图片（format: 'png' | 'jpeg'）
 const handleSaveImage = async (format: 'png' | 'jpeg' = 'png') => {

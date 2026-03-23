@@ -13,7 +13,7 @@ import { defaultHSLAdjustments, type HSLAdjustments, type HSLRange } from './use
 export type { HSLAdjustments, HSLRange }
 
 const PREVIEW_MAX  = 1200
-const HIRES_DELAY  = 800
+const HIRES_DELAY  = 500
 // 并行 Worker 数量，取 CPU 核数和 8 的较小值
 const WORKER_COUNT = Math.min(navigator.hardwareConcurrency || 4, 8)
 

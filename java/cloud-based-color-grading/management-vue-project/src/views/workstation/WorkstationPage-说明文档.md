@@ -1,268 +1,404 @@
-# WorkstationPage.vue 工作站页面说明文档
+# WorkstationPage 页面说明文档
 
 ## 概述
 
-WorkstationPage.vue 是一个基于 Vue 3 + TypeScript 的图片编辑工作站页面，采用组合式 API (Composition API) 和模块化架构设计。该页面提供了完整的图片上传、预览、调色和保存功能，具有响应式布局和用户友好的交互体验。
-
-## 页面结构
-
-### 整体布局
-```
-┌─────────────────────────────────────────────────────────────┐
-│                    TopNavbar (顶部导航栏)                    │
-├─────────────────────────────────┬───────────────────────────┤
-│                                 │                           │
-│         ImageDisplay            │       AdjustPanel         │
-│        (左侧图片显示区)          │      (右侧调整面板)        │
-│                                 │                           │
-│  ┌─────────────────────────────┐ │  ┌─────────────────────┐  │
-│  │                             │ │  │   UploadSection     │  │
-│  │      ImagePreview           │ │  │    (上传区域)       │  │
-│  │     (图片预览区)             │ │  └─────────────────────┘  │
-│  │                             │ │                           │
-│  └─────────────────────────────┘ │  ┌─────────────────────┐  │
-│  ═══════════════════════════════ │  │ AdjustmentControls  │  │
-│  ┌─────────────────────────────┐ │  │   (调色参数区)      │  │
-│  │      ImageGallery           │ │  └─────────────────────┘  │
-│  │     (图片全览区)             │ │                           │
-│  └─────────────────────────────┘ │  ┌─────────────────────┐  │
-│                                 │  │   ActionButtons     │  │
-│                                 │  │    (操作按钮)       │  │
-│                                 │  └─────────────────────┘  │
-└─────────────────────────────────┴───────────────────────────┘
-```
-
-## 核心功能模块
-
-### 1. 图片管理功能
-- **图片上传**: 支持拖拽和点击上传，自动生成缩略图
-- **图片预览**: 实时显示当前选中图片和应用的滤镜效果
-- **图片切换**: 在图片全览区快速切换不同图片
-- **图片保存**: 将调色后的图片导出为 PNG 格式
-
-### 2. 图片调色功能
-- **亮度调整** (brightness): 0-200%，默认100%
-- **对比度调整** (contrast): 0-200%，默认100%
-- **饱和度调整** (saturation): 0-200%，默认100%
-- **色温调整** (temperature): 0-200%，默认100%
-- **曝光调整** (exposure): 0-200%，默认100%
-
-### 3. 布局管理功能
-- **左右面板调整**: 可拖拽分割线调整左右面板宽度比例 (70%-85%)
-- **图片全览区调整**: 可拖拽调整图片全览区高度 (15vh-50vh)
-- **布局持久化**: 自动保存用户的布局偏好到 localStorage
-- **布局重置**: 一键恢复默认布局设置
-
-## 技术架构
-
-### 组件化设计
-
-#### 主容器组件
-- **WorkstationPage.vue**: 主页面容器，负责整体布局和状态协调
-
-#### 功能组件
-- **TopNavbar.vue**: 顶部导航栏组件
-- **ImageDisplay.vue**: 左侧图片显示区容器
-- **AdjustPanel.vue**: 右侧调整面板容器
-
-#### 子功能组件
-- **ImagePreview.vue**: 图片预览显示组件
-- **ImageGallery.vue**: 图片全览列表组件
-- **UploadSection.vue**: 文件上传组件
-- **AdjustmentControls.vue**: 调色参数控制组件
-- **ActionButtons.vue**: 操作按钮组件
-
-#### 交互组件
-- **PanelResizer.vue**: 左右面板分割线拖拽组件
-- **GalleryResizer.vue**: 图片全览区拖拽调整组件
-
-### Composables 状态管理
-
-#### useLayoutState.ts - 布局状态管理
-```typescript
-interface UseLayoutStateReturn {
-  // 状态
-  leftPanelWidth: Ref<number>        // 左侧面板宽度百分比
-  rightPanelWidth: ComputedRef<number> // 右侧面板宽度百分比
-  isResizing: Ref<boolean>           // 是否正在拖拽分割线
-  galleryHeight: Ref<number>         // 图片全览区高度(vh)
-  isGalleryResizing: Ref<boolean>    // 是否正在拖拽全览区
-  
-  // 方法
-  startResize: () => void            // 开始拖拽分割线
-  startGalleryResize: () => void     // 开始拖拽全览区
-  resetLayout: () => void            // 重置布局
-  saveLayoutSettings: () => void     // 保存布局设置
-}
-```
-
-#### useImageState.ts - 图片状态管理
-```typescript
-interface UseImageStateReturn {
-  // 状态
-  imageSrc: Ref<string>              // 当前预览图片源
-  uploadedImages: Ref<ImageItem[]>   // 已上传图片列表
-  selectedImageId: Ref<number | null> // 当前选中图片ID
-  
-  // 方法
-  handleImageUpload: (file: File) => void  // 处理图片上传
-  selectImage: (image: ImageItem) => void  // 选择图片
-  getCurrentImage: () => ImageItem | null  // 获取当前图片
-  removeImage: (imageId: number) => void   // 删除图片
-  clearAllImages: () => void               // 清空所有图片
-}
-```
-
-#### useAdjustmentState.ts - 调色状态管理
-```typescript
-interface UseAdjustmentStateReturn {
-  // 状态
-  adjustments: AdjustmentValues      // 调色参数对象
-  imageFilter: ComputedRef<string>   // 计算得出的CSS滤镜字符串
-  
-  // 方法
-  resetAdjustments: () => void       // 重置所有调色参数
-  setAdjustment: (key, value) => void // 设置单个参数
-  setAdjustments: (values) => void   // 批量设置参数
-  saveImage: (imageRef) => void      // 保存调色后的图片
-}
-```
-
-### TypeScript 接口定义
-
-#### 核心数据接口
-```typescript
-// 图片数据接口
-interface ImageItem {
-  id: number
-  name: string
-  src: string
-  originalFile: File
-}
-
-// 调整参数接口
-interface AdjustmentValues {
-  brightness: number    // 亮度 0-200
-  contrast: number      // 对比度 0-200
-  saturation: number    // 饱和度 0-200
-  temperature: number   // 色温 0-200
-  exposure: number      // 曝光 0-200
-}
-
-// 布局状态接口
-interface LayoutState {
-  leftPanelWidth: number      // 左侧面板宽度百分比
-  rightPanelWidth: number     // 右侧面板宽度百分比
-  isResizing: boolean         // 是否正在调整大小
-  galleryHeight: number       // 图片全览区高度
-  isGalleryResizing: boolean  // 是否正在调整全览区
-  maxGalleryHeight: number    // 最大全览区高度
-}
-```
-
-## 文件结构
-
-```
-src/views/workstation/
-├── WorkstationPage.vue              # 主页面组件
-├── component-interfaces.ts          # TypeScript 接口定义
-├── WorkstationPage-说明文档.md       # 本说明文档
-├── components/                      # 子组件目录
-│   ├── index.ts                     # 组件统一导出
-│   ├── TopNavbar.vue               # 顶部导航栏
-│   ├── ImageDisplay.vue            # 图片显示区容器
-│   ├── AdjustPanel.vue             # 调整面板容器
-│   ├── ImagePreview.vue            # 图片预览组件
-│   ├── ImageGallery.vue            # 图片全览组件
-│   ├── UploadSection.vue           # 上传区域组件
-│   ├── AdjustmentControls.vue      # 调色控制组件
-│   ├── ActionButtons.vue           # 操作按钮组件
-│   ├── PanelResizer.vue            # 面板分割线组件
-│   └── GalleryResizer.vue          # 全览区调整组件
-└── composables/                     # 状态管理目录
-    ├── index.ts                     # Composables 统一导出
-    ├── useLayoutState.ts            # 布局状态管理
-    ├── useImageState.ts             # 图片状态管理
-    └── useAdjustmentState.ts        # 调色状态管理
-```
-
-## 主要特性
-
-### 1. 响应式设计
-- 支持不同屏幕尺寸的自适应布局
-- 可拖拽调整的面板分割比例
-- 流畅的用户交互体验
-
-### 2. 状态持久化
-- 布局设置自动保存到 localStorage
-- 页面刷新后恢复用户偏好设置
-- 智能的默认值和边界检查
-
-### 3. 模块化架构
-- 组件职责单一，易于维护和测试
-- Composables 提供可复用的状态逻辑
-- TypeScript 提供完整的类型安全
-
-### 4. 性能优化
-- 使用 Vue 3 的 Composition API
-- 计算属性自动缓存和更新
-- 事件监听器的正确清理
-
-### 5. 用户体验
-- 实时预览调色效果
-- 直观的拖拽交互
-- 清晰的视觉反馈
-
-## 使用方法
-
-### 基本操作流程
-1. **上传图片**: 点击上传区域或拖拽图片文件
-2. **选择图片**: 在图片全览区点击切换不同图片
-3. **调整参数**: 使用右侧滑块调整各项参数
-4. **预览效果**: 左侧实时显示调整后的效果
-5. **保存图片**: 点击保存按钮下载处理后的图片
-
-### 布局调整
-- **调整左右比例**: 拖拽中间的分割线
-- **调整全览区高度**: 拖拽图片全览区上方的分割线
-- **重置布局**: 在图片全览区右键选择重置布局
-
-## 扩展性
-
-### 添加新的调色参数
-1. 在 `AdjustmentValues` 接口中添加新字段
-2. 在 `useAdjustmentState.ts` 中更新默认值和计算逻辑
-3. 在 `AdjustmentControls.vue` 中添加对应的控制组件
-
-### 添加新的功能组件
-1. 在 `components/` 目录下创建新组件
-2. 在 `components/index.ts` 中导出
-3. 在相应的容器组件中引入和使用
-
-### 扩展状态管理
-1. 创建新的 Composable 文件
-2. 定义相应的 TypeScript 接口
-3. 在 `composables/index.ts` 中导出
-
-## 维护说明
-
-### 代码规范
-- 使用 TypeScript 严格模式
-- 遵循 Vue 3 Composition API 最佳实践
-- 组件和 Composable 都有完整的类型定义
-- 使用 ESLint 和 Prettier 保持代码风格一致
-
-### 测试策略
-- 项目配置了完整的测试框架 (Vitest + Vue Test Utils)
-- 支持组件单元测试和 Composables 测试
-- 支持端到端测试 (Playwright)
-- 当前专注于核心功能实现，测试文件按需添加
-
-### 性能监控
-- 监控大图片文件的处理性能
-- 检查内存泄漏（特别是事件监听器）
-- 优化频繁的状态更新操作
+WorkstationPage 是图片编辑工作台的根页面组件，负责协调所有子模块的状态流转。页面采用三栏布局：左侧图片显示区（预览 + 全览）、中间可拖拽分割线、右侧调色面板。所有业务逻辑通过 Composable 分层管理，页面本身只做状态聚合和事件路由。
 
 ---
 
-*本文档最后更新时间: 2024年*
+## 目录结构
+
+```
+workstation/
+├── WorkstationPage.vue              # 根页面，状态聚合层
+├── component-interfaces.ts          # 全局 TypeScript 接口定义
+│
+├── components/
+│   ├── TopNavbar.vue                # 顶部导航栏
+│   ├── ImageDisplay.vue             # 左侧图片显示区（容器）
+│   ├── ImagePreview.vue             # 图片预览 canvas
+│   ├── ImageGallery.vue             # 图片全览缩略图列表
+│   ├── PanelResizer.vue             # 左右面板拖拽分割线
+│   ├── AdjustPanel.vue              # 右侧调色面板（容器）
+│   ├── AdjustmentControls.vue       # 基础/色彩调色滑块
+│   ├── HSLControls.vue              # HSL 颜色范围调节
+│   ├── RGBAnalysis.vue              # 直方图 + 波形图分析
+│   └── ActionButtons.vue            # 操作按钮（选择/保存/重置）
+│
+├── composables/
+│   ├── useLayoutState.ts            # 布局状态（面板宽度、高度、拖拽）
+│   ├── useImageState.ts             # 图片状态（上传、选择、列表）
+│   ├── useImageStorage.ts           # IndexedDB 存取封装
+│   ├── useAdjustmentState.ts        # 基础调色参数 + CSS filter 计算
+│   ├── useHSLState.ts               # HSL 像素级处理状态管理
+│   └── useHSLProcessor.ts           # HSL 类型定义 + 默认值
+│
+├── workers/
+│   ├── hslWorker.ts                 # HSL 像素处理 Web Worker
+│   └── rgbWorker.ts                 # RGB 直方图/波形分析 Web Worker
+│
+└── utils/
+    └── imageDB.ts                   # IndexedDB 数据库类封装
+```
+
+---
+
+## 布局结构
+
+```
+┌─────────────────────────────────────────────────────┐
+│                    TopNavbar                         │
+├──────────────────────────┬──┬──────────────────────┤
+│                          │  │                        │
+│      ImageDisplay        │  │     AdjustPanel        │
+│  ┌────────────────────┐  │P │  ┌──────────────────┐ │
+│  │   ImagePreview     │  │a │  │   RGBAnalysis    │ │
+│  │   (canvas)         │  │n │  │  直方图 / 波形图  │ │
+│  │                    │  │e │  ├──────────────────┤ │
+│  ├────────────────────┤  │l │  │AdjustmentControls│ │
+│  │   GalleryResizer   │  │R │  │  基础 / 色彩滑块  │ │
+│  ├────────────────────┤  │e │  ├──────────────────┤ │
+│  │   ImageGallery     │  │s │  │   HSLControls    │ │
+│  │   缩略图列表        │  │i │  │  7色相范围调节   │ │
+│  └────────────────────┘  │z │  ├──────────────────┤ │
+│   leftPanelWidth%        │e │  │  ActionButtons   │ │
+│                          │r │  └──────────────────┘ │
+│                          │  │   rightPanelWidth%     │
+└──────────────────────────┴──┴──────────────────────┘
+```
+
+- 左右面板宽度比例可拖拽，范围 70%~85% / 15%~30%
+- 全览区高度可拖拽，范围 16vh~35vh
+- 布局参数持久化到 `localStorage`，刷新后自动恢复
+
+---
+
+## 核心工作流
+
+### 1. 图片上传流程
+
+```
+用户选择文件 / 拖拽文件到预览区
+    │
+    ▼
+useImageState.handleImageUpload(file)
+    │
+    ├─ generateFileHash(file)          # 名称+大小+类型 生成哈希
+    ├─ checkFileExists(hash)           # IndexedDB 查重，重复则拒绝
+    ├─ FileReader.readAsDataURL        # 读取为 base64
+    ├─ generateThumbnail(src)          # canvas 压缩到 200px，JPEG 0.7
+    ├─ saveImageToDB(imageData)        # 写入 IndexedDB（含 blob + src + thumbnail）
+    └─ selectImage(imageData)          # 触发选中，更新 imageSrc / selectedImageId
+```
+
+### 2. 图片选择 / 切换流程
+
+```
+用户点击全览区缩略图
+    │
+    ▼
+WorkstationPage.handleSelectImage(image)
+    │
+    ├─ useImageState.selectImage(image)
+    │       └─ imageSrc.value = image.src
+    │          selectedImageId.value = image.id
+    │
+    └─ applyStoredAdjustments(image.id)
+            ├─ imageDB.getAdjustments(id)     # 读取 adjustmentsJson
+            ├─ isLoadingAdjustments = true     # 防止加载期间触发误保存
+            ├─ setAdjustments(data.adjustments)
+            └─ Object.assign(hslAdjustments, data.hslAdjustments)
+```
+
+### 3. 基础调色流程（CSS filter）
+
+```
+用户拖动亮度/对比度/饱和度等滑块
+    │
+    ▼
+AdjustmentControls emit 'update:adjustments'
+    │
+    ▼
+WorkstationPage → setAdjustments(newValues)
+    │
+    ▼
+useAdjustmentState.adjustments (reactive)
+    │
+    ▼
+imageFilter (computed) 自动重新计算 CSS filter 字符串
+    │
+    ▼
+ImagePreview canvas style.filter = imageFilter   # GPU 加速，无像素遍历
+    │
+    ▼
+RGBAnalysis 监听 imageFilter 变化 → 重新分析
+    │
+    ▼
+scheduleSave() → 500ms 防抖 → IndexedDB 写入
+```
+
+**CSS filter 参数映射：**
+
+| 参数 | 范围 | CSS 映射 |
+|------|------|----------|
+| brightness | -150 ~ +150 | `brightness(0~2)` |
+| contrast | -100 ~ +100 | `contrast(0~2)` |
+| saturation | -100 ~ +100 | `saturate(0~2)` |
+| vibrance | -100 ~ +100 | `saturate` 弱叠加（÷333） |
+| hue | -180 ~ +180 | `hue-rotate(-180deg~+180deg)` |
+| temperature | -100 ~ +100 | `hue-rotate` ±20deg + `sepia` 最多 15% |
+| clarity | -100 ~ +100 | `brightness` 轻微叠加（÷1000） |
+
+### 4. HSL 像素级处理流程
+
+```
+用户拖动 HSL 滑块（红/橙/黄/绿/青/蓝/紫 × H/S/L）
+    │
+    ▼
+HSLControls emit 'update:hslAdjustments'
+    │
+    ▼
+WorkstationPage → Object.assign(hslAdjustments, v)
+    │
+    ▼
+useHSLState watch(hslAdjustments)
+    │
+    ├─ scheduleProcess(adj, hires=false)   # 立即处理预览版（≤1200px）
+    │       │
+    │       ▼
+    │   processParallel(previewData, adj)
+    │       │
+    │       ├─ 切分像素数组为 N 份（N = min(CPU核数, 8)）
+    │       ├─ 每份发给一个 hslWorker（Transferable，零拷贝）
+    │       ├─ Worker 并行处理（RGB→HSL→调整→RGB）
+    │       └─ 合并结果 → canvas.toDataURL(JPEG, 0.88)
+    │               └─ processedSrc.value = dataURL
+    │
+    └─ scheduleHires(adj)                  # 800ms 后处理原图版
+            └─ processParallel(fullData, adj)
+                    └─ processedSrc.value = JPEG 0.95
+```
+
+**hslWorker 颜色范围权重算法：**
+
+每个像素先转换为 HSL，然后对 7 个颜色范围分别计算权重：
+
+```
+rangeWeight(hue, center, half, soft):
+  diff = 色相环最短距离(hue, center)
+  if diff >= half  → weight = 0（完全不影响）
+  if diff <= soft  → weight = 1（完全影响）
+  else             → weight = 线性插值（软边缘过渡）
+
+颜色范围参数：
+  红(0°)   half=40  soft=20
+  橙(30°)  half=30  soft=15
+  黄(60°)  half=35  soft=20
+  绿(120°) half=50  soft=30
+  青(180°) half=40  soft=20
+  蓝(240°) half=50  soft=30
+  紫(300°) half=50  soft=30
+
+最终调整量 = Σ(调整值 × weight) / max(totalWeight, 1)
+```
+
+### 5. 图像分析流程（直方图/波形图）
+
+```
+processedSrc 或 imageFilter 变化
+    │
+    ▼
+RGBAnalysis watch 触发 scheduleAnalyze()
+    │
+    ├─ 图片切换：80ms 防抖
+    └─ 参数变化：立即触发
+            │
+            ▼
+        sendToWorker(src)
+            │
+            ├─ 加载图片（processedSrc 优先，否则 imageSrc）
+            ├─ canvas 缩放到 ≤600px
+            ├─ 应用 CSS filter（imageFilter）
+            ├─ getImageData → 拷贝 buffer
+            └─ postMessage 到 rgbWorker（Transferable）
+                    │
+                    ▼
+                rgbWorker 计算：
+                    ├─ 直方图：R/G/B 各 256 桶统计
+                    └─ 波形：256列 × 120行采样
+                            │
+                            ▼
+                    postMessage 返回（Transferable）
+                            │
+                            ▼
+                    主线程 requestAnimationFrame
+                            ├─ drawHistogram（screen 混合模式）
+                            └─ drawWaveform
+```
+
+**直方图渲染优化：** 使用 `globalCompositeOperation = 'screen'` 混合三通道，避免半透明叠加产生黑柱割裂。
+
+### 6. 图片导出流程
+
+```
+用户点击"保存图片"，选择格式（PNG / JPEG）
+    │
+    ▼
+WorkstationPage.handleSaveImage(format)
+    │
+    ├─ exportProcessed(format, quality)
+    │       │
+    │       ├─ 无 HSL 调整 → 直接返回原图 src
+    │       └─ 有 HSL 调整 → processParallel(fullData, adj)
+    │               └─ 原图完整尺寸处理（不缩小）
+    │               └─ canvas.toDataURL(format, quality)
+    │
+    ├─ 创建 canvas（原图尺寸）
+    ├─ ctx.filter = imageFilter（叠加 CSS filter）
+    ├─ ctx.drawImage(hslResult)
+    └─ canvas.toDataURL → <a> 下载
+```
+
+导出保证：HSL 像素处理用原图完整尺寸，CSS filter 通过 canvas 二次渲染叠加，最终输出与预览效果一致。
+
+### 7. 调色参数持久化流程
+
+```
+用户调整任意参数（adjustments 或 hslAdjustments）
+    │
+    ▼
+watch(adjustments / hslAdjustments, scheduleSave, { deep: true })
+    │
+    ├─ isLoadingAdjustments === true → 跳过（防止加载期间误写）
+    └─ 500ms 防抖 → saveAdjustments(imageId, JSON)
+            │
+            ▼
+        IndexedDB updateAdjustments(id, json)
+            └─ 只更新 adjustmentsJson 字段，不重写 blob（性能优化）
+
+JSON 结构：
+{
+  "adjustments": {
+    "brightness": 20, "contrast": -10, "saturation": 30,
+    "vibrance": 0, "hue": 0, "temperature": 15, "clarity": 0
+  },
+  "hslAdjustments": {
+    "red":    { "hue": 15, "saturation": 20, "lightness": 0 },
+    "orange": { "hue": 0,  "saturation": 0,  "lightness": 0 },
+    ...
+  }
+}
+```
+
+---
+
+## 数据持久化
+
+### IndexedDB 结构
+
+数据库名：`WorkstationDB`，版本：`v4`，Store：`images`
+
+| 字段 | 类型 | 说明 |
+|------|------|------|
+| id | number | 主键，`Date.now() + Math.random()` |
+| name | string | 文件名 |
+| blob | Blob | 原始文件二进制 |
+| src | string | base64 DataURL（用于预览） |
+| thumbnail | string | 200px 压缩缩略图 base64，JPEG 0.7 |
+| fileHash | string | `文件名_大小_类型` 去重标识 |
+| adjustmentsJson | string | JSON 格式调色参数，向后兼容 |
+| uploadTime | Date | 上传时间（用于排序） |
+| lastModified | Date | 最后修改时间 |
+
+索引：`uploadTime`、`name`、`fileHash`
+
+### localStorage 结构
+
+键名：`workstation-layout-settings`
+
+```json
+{
+  "leftPanelWidth": 80,
+  "galleryHeight": 20,
+  "timestamp": 1234567890
+}
+```
+
+---
+
+## 性能设计
+
+### Web Worker 并行化
+
+| Worker | 数量 | 职责 |
+|--------|------|------|
+| hslWorker | min(CPU核数, 8) | HSL 像素处理，分片并行 |
+| rgbWorker | 1（复用） | 直方图 + 波形数据计算 |
+
+所有 Worker 通信使用 `Transferable`（`ArrayBuffer` 零拷贝转移），避免结构化克隆的内存复制开销。
+
+### 双缓存策略（HSL）
+
+- 预览版：原图缩放到 ≤1200px，拖动时实时处理，JPEG 0.88 输出
+- 原图版：完整尺寸，停止操作 800ms 后处理，JPEG 0.95 输出
+- 导出时：强制用原图版重新处理，保证输出质量
+
+### 跳帧策略
+
+Worker 忙时只保留最新请求（`pendingReq`），丢弃中间帧，避免请求堆积导致的延迟累积。
+
+### 直方图优化
+
+- 图片缩放到 ≤600px 再分析，减少像素量
+- Worker 计算完成后主线程只做 canvas 绘制，无像素遍历
+- 参数变化立即触发（无防抖），图片切换 80ms 防抖
+- 切换 tab（直方图↔波形图）直接用缓存结果重绘，不重算
+
+---
+
+## 状态流向图
+
+```
+                    WorkstationPage
+                         │
+        ┌────────────────┼────────────────┐
+        │                │                │
+  useLayoutState   useImageState    useAdjustmentState
+  leftPanelWidth   imageSrc         adjustments
+  galleryHeight    uploadedImages   imageFilter (computed)
+  localStorage     selectedImageId  IndexedDB (adjustmentsJson)
+                   IndexedDB
+                        │
+                   useHSLState
+                   hslAdjustments
+                   processedSrc
+                        │
+                   hslWorker × N
+                   (并行分片处理)
+                        │
+                   ImagePreview (canvas)
+                        │
+                   RGBAnalysis
+                        │
+                   rgbWorker × 1
+                   (直方图+波形)
+```
+
+---
+
+## 扩展说明
+
+### 新增调色参数
+
+1. 在 `component-interfaces.ts` 的 `AdjustmentValues` 加字段
+2. 在 `useAdjustmentState.ts` 的 `adjustments` 初始值和 `imageFilter` computed 加映射
+3. 在 `AdjustmentControls.vue` 的 `basicItems` 或 `colorItems` 加滑块定义
+4. `adjustmentsJson` 自动包含新字段，旧记录读取时缺失字段会被忽略（向后兼容）
+
+### 新增 HSL 颜色范围
+
+在 `useHSLProcessor.ts` 的 `HSLAdjustments` 加键，同步更新 `hslWorker.ts` 的 `COLOR_KEYS`、`CENTERS`、`HALF`、`SOFT` 数组，以及 `HSLControls.vue` 的 `tabs` 数组。
+
+### 接入蒙版工具
+
+蒙版合成结果替换 `processedSrc` 的位置，`RGBAnalysis` 和 `ImagePreview` 无需改动，直方图自动反映合成后的像素分布。

@@ -3,10 +3,14 @@
     <div class="hsl-header">
       <span class="hsl-title">色相 / 饱和度 / 明度</span>
     </div>
+
+    <!-- 颜色范围 tab -->
     <div class="color-tabs">
       <button
-        v-for="tab in tabs" :key="tab.key"
-        class="color-tab" :class="{ active: activeTab === tab.key }"
+        v-for="tab in tabs"
+        :key="tab.key"
+        class="color-tab"
+        :class="{ active: activeTab === tab.key }"
         :style="{ '--tab-color': tab.color }"
         @click="activeTab = tab.key"
       >
@@ -14,31 +18,44 @@
         <span class="tab-label">{{ tab.label }}</span>
       </button>
     </div>
+
+    <!-- 三个滑块 -->
     <div class="hsl-sliders">
+      <!-- 色相：渐变轨道随当前 tab 变化 -->
       <div class="hsl-row">
         <div class="row-header">
           <span class="row-label">色相 H</span>
-          <span class="row-value" :class="{ active: currentRange.hue !== 0 }">{{ fmt(currentRange.hue, '°') }}</span>
+          <span class="row-value" :class="{ active: currentRange.hue !== 0 }">
+            {{ fmt(currentRange.hue, '°') }}
+          </span>
           <button class="reset-btn" :style="{ visibility: currentRange.hue !== 0 ? 'visible' : 'hidden' }" @click="resetAxis('hue')">↺</button>
         </div>
         <input type="range" class="slider" :style="{ background: currentTab.hueGradient }"
           min="-180" max="180" :value="currentRange.hue" @input="onInput('hue', $event)" />
         <div class="track-labels"><span>-180°</span><span>0</span><span>+180°</span></div>
       </div>
+
+      <!-- 饱和度 -->
       <div class="hsl-row">
         <div class="row-header">
           <span class="row-label">饱和度 S</span>
-          <span class="row-value" :class="{ active: currentRange.saturation !== 0 }">{{ fmt(currentRange.saturation) }}</span>
+          <span class="row-value" :class="{ active: currentRange.saturation !== 0 }">
+            {{ fmt(currentRange.saturation) }}
+          </span>
           <button class="reset-btn" :style="{ visibility: currentRange.saturation !== 0 ? 'visible' : 'hidden' }" @click="resetAxis('saturation')">↺</button>
         </div>
         <input type="range" class="slider slider-sat" :style="{ '--c': currentTab.color }"
           min="-100" max="100" :value="currentRange.saturation" @input="onInput('saturation', $event)" />
         <div class="track-labels"><span>-100</span><span>0</span><span>+100</span></div>
       </div>
+
+      <!-- 明度 -->
       <div class="hsl-row">
         <div class="row-header">
           <span class="row-label">明度 L</span>
-          <span class="row-value" :class="{ active: currentRange.lightness !== 0 }">{{ fmt(currentRange.lightness) }}</span>
+          <span class="row-value" :class="{ active: currentRange.lightness !== 0 }">
+            {{ fmt(currentRange.lightness) }}
+          </span>
           <button class="reset-btn" :style="{ visibility: currentRange.lightness !== 0 ? 'visible' : 'hidden' }" @click="resetAxis('lightness')">↺</button>
         </div>
         <input type="range" class="slider slider-light"
@@ -46,6 +63,7 @@
         <div class="track-labels"><span>-100</span><span>0</span><span>+100</span></div>
       </div>
     </div>
+
     <button class="reset-all-btn" v-if="hasAny" @click="resetAll">重置全部</button>
   </div>
 </template>
@@ -63,6 +81,7 @@ const emit  = defineEmits<Emits>()
 type TabKey  = keyof HSLAdjustments
 type AxisKey = keyof HSLRange
 
+// 每个颜色范围的色相渐变：左=负方向颜色，中=本色，右=正方向颜色
 const tabs: { key: TabKey; label: string; color: string; hueGradient: string }[] = [
   { key: 'red',    label: '红', color: '#ef4444', hueGradient: 'linear-gradient(to right,#c026d3,#ef4444,#f97316)' },
   { key: 'orange', label: '橙', color: '#f97316', hueGradient: 'linear-gradient(to right,#ef4444,#f97316,#eab308)' },
@@ -104,33 +123,80 @@ const resetAll = () => {
 
 <style scoped>
 .hsl-controls { display: flex; flex-direction: column; gap: 10px; }
+
 .hsl-header { padding-bottom: 6px; border-bottom: 1px solid rgba(255,255,255,0.04); }
 .hsl-title { font-size: 10px; font-weight: 700; color: #4b5563; text-transform: uppercase; letter-spacing: 1px; }
+
 .color-tabs { display: flex; flex-wrap: wrap; gap: 4px; }
+
 .color-tab {
-  display: flex; align-items: center; gap: 4px; padding: 3px 8px;
-  background: rgba(255,255,255,0.04); border: 1px solid rgba(255,255,255,0.06);
-  border-radius: 20px; cursor: pointer; transition: all 0.15s; outline: none;
+  display: flex; align-items: center; gap: 4px;
+  padding: 3px 8px;
+  background: rgba(255,255,255,0.04);
+  border: 1px solid rgba(255,255,255,0.06);
+  border-radius: 20px; cursor: pointer;
+  transition: all 0.15s; outline: none;
 }
 .color-tab:hover { background: rgba(255,255,255,0.08); }
-.color-tab.active { background: rgba(255,255,255,0.1); border-color: var(--tab-color); box-shadow: 0 0 0 1px var(--tab-color) inset; }
+.color-tab.active {
+  background: rgba(255,255,255,0.1);
+  border-color: var(--tab-color);
+  box-shadow: 0 0 0 1px var(--tab-color) inset;
+}
 .tab-dot { width: 7px; height: 7px; border-radius: 50%; flex-shrink: 0; }
 .tab-label { font-size: 11px; color: #9ca3af; }
 .color-tab.active .tab-label { color: #e2e4e9; }
+
 .hsl-sliders { display: flex; flex-direction: column; gap: 8px; }
 .hsl-row { display: flex; flex-direction: column; gap: 3px; }
 .row-header { display: flex; align-items: center; gap: 6px; }
 .row-label { font-size: 12px; color: #9ca3af; flex: 1; }
 .row-value { font-size: 11px; font-family: 'Courier New', monospace; color: #4b5563; min-width: 40px; text-align: right; transition: color 0.15s; }
 .row-value.active { color: #5b6af0; }
-.reset-btn { background: none; border: none; color: #4b5563; font-size: 12px; cursor: pointer; padding: 0; width: 16px; text-align: center; outline: none; transition: color 0.15s; flex-shrink: 0; }
+
+.reset-btn {
+  background: none; border: none; color: #4b5563;
+  font-size: 12px; cursor: pointer; padding: 0;
+  width: 16px; text-align: center; outline: none;
+  transition: color 0.15s; flex-shrink: 0;
+}
 .reset-btn:hover { color: #9ca3af; }
-.slider { -webkit-appearance: none; appearance: none; width: 100%; height: 3px; border-radius: 2px; outline: none; cursor: pointer; }
-.slider::-webkit-slider-thumb { -webkit-appearance: none; width: 13px; height: 13px; border-radius: 50%; background: #fff; border: 2px solid #1c1e22; box-shadow: 0 0 0 1px rgba(255,255,255,0.25); cursor: pointer; transition: box-shadow 0.15s, transform 0.15s; }
-.slider::-webkit-slider-thumb:hover { box-shadow: 0 0 0 3px rgba(255,255,255,0.15); transform: scale(1.15); }
+
+.slider {
+  -webkit-appearance: none; appearance: none;
+  width: 100%; height: 3px; border-radius: 2px;
+  outline: none; cursor: pointer;
+  /* background 由 :style 动态注入（色相）或下面的类覆盖 */
+}
+.slider::-webkit-slider-thumb {
+  -webkit-appearance: none;
+  width: 13px; height: 13px; border-radius: 50%;
+  background: #fff; border: 2px solid #1c1e22;
+  box-shadow: 0 0 0 1px rgba(255,255,255,0.25);
+  cursor: pointer; transition: box-shadow 0.15s, transform 0.15s;
+}
+.slider::-webkit-slider-thumb:hover {
+  box-shadow: 0 0 0 3px rgba(255,255,255,0.15);
+  transform: scale(1.15);
+}
+
+/* 饱和度：灰 → 当前颜色 */
 .slider-sat { background: linear-gradient(to right, #555, var(--c, #5b6af0)) !important; }
+/* 明度：黑 → 白 */
 .slider-light { background: linear-gradient(to right, #000, #888 50%, #fff) !important; }
-.track-labels { display: flex; justify-content: space-between; font-size: 9px; color: #374151; padding: 0 1px; }
-.reset-all-btn { width: 100%; padding: 7px; background: rgba(255,255,255,0.04); border: 1px solid rgba(255,255,255,0.07); border-radius: 6px; color: #6b7280; font-size: 11px; cursor: pointer; transition: all 0.15s; outline: none; }
+
+.track-labels {
+  display: flex; justify-content: space-between;
+  font-size: 9px; color: #374151; padding: 0 1px;
+}
+
+.reset-all-btn {
+  width: 100%; padding: 7px;
+  background: rgba(255,255,255,0.04);
+  border: 1px solid rgba(255,255,255,0.07);
+  border-radius: 6px; color: #6b7280;
+  font-size: 11px; cursor: pointer;
+  transition: all 0.15s; outline: none;
+}
 .reset-all-btn:hover { background: rgba(255,255,255,0.08); color: #9ca3af; }
 </style>

@@ -1,0 +1,18 @@
+2026-03-15 21:04:02.564 [http-nio-8081-exec-1] INFO  cn.gsjgsj.authservice.security - LOGIN_SUCCESS - Username: 17759766761, UserId: 9, IP: unknown
+2026-03-15 21:07:53.629 [http-nio-8081-exec-3] WARN  cn.gsjgsj.authservice.security - LOGIN_FAILURE - Username: 17759766761, Reason: Invalid password, IP: unknown
+2026-03-15 21:07:56.202 [http-nio-8081-exec-4] WARN  cn.gsjgsj.authservice.security - LOGIN_FAILURE - Username: 17759766761, Reason: Invalid password, IP: unknown
+2026-03-15 21:07:57.127 [http-nio-8081-exec-5] WARN  cn.gsjgsj.authservice.security - LOGIN_FAILURE - Username: 17759766761, Reason: Invalid password, IP: unknown
+2026-03-15 21:08:09.856 [http-nio-8081-exec-7] INFO  cn.gsjgsj.authservice.security - LOGIN_SUCCESS - Username: 17759766761, UserId: 9, IP: unknown
+2026-03-15 21:11:12.339 [http-nio-8081-exec-9] WARN  cn.gsjgsj.authservice.security - LOGIN_FAILURE - Username: 17759766761, Reason: Invalid password, IP: unknown
+2026-03-15 21:11:14.616 [http-nio-8081-exec-10] WARN  cn.gsjgsj.authservice.security - LOGIN_FAILURE - Username: 17759766761, Reason: Invalid password, IP: unknown
+2026-03-15 21:11:14.972 [http-nio-8081-exec-1] WARN  cn.gsjgsj.authservice.security - LOGIN_FAILURE - Username: 17759766761, Reason: Invalid password, IP: unknown
+2026-03-15 21:11:15.464 [http-nio-8081-exec-2] WARN  cn.gsjgsj.authservice.security - LOGIN_FAILURE - Username: 17759766761, Reason: Invalid password, IP: unknown
+2026-03-15 21:11:15.834 [http-nio-8081-exec-3] WARN  cn.gsjgsj.authservice.security - ACCOUNT_LOCKED - Username: 17759766761, FailureCount: 5, IP: unknown
+2026-03-15 21:11:16.070 [http-nio-8081-exec-4] WARN  cn.gsjgsj.authservice.security - LOGIN_FAILURE - Username: 17759766761, Reason: Account locked, IP: unknown
+2026-03-15 21:11:16.236 [http-nio-8081-exec-5] WARN  cn.gsjgsj.authservice.security - LOGIN_FAILURE - Username: 17759766761, Reason: Account locked, IP: unknown
+2026-03-15 21:11:16.409 [http-nio-8081-exec-6] WARN  cn.gsjgsj.authservice.security - LOGIN_FAILURE - Username: 17759766761, Reason: Account locked, IP: unknown
+2026-03-15 21:11:16.566 [http-nio-8081-exec-7] WARN  cn.gsjgsj.authservice.security - LOGIN_FAILURE - Username: 17759766761, Reason: Account locked, IP: unknown
+2026-03-15 21:11:16.762 [http-nio-8081-exec-8] WARN  cn.gsjgsj.authservice.security - LOGIN_FAILURE - Username: 17759766761, Reason: Account locked, IP: unknown
+2026-03-15 21:11:16.945 [http-nio-8081-exec-9] WARN  cn.gsjgsj.authservice.security - LOGIN_FAILURE - Username: 17759766761, Reason: Account locked, IP: unknown
+2026-03-15 21:11:17.120 [http-nio-8081-exec-10] WARN  cn.gsjgsj.authservice.security - LOGIN_FAILURE - Username: 17759766761, Reason: Account locked, IP: unknown
+2026-03-15 21:11:37.784 [http-nio-8081-exec-1] INFO  cn.gsjgsj.authservice.security - LOGIN_SUCCESS - Username: 17759766761, UserId: 9, IP: unknown

@@ -7,26 +7,15 @@ import { imageDB, type ImageDBItem } from '../utils/imageDB'
 import type { ImageItem } from '../component-interfaces'
 
 export interface UseImageStorageReturn {
-  // 保存图片到IndexedDB
   saveImageToDB: (image: ImageItem) => Promise<void>
-  
-  // 从IndexedDB加载所有图片
   loadImagesFromDB: () => Promise<ImageItem[]>
-  
-  // 从IndexedDB删除图片
   deleteImageFromDB: (imageId: number) => Promise<void>
-  
-  // 清空IndexedDB中的所有图片
   clearAllImagesFromDB: () => Promise<void>
-  
-  // 获取存储的图片数量
   getStoredImageCount: () => Promise<number>
-  
-  // 生成文件哈希
   generateFileHash: (file: File) => string
-  
-  // 检查文件是否已存在
   checkFileExists: (fileHash: string) => Promise<boolean>
+  saveAdjustments: (imageId: number, adjustmentsJson: string) => Promise<void>
+  loadAdjustments: (imageId: number) => Promise<string | null>
 }
 
 export function useImageStorage(): UseImageStorageReturn {
@@ -140,6 +129,29 @@ export function useImageStorage(): UseImageStorageReturn {
     }
   }
 
+  /**
+   * 保存调色参数到 IndexedDB（JSON 格式）
+   */
+  const saveAdjustments = async (imageId: number, adjustmentsJson: string): Promise<void> => {
+    try {
+      await imageDB.updateAdjustments(imageId, adjustmentsJson)
+    } catch (error) {
+      console.error('保存调色参数失败:', error)
+    }
+  }
+
+  /**
+   * 从 IndexedDB 读取调色参数
+   */
+  const loadAdjustments = async (imageId: number): Promise<string | null> => {
+    try {
+      return await imageDB.getAdjustments(imageId)
+    } catch (error) {
+      console.error('读取调色参数失败:', error)
+      return null
+    }
+  }
+
   return {
     saveImageToDB,
     loadImagesFromDB,
@@ -147,6 +159,8 @@ export function useImageStorage(): UseImageStorageReturn {
     clearAllImagesFromDB,
     getStoredImageCount,
     generateFileHash,
-    checkFileExists
+    checkFileExists,
+    saveAdjustments,
+    loadAdjustments,
   }
 }
