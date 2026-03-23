@@ -7,9 +7,8 @@
       :showUploadTips="showUploadTips"
       :galleryHeight="galleryHeight"
       :maskActive="maskActive"
-      :maskLayer="maskLayer"
+      :maskActiveLayer="maskActiveLayer"
       :maskShowOverlay="maskShowOverlay"
-      :maskInternalCanvas="maskInternalCanvas"
       @upload:image="handleImageUpload"
       @mask:commit="emit('mask:commit')"
       @mask:updateLayer="emit('mask:updateLayer', $event)"
@@ -55,9 +54,8 @@ interface ImageDisplayProps {
   showUploadTips: boolean
   galleryHeight: number
   maskActive: boolean
-  maskLayer: MaskLayer
+  maskActiveLayer: MaskLayer | null
   maskShowOverlay: boolean
-  maskInternalCanvas: HTMLCanvasElement | null
 }
 
 interface ImageDisplayEvents {

@@ -9,7 +9,7 @@
     />
 
     <!-- 手柄层（在交互层之上，直接捕获鼠标） -->
-    <template v-if="showOverlay && layer.width">
+    <template v-if="showOverlay && layer">
       <div
         v-for="h in handles" :key="h.id"
         class="handle"
@@ -42,9 +42,13 @@ import type { MaskLayer, LinearMaskParams, RadialMaskParams } from '../composabl
 
 interface Props {
   active: boolean
-  layer: MaskLayer
+  layer: MaskLayer | null   // 当前激活层（可为 null）
   showOverlay: boolean
   imageCanvas: HTMLCanvasElement | null
+  /** 图片当前的 CSS transform 参数，变化时触发 rect 更新 */
+  imgScale: number
+  imgOffsetX: number
+  imgOffsetY: number
 }
 interface Emits {
   'update:layer': [layer: MaskLayer]
@@ -72,6 +76,12 @@ watch(() => props.imageCanvas, () => {
 }, { immediate: true })
 
 watch(() => props.active, v => { if (v) nextTick(() => { updateRect(); redrawOverlay() }) })
+
+// 图片缩放/平移时实时更新 rect（CSS transform 不触发 ResizeObserver）
+watch(
+  [() => props.imgScale, () => props.imgOffsetX, () => props.imgOffsetY],
+  () => { nextTick(() => { updateRect(); redrawOverlay() }) }
+)
 
 onMounted(() => {
   window.addEventListener('scroll', updateRect, true)
@@ -128,9 +138,9 @@ const onBgDown = (e: MouseEvent) => {
   const { nx, ny } = toNorm(e.clientX, e.clientY)
 
   // 径向蒙版：判断点击是否在椭圆内 → 内部拖动整体，外部新建
-  if (props.layer.type === 'radial' && props.layer.width) {
+  if (props.layer?.type === 'radial' && imgRect.value) {
     const l = props.layer
-    const r = imgRect.value!
+    const r = imgRect.value
     const a = l.radial.angle ?? 0
     const cosA = Math.cos(a), sinA = Math.sin(a)
     // 转到椭圆本地坐标系（像素）
@@ -198,16 +208,23 @@ const onTouchEnd = () => {
 
 const applyNewDrag = (nx: number, ny: number, isStart: boolean) => {
   const l = props.layer
+  if (!l) return
   if (l.type === 'linear') {
     if (isStart) {
-      emit('update:layer', { ...l, linear: { ...l.linear, x1: nx, y1: ny, x2: nx, y2: ny } })
+      // 以点击位置为 p1，向右延伸 40% 宽度作为 p2，立即可见
+      const defaultLen = 0.4
+      emit('update:layer', { ...l, linear: {
+        ...l.linear,
+        x1: nx, y1: ny,
+        x2: Math.min(1, nx + defaultLen), y2: ny,
+      }})
     } else {
+      // 拖拽：p1 固定在起点，p2 跟随鼠标
       emit('update:layer', { ...l, linear: { ...l.linear, x2: nx, y2: ny } })
     }
   } else {
     const r = imgRect.value!
     if (isStart) {
-      // 初始给一个合理默认大小（图片宽度 25%），方便立即操作
       const defaultR = 0.25
       emit('update:layer', { ...l, radial: {
         ...l.radial,
@@ -216,7 +233,6 @@ const applyNewDrag = (nx: number, ny: number, isStart: boolean) => {
         ry: defaultR * (r.width / r.height),
       }})
     } else {
-      // 拖拽：从起点到当前鼠标的距离作为半径（保持圆形）
       const dxPx = (nx - bgStartNX) * r.width
       const dyPx = (ny - bgStartNY) * r.height
       const radiusPx = Math.max(10, Math.hypot(dxPx, dyPx))
@@ -241,6 +257,7 @@ const startHandleDrag = (e: MouseEvent, id: string) => {
   updateRect()
   const { nx, ny } = toNorm(e.clientX, e.clientY)
   const l = props.layer
+  if (!l) return
 
   // 记录偏移（鼠标位置 - 手柄参数位置），用于平移时保持相对位置
   if (l.type === 'linear') {
@@ -285,6 +302,7 @@ const cleanupHandleDrag = () => {
 
 const applyHandle = (nx: number, ny: number) => {
   const l = props.layer
+  if (!l) return
   if (l.type === 'linear') {
     const px = nx - handleOffsetNX
     const py = ny - handleOffsetNY
@@ -339,7 +357,7 @@ interface Handle { id: string; nx: number; ny: number; color: string; cursor: st
 
 const handles = computed<Handle[]>(() => {
   const l = props.layer
-  if (!imgRect.value || !l.width) return []
+  if (!imgRect.value || !l) return []
 
   if (l.type === 'linear') {
     const mx = (l.linear.x1 + l.linear.x2) / 2
@@ -397,7 +415,7 @@ const handleStyle = (h: Handle) => {
 const redrawOverlay = () => {
   const canvas = overlayEl.value
   const r = imgRect.value
-  if (!canvas || !r || !props.layer.width) return
+  if (!canvas || !r || !props.layer) return
 
   const dpr = Math.min(window.devicePixelRatio || 1, 2)
   const w = Math.round(r.width), h = Math.round(r.height)

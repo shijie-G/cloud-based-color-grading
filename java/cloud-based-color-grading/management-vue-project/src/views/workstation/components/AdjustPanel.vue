@@ -38,15 +38,20 @@
       <!-- 蒙版工具 -->
       <div class="section">
         <MaskControls
-          :layer="maskLayer"
+          :layers="maskLayers"
+          :activeLayerId="maskActiveLayerId"
+          :activeLayer="maskActiveLayer"
           :showOverlay="maskShowOverlay"
           :maskActive="maskActive"
           @toggle:active="$emit('mask:toggleActive')"
-          @toggle:enabled="$emit('mask:toggleEnabled')"
           @toggle:overlay="$emit('mask:toggleOverlay')"
-          @update:layer="(l) => $emit('mask:updateLayer', l)"
-          @mask:invert="$emit('mask:invert')"
-          @mask:clear="$emit('mask:clear')"
+          @layer:add="(t: MaskType) => $emit('mask:addLayer', t)"
+          @layer:remove="(id: string) => $emit('mask:removeLayer', id)"
+          @layer:select="(id: string) => $emit('mask:selectLayer', id)"
+          @layer:toggleEnabled="(id: string) => $emit('mask:toggleLayerEnabled', id)"
+          @layer:invert="$emit('mask:invert')"
+          @layer:clear="$emit('mask:clear')"
+          @update:layer="(l: MaskLayer) => $emit('mask:updateLayer', l)"
         />
       </div>
 
@@ -67,7 +72,7 @@
 <script setup lang="ts">
 import type { AdjustmentValues } from '../component-interfaces'
 import type { HSLAdjustments } from '../composables/useHSLState'
-import type { MaskLayer } from '../composables/useMaskState'
+import type { MaskLayer, MaskType } from '../composables/useMaskState'
 import RGBAnalysis from './RGBAnalysis.vue'
 import AdjustmentControls from './AdjustmentControls.vue'
 import HSLControls from './HSLControls.vue'
@@ -82,23 +87,28 @@ interface AdjustPanelProps {
   canReset: boolean
   imageSrc?: string
   processedSrc?: string
-  maskLayer: MaskLayer
+  maskLayers: MaskLayer[]
+  maskActiveLayerId: string
+  maskActiveLayer: MaskLayer | null
   maskShowOverlay: boolean
   maskActive: boolean
 }
 
 interface AdjustPanelEvents {
-  'update:adjustments':    [adjustments: AdjustmentValues]
-  'update:hslAdjustments': [hsl: HSLAdjustments]
-  'action:uploadImage':    [file: File]
-  'action:save':           [format: 'png' | 'jpeg']
-  'action:reset':          []
-  'mask:toggleActive':     []
-  'mask:toggleEnabled':    []
-  'mask:toggleOverlay':    []
-  'mask:updateLayer':      [layer: MaskLayer]
-  'mask:invert':           []
-  'mask:clear':            []
+  'update:adjustments':      [adjustments: AdjustmentValues]
+  'update:hslAdjustments':   [hsl: HSLAdjustments]
+  'action:uploadImage':      [file: File]
+  'action:save':             [format: 'png' | 'jpeg']
+  'action:reset':            []
+  'mask:toggleActive':       []
+  'mask:toggleOverlay':      []
+  'mask:addLayer':           [type: MaskType]
+  'mask:removeLayer':        [id: string]
+  'mask:selectLayer':        [id: string]
+  'mask:toggleLayerEnabled': [id: string]
+  'mask:updateLayer':        [layer: MaskLayer]
+  'mask:invert':             []
+  'mask:clear':              []
 }
 
 const props = defineProps<AdjustPanelProps>()

@@ -18,7 +18,6 @@
         :style="{
           transform: `translate(${offsetX}px, ${offsetY}px) scale(${scale})`,
           cursor: scale > 1 ? (isPanning ? 'grabbing' : 'grab') : 'default',
-          transition: isPanning ? 'none' : 'transform 0.2s ease',
         }"
         @dblclick="handleDoubleClick"
         @mousedown="handleMouseDown"
@@ -28,9 +27,12 @@
       <MaskCanvas
         v-if="!!imageSrc"
         :active="maskActive"
-        :layer="maskLayer"
+        :layer="maskActiveLayer"
         :showOverlay="maskShowOverlay"
         :imageCanvas="previewCanvas"
+        :imgScale="scale"
+        :imgOffsetX="offsetX"
+        :imgOffsetY="offsetY"
         @update:layer="emit('mask:updateLayer', $event)"
         @commit="emit('mask:commit')"
       />
@@ -68,9 +70,8 @@ interface ImagePreviewProps {
   showUploadTips: boolean
   galleryHeight: number
   maskActive: boolean
-  maskLayer: MaskLayer
+  maskActiveLayer: MaskLayer | null
   maskShowOverlay: boolean
-  maskInternalCanvas: HTMLCanvasElement | null
 }
 interface ImagePreviewEvents {
   'upload:image': [file: File]
