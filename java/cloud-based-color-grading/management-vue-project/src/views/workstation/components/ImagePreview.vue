@@ -11,14 +11,7 @@
   >
     <div class="drag-backdrop" v-if="isDragOver"></div>
 
-    <div class="image-wrapper">
-      <!--
-        单个 canvas 渲染图片：
-        - canvas 内部尺寸 = 原图自然尺寸（不缩放像素）
-        - CSS max-width/max-height 控制显示大小
-        - processedSrc 有值时绘制处理结果，否则绘制原图
-        - 彻底消除双层 img 叠加导致的模糊和布局抖动
-      -->
+    <div class="image-wrapper" ref="wrapperRef">
       <canvas
         ref="previewCanvas"
         v-show="!!imageSrc"
@@ -29,6 +22,17 @@
         }"
         @dblclick="handleDoubleClick"
         @mousedown="handleMouseDown"
+      />
+
+      <!-- 蒙版交互层 -->
+      <MaskCanvas
+        v-if="!!imageSrc"
+        :active="maskActive"
+        :layer="maskLayer"
+        :showOverlay="maskShowOverlay"
+        :imageCanvas="previewCanvas"
+        @update:layer="emit('mask:updateLayer', $event)"
+        @commit="emit('mask:commit')"
       />
 
       <div class="scale-indicator" v-if="imageSrc && scale !== 1">
@@ -55,21 +59,30 @@
 
 <script setup lang="ts">
 import { ref, watch, onMounted, onUnmounted } from 'vue'
+import MaskCanvas from './MaskCanvas.vue'
+import type { MaskLayer } from '../composables/useMaskState'
 
 interface ImagePreviewProps {
   imageSrc: string
   processedSrc: string
   showUploadTips: boolean
   galleryHeight: number
+  maskActive: boolean
+  maskLayer: MaskLayer
+  maskShowOverlay: boolean
+  maskInternalCanvas: HTMLCanvasElement | null
 }
-interface ImagePreviewEvents { 'upload:image': [file: File] }
+interface ImagePreviewEvents {
+  'upload:image': [file: File]
+  'mask:commit': []
+  'mask:updateLayer': [layer: MaskLayer]
+}
 
 const props = defineProps<ImagePreviewProps>()
 const emit  = defineEmits<ImagePreviewEvents>()
 
 const previewCanvas = ref<HTMLCanvasElement | null>(null)
 
-// 将 src 绘制到 canvas，保持原图像素尺寸，CSS 负责缩放显示
 const drawSrc = (src: string) => {
   if (!src || !previewCanvas.value) return
   const canvas = previewCanvas.value
@@ -82,7 +95,6 @@ const drawSrc = (src: string) => {
   img.src = src
 }
 
-// processedSrc 有值时显示处理结果，否则显示原图
 watch(
   [() => props.processedSrc, () => props.imageSrc],
   ([processed, original]) => { drawSrc(processed || original) },
@@ -109,12 +121,12 @@ const handleWheel = (e: WheelEvent) => {
   scale.value = Math.min(4, Math.max(0.2, parseFloat((scale.value + delta).toFixed(1))))
 }
 
-// ── 拖拽平移 ─────────────────────────────
+// ── 拖拽平移（蒙版激活时禁用） ────────────
 let px = 0, py = 0, pox = 0, poy = 0, moved = false
 const THRESHOLD = 4
 
 const handleMouseDown = (e: MouseEvent) => {
-  if (!props.imageSrc || e.button !== 0 || scale.value <= 1) return
+  if (!props.imageSrc || e.button !== 0 || scale.value <= 1 || props.maskActive) return
   e.preventDefault()
   px = e.clientX; py = e.clientY; pox = offsetX.value; poy = offsetY.value; moved = false
   document.addEventListener('mousemove', onMove)
@@ -133,8 +145,13 @@ const onUp = () => {
   document.body.style.cursor = ''; document.body.style.userSelect = ''
 }
 
+// ── 蒙版画笔事件透传 ──────────────────────
+// （MaskCanvas 直接操作 internalCanvas，只需透传 commit）
+
 const onKey = (e: KeyboardEvent) => { if (e.key === 'Escape') resetTransform() }
-onMounted(() => window.addEventListener('keydown', onKey))
+onMounted(() => {
+  window.addEventListener('keydown', onKey)
+})
 onUnmounted(() => {
   window.removeEventListener('keydown', onKey)
   document.removeEventListener('mousemove', onMove)

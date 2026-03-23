@@ -6,7 +6,13 @@
       :processedSrc="processedSrc"
       :showUploadTips="showUploadTips"
       :galleryHeight="galleryHeight"
+      :maskActive="maskActive"
+      :maskLayer="maskLayer"
+      :maskShowOverlay="maskShowOverlay"
+      :maskInternalCanvas="maskInternalCanvas"
       @upload:image="handleImageUpload"
+      @mask:commit="emit('mask:commit')"
+      @mask:updateLayer="emit('mask:updateLayer', $event)"
       ref="imagePreviewRef"
     />
     
@@ -35,11 +41,11 @@
 <script setup lang="ts">
 import { ref } from 'vue'
 import type { ImageItem } from '../component-interfaces'
+import type { MaskLayer } from '../composables/useMaskState'
 import ImagePreview from './ImagePreview.vue'
 import ImageGallery from './ImageGallery.vue'
 import GalleryResizer from './GalleryResizer.vue'
 
-// ImageDisplay 组件 - 左侧图片显示区容器
 interface ImageDisplayProps {
   leftPanelWidth: number
   images: ImageItem[]
@@ -48,16 +54,21 @@ interface ImageDisplayProps {
   processedSrc: string
   showUploadTips: boolean
   galleryHeight: number
+  maskActive: boolean
+  maskLayer: MaskLayer
+  maskShowOverlay: boolean
+  maskInternalCanvas: HTMLCanvasElement | null
 }
 
-// 事件定义
 interface ImageDisplayEvents {
-  'action:selectImage': [image: ImageItem]
-  'action:uploadImage': [file: File]
-  'layout:resetLayout': []
-  'layout:updateGalleryHeight': [height: number]
-  'resize:start': []
-  'resize:end': []
+  'action:selectImage':        [image: ImageItem]
+  'action:uploadImage':        [file: File]
+  'layout:resetLayout':        []
+  'layout:updateGalleryHeight':[height: number]
+  'resize:start':              []
+  'resize:end':                []
+  'mask:commit':               []
+  'mask:updateLayer':          [layer: import('../composables/useMaskState').MaskLayer]
 }
 
 // 使用 defineProps 和 defineEmits 定义接口

@@ -8,7 +8,6 @@
         </svg>
         <h2 class="panel-title">图片调整</h2>
       </div>
-      <div class="header-decoration"></div>
     </div>
 
     <div class="panel-content">
@@ -36,6 +35,21 @@
         />
       </div>
 
+      <!-- 蒙版工具 -->
+      <div class="section">
+        <MaskControls
+          :layer="maskLayer"
+          :showOverlay="maskShowOverlay"
+          :maskActive="maskActive"
+          @toggle:active="$emit('mask:toggleActive')"
+          @toggle:enabled="$emit('mask:toggleEnabled')"
+          @toggle:overlay="$emit('mask:toggleOverlay')"
+          @update:layer="(l) => $emit('mask:updateLayer', l)"
+          @mask:invert="$emit('mask:invert')"
+          @mask:clear="$emit('mask:clear')"
+        />
+      </div>
+
       <!-- 操作按钮 -->
       <div class="section section-actions">
         <ActionButtons
@@ -47,16 +61,17 @@
         />
       </div>
     </div>
-
-</div>
+  </div>
 </template>
 
 <script setup lang="ts">
 import type { AdjustmentValues } from '../component-interfaces'
 import type { HSLAdjustments } from '../composables/useHSLState'
+import type { MaskLayer } from '../composables/useMaskState'
 import RGBAnalysis from './RGBAnalysis.vue'
 import AdjustmentControls from './AdjustmentControls.vue'
 import HSLControls from './HSLControls.vue'
+import MaskControls from './MaskControls.vue'
 import ActionButtons from './ActionButtons.vue'
 
 interface AdjustPanelProps {
@@ -65,29 +80,35 @@ interface AdjustPanelProps {
   hslAdjustments: HSLAdjustments
   canSave: boolean
   canReset: boolean
-  acceptedFormats?: string
-  maxFileSize?: number
   imageSrc?: string
-  imageFilter?: string
   processedSrc?: string
+  maskLayer: MaskLayer
+  maskShowOverlay: boolean
+  maskActive: boolean
 }
 
 interface AdjustPanelEvents {
-  'update:adjustments': [adjustments: AdjustmentValues]
+  'update:adjustments':    [adjustments: AdjustmentValues]
   'update:hslAdjustments': [hsl: HSLAdjustments]
-  'action:uploadImage': [file: File]
-  'action:save': [format: 'png' | 'jpeg']
-  'action:reset': []
+  'action:uploadImage':    [file: File]
+  'action:save':           [format: 'png' | 'jpeg']
+  'action:reset':          []
+  'mask:toggleActive':     []
+  'mask:toggleEnabled':    []
+  'mask:toggleOverlay':    []
+  'mask:updateLayer':      [layer: MaskLayer]
+  'mask:invert':           []
+  'mask:clear':            []
 }
 
 const props = defineProps<AdjustPanelProps>()
-const emit = defineEmits<AdjustPanelEvents>()
+const emit  = defineEmits<AdjustPanelEvents>()
 
-const handleUploadImage = (file: File) => emit('action:uploadImage', file)
-const handleUpdateAdjustments = (adjustments: AdjustmentValues) => emit('update:adjustments', adjustments)
-const handleUpdateHSL = (hsl: HSLAdjustments) => emit('update:hslAdjustments', hsl)
-const handleSave = (format: 'png' | 'jpeg') => emit('action:save', format)
-const handleReset = () => emit('action:reset')
+const handleUploadImage       = (file: File)              => emit('action:uploadImage', file)
+const handleUpdateAdjustments = (adj: AdjustmentValues)   => emit('update:adjustments', adj)
+const handleUpdateHSL         = (hsl: HSLAdjustments)     => emit('update:hslAdjustments', hsl)
+const handleSave              = (fmt: 'png' | 'jpeg')     => emit('action:save', fmt)
+const handleReset             = ()                        => emit('action:reset')
 </script>
 
 <style scoped>
@@ -101,90 +122,38 @@ const handleReset = () => emit('action:reset')
   border-left: 1px solid rgba(255, 255, 255, 0.06);
 }
 
-/* 顶部标题栏 */
 .panel-header {
   padding: 16px 18px;
   background: #1c1e22;
   border-bottom: 1px solid rgba(255, 255, 255, 0.06);
   flex-shrink: 0;
-  display: flex;
-  flex-direction: column;
-  gap: 0;
 }
 
-.header-content {
-  display: flex;
-  align-items: center;
-  gap: 8px;
-}
+.header-content { display: flex; align-items: center; gap: 8px; }
 
-.header-icon {
-  width: 16px;
-  height: 16px;
-  color: #5b6af0;
-  flex-shrink: 0;
-}
+.header-icon { width: 16px; height: 16px; color: #5b6af0; flex-shrink: 0; }
 
 .panel-title {
-  font-size: 13px;
-  font-weight: 600;
-  margin: 0;
-  color: #e2e4e9;
-  letter-spacing: 0.5px;
-  text-transform: uppercase;
+  font-size: 13px; font-weight: 600; margin: 0;
+  color: #e2e4e9; letter-spacing: 0.5px; text-transform: uppercase;
 }
 
-.header-decoration {
-  display: none;
-}
-
-/* 内容区 */
 .panel-content {
-  flex: 1;
-  overflow-y: auto;
-  padding: 12px;
-  display: flex;
-  flex-direction: column;
-  gap: 8px;
+  flex: 1; overflow-y: auto; padding: 12px;
+  display: flex; flex-direction: column; gap: 8px;
 }
 
-.panel-content::-webkit-scrollbar {
-  width: 4px;
-}
+.panel-content::-webkit-scrollbar { width: 4px; }
+.panel-content::-webkit-scrollbar-track { background: transparent; }
+.panel-content::-webkit-scrollbar-thumb { background: rgba(255,255,255,0.1); border-radius: 2px; }
+.panel-content::-webkit-scrollbar-thumb:hover { background: rgba(255,255,255,0.2); }
 
-.panel-content::-webkit-scrollbar-track {
-  background: transparent;
-}
-
-.panel-content::-webkit-scrollbar-thumb {
-  background: rgba(255, 255, 255, 0.1);
-  border-radius: 2px;
-}
-
-.panel-content::-webkit-scrollbar-thumb:hover {
-  background: rgba(255, 255, 255, 0.2);
-}
-
-/* 卡片区块 */
 .section {
-  background: #24272d;
-  border-radius: 10px;
-  padding: 14px;
-  border: 1px solid rgba(255, 255, 255, 0.05);
-  transition: border-color 0.2s ease;
+  background: #24272d; border-radius: 10px; padding: 14px;
+  border: 1px solid rgba(255,255,255,0.05); transition: border-color 0.2s ease;
 }
+.section:hover { border-color: rgba(255,255,255,0.09); }
 
-.section:hover {
-  border-color: rgba(255, 255, 255, 0.09);
-}
-
-.section-actions {
-  background: transparent;
-  border: none;
-  padding: 4px 0 0;
-}
-
-.section-actions:hover {
-  border-color: transparent;
-}
+.section-actions { background: transparent; border: none; padding: 4px 0 0; }
+.section-actions:hover { border-color: transparent; }
 </style>

@@ -14,12 +14,18 @@
         :processedSrc="processedSrc"
         :showUploadTips="!imageSrc"
         :galleryHeight="galleryHeight"
+        :maskActive="!!maskActive"
+        :maskLayer="maskLayer"
+        :maskShowOverlay="!!maskShowOverlay"
+        :maskInternalCanvas="maskInternalCanvas"
         @action:selectImage="handleSelectImage"
         @action:uploadImage="handleImageUpload"
         @layout:resetLayout="resetLayout"
         @layout:updateGalleryHeight="updateGalleryHeight"
         @resize:start="handleGalleryResizeStart"
         @resize:end="handleGalleryResizeEnd"
+        @mask:commit="handleMaskCommit"
+        @mask:updateLayer="handleMaskUpdateLayer"
         ref="imageDisplayRef"
       />
 
@@ -41,11 +47,20 @@
         :canReset="!!imageSrc"
         :imageSrc="imageSrc"
         :processedSrc="processedSrc"
+        :maskLayer="maskLayer"
+        :maskShowOverlay="!!maskShowOverlay"
+        :maskActive="!!maskActive"
         @update:adjustments="setAdjustments"
         @update:hslAdjustments="(v) => Object.assign(hslAdjustments, v)"
         @action:uploadImage="handleImageUpload"
         @action:save="handleSaveImage"
-        @action:reset="() => { resetAdjustments(); resetHSL() }"
+        @action:reset="() => { resetAdjustments(); resetHSL(); resetMask(); setMaskCanvas(null) }"
+        @mask:toggleActive="handleMaskToggleActive"
+        @mask:toggleEnabled="handleMaskToggleEnabled"
+        @mask:toggleOverlay="handleMaskToggleOverlay"
+        @mask:updateLayer="handleMaskUpdateLayer"
+        @mask:invert="handleMaskInvert"
+        @mask:clear="handleMaskClear"
       />
     </div>
   </div>
@@ -59,12 +74,12 @@ import ImageDisplay from './components/ImageDisplay.vue';
 import PanelResizer from './components/PanelResizer.vue';
 import AdjustPanel from './components/AdjustPanel.vue';
 
-// 导入 Composables
 import { useLayoutState } from './composables/useLayoutState'
 import { useImageState } from './composables/useImageState'
 import { useAdjustmentState } from './composables/useAdjustmentState'
 import { useHSLState } from './composables/useHSLState'
 import { useImageStorage } from './composables/useImageStorage'
+import { useMaskState } from './composables/useMaskState'
 
 // 使用布局状态管理
 const {
@@ -103,8 +118,26 @@ const {
   resetHSL,
   setSourceImage,
   setBasicAdjustments,
+  setMaskCanvas,
   exportProcessed,
 } = useHSLState()
+
+// 蒙版状态
+const {
+  layer: maskLayer,
+  showOverlay: maskShowOverlay,
+  maskActive,
+  internalCanvas: maskInternalCanvas,
+  initMask,
+  generateMask,
+  clearMask,
+  invertMask,
+  toggleMask,
+  toggleOverlay: toggleMaskOverlay,
+  getMaskDataUrl,
+  loadMaskFromDataUrl,
+  resetMask,
+} = useMaskState()
 
 // 调色参数持久化
 const { saveAdjustments, loadAdjustments } = useImageStorage()
@@ -114,11 +147,17 @@ let saveTimer: ReturnType<typeof setTimeout> | null = null
 // 加载参数期间不触发保存
 let isLoadingAdjustments = false
 
-// 序列化当前所有调色参数为 JSON
-const serializeAdjustments = () => JSON.stringify({
-  adjustments: { ...adjustments },
-  hslAdjustments: JSON.parse(JSON.stringify(hslAdjustments)),
-})
+// 序列化当前所有调色参数为 JSON（含蒙版）
+const serializeAdjustments = () => {
+  const maskDataUrl = getMaskDataUrl()
+  return JSON.stringify({
+    adjustments: { ...adjustments },
+    hslAdjustments: JSON.parse(JSON.stringify(hslAdjustments)),
+    mask: maskLayer.enabled && maskDataUrl
+      ? { enabled: true, dataUrl: maskDataUrl, type: maskLayer.type, linear: { ...maskLayer.linear }, radial: { ...maskLayer.radial } }
+      : null,
+  })
+}
 
 // 防抖自动保存（500ms 无操作后写入 DB）
 const scheduleSave = () => {
@@ -135,16 +174,29 @@ const applyStoredAdjustments = async (imageId: number) => {
   try {
     const json = await loadAdjustments(imageId)
     if (!json) {
-      resetAdjustments()
-      resetHSL()
+      resetAdjustments(); resetHSL(); resetMask()
       return
     }
     const data = JSON.parse(json)
     if (data.adjustments) setAdjustments(data.adjustments)
     if (data.hslAdjustments) Object.assign(hslAdjustments, data.hslAdjustments)
+    // 恢复蒙版
+    if (data.mask?.enabled && data.mask.dataUrl && imageSrc.value) {
+      const img = new Image()
+      img.onload = async () => {
+        await loadMaskFromDataUrl(data.mask.dataUrl, img.naturalWidth, img.naturalHeight)
+        if (data.mask.type) maskLayer.type = data.mask.type
+        if (data.mask.linear) Object.assign(maskLayer.linear, data.mask.linear)
+        if (data.mask.radial) Object.assign(maskLayer.radial, data.mask.radial)
+        setMaskCanvas(maskInternalCanvas.value)
+      }
+      img.src = imageSrc.value
+    } else {
+      resetMask()
+      setMaskCanvas(null)
+    }
   } catch {
-    resetAdjustments()
-    resetHSL()
+    resetAdjustments(); resetHSL(); resetMask()
   } finally {
     isLoadingAdjustments = false
   }
@@ -163,6 +215,47 @@ watch(imageSrc, (src) => {
 watch(adjustments, (adj) => {
   setBasicAdjustments({ ...adj })
 }, { deep: true })
+
+// 图片切换时重置蒙版
+watch(imageSrc, () => {
+  resetMask()
+  setMaskCanvas(null)
+})
+
+// 蒙版 commit（拖拽结束，重新生成蒙版并触发处理链）
+const handleMaskCommit = () => {
+  generateMask()
+  setMaskCanvas(maskInternalCanvas.value)
+  scheduleSave()
+}
+
+// 蒙版参数更新（来自 MaskCanvas 拖拽或 MaskControls 控件）
+const handleMaskUpdateLayer = (newLayer: typeof maskLayer) => {
+  Object.assign(maskLayer, newLayer)
+  generateMask()
+  setMaskCanvas(maskInternalCanvas.value)
+  scheduleSave()
+}
+
+// 蒙版工具栏事件
+const handleMaskToggleActive = () => {
+  maskActive.value = !maskActive.value
+  if (maskActive.value && !maskLayer.width && imageSrc.value) {
+    const img = new Image()
+    img.onload = () => {
+      initMask(img.naturalWidth, img.naturalHeight)
+      setMaskCanvas(maskInternalCanvas.value)
+    }
+    img.src = imageSrc.value
+  }
+}
+const handleMaskToggleEnabled = () => {
+  toggleMask()
+  setMaskCanvas(maskLayer.enabled ? maskInternalCanvas.value : null)
+}
+const handleMaskToggleOverlay = () => { toggleMaskOverlay() }
+const handleMaskInvert = () => { invertMask(); setMaskCanvas(maskInternalCanvas.value); scheduleSave() }
+const handleMaskClear  = () => { clearMask();  setMaskCanvas(maskInternalCanvas.value); scheduleSave() }
 
 // selectedImageId 变化时（含页面刷新后 onMounted 恢复）加载调色参数
 watch(selectedImageId, (id) => {
