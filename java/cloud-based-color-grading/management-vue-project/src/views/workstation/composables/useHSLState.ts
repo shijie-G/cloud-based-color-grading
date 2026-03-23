@@ -1,20 +1,26 @@
 /**
- * HSL 颜色范围调节状态管理
+ * 图片处理状态管理（基础调色 + HSL 颜色范围调节）
+ *
+ * 处理链（与 PS/Lightroom 一致，完全递进式）：
+ *   原图 → basicWorker（色温→亮度→对比度→清晰度→饱和度→色相）
+ *        → hslWorker（红/橙/黄/绿/青/蓝/紫 × H/S/L）
+ *        → processedSrc
  *
  * 性能策略：
- * 1. 双缓存：预览版(≤1200px) 用于实时拖动，原图版用于停止后精细处理
- * 2. 多 Worker 并行分片：把像素数组切成 WORKER_COUNT 份同时处理，利用多核
- * 3. 跳帧：Worker 忙时只保留最新请求
- * 4. 输出格式：预览用 JPEG 0.88，原图用 JPEG 0.95（PNG 太慢）
+ * 1. 双缓存：预览版(≤1200px) 实时拖动，原图版停止后精细处理
+ * 2. basicWorker × N 并行分片（和 hslWorker 相同模式）
+ * 3. hslWorker × N 并行分片
+ * 4. 跳帧：Worker 忙时只保留最新请求
+ * 5. 500ms 后触发原图高清处理
  */
 import { reactive, ref, watch, type Ref } from 'vue'
 import { defaultHSLAdjustments, type HSLAdjustments, type HSLRange } from './useHSLProcessor'
+import type { AdjustmentValues } from '../component-interfaces'
 
 export type { HSLAdjustments, HSLRange }
 
 const PREVIEW_MAX  = 1200
 const HIRES_DELAY  = 500
-// 并行 Worker 数量，取 CPU 核数和 8 的较小值
 const WORKER_COUNT = Math.min(navigator.hardwareConcurrency || 4, 8)
 
 export interface UseHSLStateReturn {
@@ -24,13 +30,20 @@ export interface UseHSLStateReturn {
   resetHSL: () => void
   hasHSLAdjustments: () => boolean
   setSourceImage: (src: string) => void
+  setBasicAdjustments: (adj: AdjustmentValues) => void
   exportProcessed: (format?: 'png' | 'jpeg', quality?: number) => Promise<string>
 }
 
 export function useHSLState(): UseHSLStateReturn {
-  const hslAdjustments = reactive<HSLAdjustments>(defaultHSLAdjustments())
-  const processedSrc   = ref<string>('')
-  const isProcessing   = ref(false)
+  const hslAdjustments  = reactive<HSLAdjustments>(defaultHSLAdjustments())
+  const processedSrc    = ref<string>('')
+  const isProcessing    = ref(false)
+
+  // 当前基础调色参数（由外部通过 setBasicAdjustments 注入）
+  let basicAdj: AdjustmentValues = {
+    brightness: 0, contrast: 0, saturation: 0,
+    vibrance: 0, hue: 0, temperature: 0, clarity: 0,
+  }
 
   let sourceSrc   = ''
   let previewData: ImageData | null = null
@@ -38,119 +51,169 @@ export function useHSLState(): UseHSLStateReturn {
   let cachedSrc   = ''
 
   // Worker 池（懒创建）
-  let workers: Worker[] = []
-  let poolBusy = false
-  let pendingReq: { adj: HSLAdjustments; hires: boolean } | null = null
+  let basicWorkers: Worker[] = []
+  let hslWorkers:   Worker[] = []
+  let poolBusy  = false
+  let pendingReq: { hslAdj: HSLAdjustments; basicAdj: AdjustmentValues; hires: boolean } | null = null
   let hiresTimer: ReturnType<typeof setTimeout> | null = null
 
-  const getWorkers = (): Worker[] => {
-    if (workers.length === 0) {
+  const getBasicWorkers = (): Worker[] => {
+    if (basicWorkers.length === 0) {
       for (let i = 0; i < WORKER_COUNT; i++) {
-        workers.push(new Worker(new URL('../workers/hslWorker.ts', import.meta.url), { type: 'module' }))
+        basicWorkers.push(new Worker(
+          new URL('../workers/basicWorker.ts', import.meta.url), { type: 'module' }
+        ))
       }
     }
-    return workers
+    return basicWorkers
   }
 
-  // 并行处理：把 ImageData 切成 N 份，分发给 N 个 Worker
-  const processParallel = (data: ImageData, adj: HSLAdjustments, hires: boolean): Promise<ImageData> => {
+  const getHslWorkers = (): Worker[] => {
+    if (hslWorkers.length === 0) {
+      for (let i = 0; i < WORKER_COUNT; i++) {
+        hslWorkers.push(new Worker(
+          new URL('../workers/hslWorker.ts', import.meta.url), { type: 'module' }
+        ))
+      }
+    }
+    return hslWorkers
+  }
+
+  // 把 ImageData 切成 N 份，分发给 N 个 Worker，返回合并后的 ImageData
+  const runParallel = (
+    data: ImageData,
+    workers: Worker[],
+    buildMsg: (slice: ArrayBuffer, idx: number) => { msg: object; transfer: Transferable[] }
+  ): Promise<ImageData> => {
     return new Promise((resolve) => {
-      const pool = getWorkers()
-      const n = pool.length
-      const totalPixels = data.width * data.height
-      // 按像素行对齐切分（每份像素数向上取整到 4 的倍数）
-      const chunkPixels = Math.ceil(totalPixels / n)
-      const chunkBytes  = chunkPixels * 4
+      const n = workers.length
+      const totalBytes = data.data.length
+      const chunkBytes = Math.ceil(Math.ceil(totalBytes / n / 4) * 4)  // 对齐到 4 字节（1像素）
 
       const results = new Array<Uint8ClampedArray>(n)
       let done = 0
 
-      pool.forEach((w, idx) => {
+      workers.forEach((w, idx) => {
         const start = idx * chunkBytes
-        const end   = Math.min(start + chunkBytes, data.data.length)
-        if (start >= data.data.length) {
-          // 这个 worker 没有数据，直接标记完成
+        if (start >= totalBytes) {
           results[idx] = new Uint8ClampedArray(0)
           if (++done === n) resolve(merge(results, data.width, data.height))
           return
         }
-
-        const slice = new Uint8ClampedArray(data.data.buffer, start, end - start)
-        const copy  = new Uint8ClampedArray(slice.length)
-        copy.set(slice)
+        const end  = Math.min(start + chunkBytes, totalBytes)
+        const copy = new Uint8ClampedArray(data.data.buffer.slice(start, end))
 
         w.onmessage = (e: MessageEvent) => {
           results[idx] = new Uint8ClampedArray(e.data.buffer)
           if (++done === n) resolve(merge(results, data.width, data.height))
         }
 
-        w.postMessage({ buffer: copy.buffer, adj, chunkIndex: idx, hires }, [copy.buffer])
+        const { msg, transfer } = buildMsg(copy.buffer, idx)
+        w.postMessage(msg, transfer)
       })
     })
   }
 
-  // 合并各分片结果为完整 ImageData
   const merge = (chunks: Uint8ClampedArray[], width: number, height: number): ImageData => {
     const out = new Uint8ClampedArray(width * height * 4)
     let offset = 0
     for (const chunk of chunks) {
-      if (chunk.length > 0) {
-        out.set(chunk, offset)
-        offset += chunk.length
-      }
+      if (chunk.length > 0) { out.set(chunk, offset); offset += chunk.length }
     }
     return new ImageData(out, width, height)
   }
 
-  const runProcess = async (adj: HSLAdjustments, hires: boolean) => {
-    const data = hires ? fullData : previewData
-    if (!data || !hasHSLAdjustments()) {
-      if (!hasHSLAdjustments()) processedSrc.value = ''
-      return
+  /**
+   * 完整处理链：原图 → basicWorker → hslWorker → canvas dataURL
+   * 两阶段都是多线程并行分片
+   */
+  const runFullChain = async (
+    data: ImageData,
+    bAdj: AdjustmentValues,
+    hAdj: HSLAdjustments,
+    hires: boolean
+  ): Promise<string> => {
+    const bAdjCopy = { ...bAdj }
+    const hAdjCopy = JSON.parse(JSON.stringify(hAdj)) as HSLAdjustments
+
+    const hasBasic = Object.values(bAdjCopy).some(v => v !== 0)
+    const hasHSL   = hasHSLAdjustments()
+
+    let intermediate: ImageData = data
+
+    // Stage 1: 基础调色（像素级）
+    if (hasBasic) {
+      intermediate = await runParallel(
+        data,
+        getBasicWorkers(),
+        (buffer, _idx) => ({
+          msg: { buffer, adj: bAdjCopy },
+          transfer: [buffer],
+        })
+      )
     }
+
+    // Stage 2: HSL 颜色范围调节
+    if (hasHSL) {
+      intermediate = await runParallel(
+        intermediate,
+        getHslWorkers(),
+        (buffer, idx) => ({
+          msg: { buffer, adj: hAdjCopy, chunkIndex: idx, hires },
+          transfer: [buffer],
+        })
+      )
+    }
+
+    // 如果两者都没有调整，直接返回空（调用方会用原图）
+    if (!hasBasic && !hasHSL) return ''
+
+    const canvas = document.createElement('canvas')
+    canvas.width = intermediate.width; canvas.height = intermediate.height
+    canvas.getContext('2d')!.putImageData(intermediate, 0, 0)
+    return canvas.toDataURL('image/jpeg', hires ? 0.95 : 0.88)
+  }
+
+  const runProcess = async (bAdj: AdjustmentValues, hAdj: HSLAdjustments, hires: boolean) => {
+    const data = hires ? fullData : previewData
+    if (!data) return
 
     poolBusy = true
     isProcessing.value = true
 
     try {
-      const result = await processParallel(data, JSON.parse(JSON.stringify(adj)), hires)
-
-      const canvas = document.createElement('canvas')
-      canvas.width = result.width; canvas.height = result.height
-      canvas.getContext('2d')!.putImageData(result, 0, 0)
-      // 两种情况都用 JPEG，原图质量更高，避免 PNG 编码耗时
-      processedSrc.value = canvas.toDataURL('image/jpeg', hires ? 0.95 : 0.88)
+      const result = await runFullChain(data, bAdj, hAdj, hires)
+      processedSrc.value = result  // 空字符串时 ImagePreview 自动回退到原图
     } finally {
       poolBusy = false
       isProcessing.value = false
 
-      // 处理完后如果有待处理请求，立即执行
       if (pendingReq) {
-        const req = pendingReq
-        pendingReq = null
-        runProcess(req.adj, req.hires)
+        const req = pendingReq; pendingReq = null
+        runProcess(req.basicAdj, req.hslAdj, req.hires)
       }
     }
   }
 
-  const scheduleProcess = (adj: HSLAdjustments, hires = false) => {
-    if (!hasHSLAdjustments()) { processedSrc.value = ''; return }
+  const scheduleProcess = (bAdj: AdjustmentValues, hAdj: HSLAdjustments, hires = false) => {
     if (poolBusy) {
       if (!pendingReq || hires) {
-        pendingReq = { adj: JSON.parse(JSON.stringify(adj)), hires }
+        pendingReq = {
+          basicAdj: { ...bAdj },
+          hslAdj: JSON.parse(JSON.stringify(hAdj)),
+          hires,
+        }
       }
     } else {
-      runProcess(adj, hires)
+      runProcess({ ...bAdj }, JSON.parse(JSON.stringify(hAdj)), hires)
     }
   }
 
-  const scheduleHires = (adj: HSLAdjustments) => {
+  const scheduleHires = () => {
     if (hiresTimer) clearTimeout(hiresTimer)
     hiresTimer = setTimeout(() => {
       hiresTimer = null
-      if (fullData && hasHSLAdjustments()) {
-        scheduleProcess(JSON.parse(JSON.stringify(adj)), true)
-      }
+      if (fullData) scheduleProcess({ ...basicAdj }, hslAdjustments, true)
     }, HIRES_DELAY)
   }
 
@@ -182,6 +245,12 @@ export function useHSLState(): UseHSLStateReturn {
       img.src = src
     })
 
+  const triggerProcess = () => {
+    if (!sourceSrc || !previewData) return
+    scheduleProcess({ ...basicAdj }, hslAdjustments, false)
+    scheduleHires()
+  }
+
   const setSourceImage = async (src: string) => {
     if (!src) {
       processedSrc.value = ''; sourceSrc = ''
@@ -201,14 +270,19 @@ export function useHSLState(): UseHSLStateReturn {
       } catch { return }
     }
 
-    scheduleProcess(JSON.parse(JSON.stringify(hslAdjustments)), false)
-    scheduleHires(hslAdjustments)
+    triggerProcess()
   }
 
-  watch(hslAdjustments, (adj) => {
+  /** 外部注入基础调色参数，触发重新处理 */
+  const setBasicAdjustments = (adj: AdjustmentValues) => {
+    basicAdj = { ...adj }
+    triggerProcess()
+  }
+
+  // HSL 参数变化时重新处理
+  watch(hslAdjustments, () => {
     if (!sourceSrc || !previewData) return
-    scheduleProcess(JSON.parse(JSON.stringify(adj)), false)
-    scheduleHires(adj)
+    triggerProcess()
   }, { deep: true })
 
   const hasHSLAdjustments = (): boolean =>
@@ -227,19 +301,36 @@ export function useHSLState(): UseHSLStateReturn {
   }
 
   /**
-   * 导出时用原图 fullData 重新走完整 HSL 处理，返回指定格式的 dataURL
-   * 如果没有 HSL 调整，直接返回原图 src
+   * 导出：用原图 fullData 走完整处理链，返回指定格式 dataURL
+   * 无任何调整时直接返回原图 src
    */
   const exportProcessed = async (format: 'png' | 'jpeg' = 'png', quality = 0.95): Promise<string> => {
     if (!fullData) return sourceSrc
-    if (!hasHSLAdjustments()) return sourceSrc
+    const hasBasic = Object.values(basicAdj).some(v => v !== 0)
+    if (!hasBasic && !hasHSLAdjustments()) return sourceSrc
 
-    const result = await processParallel(fullData, JSON.parse(JSON.stringify(hslAdjustments)), true)
-    const canvas = document.createElement('canvas')
-    canvas.width = result.width; canvas.height = result.height
-    canvas.getContext('2d')!.putImageData(result, 0, 0)
-    return canvas.toDataURL(format === 'png' ? 'image/png' : 'image/jpeg', quality)
+    const result = await runFullChain(fullData, basicAdj, hslAdjustments, true)
+    if (!result) return sourceSrc
+
+    // 如果需要 PNG 格式，重新绘制一次（runFullChain 内部用 JPEG）
+    if (format === 'png') {
+      const img = await loadImage(result)
+      const canvas = document.createElement('canvas')
+      canvas.width = img.naturalWidth; canvas.height = img.naturalHeight
+      canvas.getContext('2d')!.drawImage(img, 0, 0)
+      return canvas.toDataURL('image/png', quality)
+    }
+    return result
   }
 
-  return { hslAdjustments, processedSrc, isProcessing, resetHSL, hasHSLAdjustments, setSourceImage, exportProcessed }
+  return {
+    hslAdjustments,
+    processedSrc,
+    isProcessing,
+    resetHSL,
+    hasHSLAdjustments,
+    setSourceImage,
+    setBasicAdjustments,
+    exportProcessed,
+  }
 }

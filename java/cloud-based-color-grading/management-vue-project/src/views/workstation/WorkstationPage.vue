@@ -12,7 +12,6 @@
         :selectedImageId="selectedImageId"
         :imageSrc="imageSrc"
         :processedSrc="processedSrc"
-        :imageFilter="imageFilter"
         :showUploadTips="!imageSrc"
         :galleryHeight="galleryHeight"
         @action:selectImage="handleSelectImage"
@@ -41,7 +40,6 @@
         :canSave="!!imageSrc"
         :canReset="!!imageSrc"
         :imageSrc="imageSrc"
-        :imageFilter="imageFilter"
         :processedSrc="processedSrc"
         @update:adjustments="setAdjustments"
         @update:hslAdjustments="(v) => Object.assign(hslAdjustments, v)"
@@ -98,12 +96,13 @@ const {
   setAdjustments,
 } = useAdjustmentState();
 
-// HSL 颜色范围调节
+// HSL 颜色范围调节 + 基础调色像素链
 const {
   hslAdjustments,
   processedSrc,
   resetHSL,
   setSourceImage,
+  setBasicAdjustments,
   exportProcessed,
 } = useHSLState()
 
@@ -159,6 +158,11 @@ watch(hslAdjustments, scheduleSave, { deep: true })
 watch(imageSrc, (src) => {
   setSourceImage(src)
 }, { immediate: true })
+
+// adjustments 变化时同步给处理链（基础调色像素级处理）
+watch(adjustments, (adj) => {
+  setBasicAdjustments({ ...adj })
+}, { deep: true })
 
 // selectedImageId 变化时（含页面刷新后 onMounted 恢复）加载调色参数
 watch(selectedImageId, (id) => {
@@ -218,31 +222,8 @@ const handleSaveImage = async (format: 'png' | 'jpeg' = 'png') => {
     return
   }
 
-  // 1. 获取 HSL 处理后的原图 dataURL（无 HSL 调整时直接用原图）
-  const hslDataUrl = await exportProcessed(format, format === 'jpeg' ? 0.95 : 1)
-
-  // 2. 把 HSL 结果画到 canvas，再叠加 CSS filter
-  const img = new Image()
-  await new Promise<void>((resolve, reject) => {
-    img.onload = () => resolve()
-    img.onerror = reject
-    img.src = hslDataUrl
-  })
-
-  const canvas = document.createElement('canvas')
-  canvas.width  = img.naturalWidth
-  canvas.height = img.naturalHeight
-  const ctx = canvas.getContext('2d')!
-
-  // 应用 CSS filter（brightness/contrast/saturate 等）
-  const filter = imageFilter.value
-  if (filter && filter !== 'none') ctx.filter = filter
-  ctx.drawImage(img, 0, 0)
-
-  // 3. 导出并下载
-  const mimeType = format === 'png' ? 'image/png' : 'image/jpeg'
-  const quality  = format === 'jpeg' ? 0.95 : 1
-  const dataUrl  = canvas.toDataURL(mimeType, quality)
+  // 完整处理链（基础调色 + HSL）已在 exportProcessed 内部完成，直接下载
+  const dataUrl = await exportProcessed(format, format === 'jpeg' ? 0.95 : 1)
 
   const link = document.createElement('a')
   link.download = `edited-${Date.now()}.${format}`

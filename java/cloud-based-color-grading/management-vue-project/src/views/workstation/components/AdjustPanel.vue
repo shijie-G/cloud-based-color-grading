@@ -17,7 +17,6 @@
         <RGBAnalysis
           :imageSrc="imageSrc ?? ''"
           :processedSrc="processedSrc ?? ''"
-          :imageFilter="imageFilter ?? ''"
         />
       </div>
 

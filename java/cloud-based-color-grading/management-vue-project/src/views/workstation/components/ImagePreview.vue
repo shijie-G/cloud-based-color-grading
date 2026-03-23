@@ -23,7 +23,6 @@
         ref="previewCanvas"
         v-show="!!imageSrc"
         :style="{
-          filter: imageFilter,
           transform: `translate(${offsetX}px, ${offsetY}px) scale(${scale})`,
           cursor: scale > 1 ? (isPanning ? 'grabbing' : 'grab') : 'default',
           transition: isPanning ? 'none' : 'transform 0.2s ease',
@@ -60,7 +59,6 @@ import { ref, watch, onMounted, onUnmounted } from 'vue'
 interface ImagePreviewProps {
   imageSrc: string
   processedSrc: string
-  imageFilter: string
   showUploadTips: boolean
   galleryHeight: number
 }

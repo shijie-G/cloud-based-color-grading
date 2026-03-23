@@ -4,7 +4,6 @@
     <ImagePreview
       :imageSrc="imageSrc"
       :processedSrc="processedSrc"
-      :imageFilter="imageFilter"
       :showUploadTips="showUploadTips"
       :galleryHeight="galleryHeight"
       @upload:image="handleImageUpload"
@@ -47,7 +46,6 @@ interface ImageDisplayProps {
   selectedImageId: number | null
   imageSrc: string
   processedSrc: string
-  imageFilter: string
   showUploadTips: boolean
   galleryHeight: number
 }

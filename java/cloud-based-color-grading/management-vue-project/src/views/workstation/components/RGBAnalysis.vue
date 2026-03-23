@@ -52,7 +52,6 @@ import { ref, computed, watch, onMounted, onUnmounted, nextTick } from 'vue'
 interface RGBAnalysisProps {
   imageSrc: string
   processedSrc?: string
-  imageFilter: string
 }
 const props = defineProps<RGBAnalysisProps>()
 
@@ -129,7 +128,6 @@ const sendToWorker = (src: string) => {
     const tmp = document.createElement('canvas')
     tmp.width = w; tmp.height = h
     const ctx = tmp.getContext('2d', { willReadFrequently: true })!
-    if (props.imageFilter && props.imageFilter !== 'none') ctx.filter = props.imageFilter
     ctx.drawImage(img, 0, 0, w, h)
     const imageData = ctx.getImageData(0, 0, w, h)
     const copy = new Uint8ClampedArray(imageData.data.length)
@@ -155,9 +153,8 @@ const scheduleAnalyze = (immediate = false) => {
   if (immediate) { run() } else { debounceTimer = window.setTimeout(run, 80) }
 }
 
-watch(() => [props.imageSrc, props.processedSrc, props.imageFilter], (_, old) => {
+watch(() => [props.imageSrc, props.processedSrc], (_, old) => {
   if (!props.imageSrc) return
-  // imageSrc 变化（切换图片）稍微防抖；processedSrc/filter 变化立即触发
   const imgChanged = old && props.imageSrc !== (old as string[])[0]
   nextTick(() => scheduleAnalyze(!imgChanged))
 }, { immediate: true })
