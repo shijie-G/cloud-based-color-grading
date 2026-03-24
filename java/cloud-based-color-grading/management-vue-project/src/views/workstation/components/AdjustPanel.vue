@@ -10,60 +10,56 @@
       </div>
     </div>
 
-    <div class="panel-content">
-      <!-- RGB 波形图和直方图 -->
-      <div class="section">
-        <RGBAnalysis
-          :imageSrc="imageSrc ?? ''"
-          :processedSrc="processedSrc ?? ''"
-        />
-      </div>
-
-      <!-- 调色参数区 -->
-      <div class="section">
-        <AdjustmentControls
+    <div class="panel-body">
+      <!-- 左侧：内容区 -->
+      <div class="panel-content">
+        <BasicAdjustPanel
+          v-if="activeTab === 'basic'"
           :adjustments="adjustments"
-          @update:adjustments="handleUpdateAdjustments"
-        />
-      </div>
-
-      <!-- HSL 颜色范围调节 -->
-      <div class="section">
-        <HSLControls
           :hslAdjustments="hslAdjustments"
-          @update:hslAdjustments="handleUpdateHSL"
-        />
-      </div>
-
-      <!-- 蒙版工具 -->
-      <div class="section">
-        <MaskControls
-          :layers="maskLayers"
-          :activeLayerId="maskActiveLayerId"
-          :activeLayer="maskActiveLayer"
-          :showOverlay="maskShowOverlay"
-          :maskActive="maskActive"
-          @toggle:active="$emit('mask:toggleActive')"
-          @toggle:overlay="$emit('mask:toggleOverlay')"
-          @layer:add="(t: MaskType) => $emit('mask:addLayer', t)"
-          @layer:remove="(id: string) => $emit('mask:removeLayer', id)"
-          @layer:select="(id: string) => $emit('mask:selectLayer', id)"
-          @layer:toggleEnabled="(id: string) => $emit('mask:toggleLayerEnabled', id)"
-          @layer:invert="$emit('mask:invert')"
-          @layer:clear="$emit('mask:clear')"
-          @update:layer="(l: MaskLayer) => $emit('mask:updateLayer', l)"
-        />
-      </div>
-
-      <!-- 操作按钮 -->
-      <div class="section section-actions">
-        <ActionButtons
           :canSave="canSave"
           :canReset="canReset"
-          @action:save="handleSave"
-          @action:reset="handleReset"
-          @action:selectImage="handleUploadImage"
+          :imageSrc="imageSrc"
+          :processedSrc="processedSrc"
+          :maskLayers="maskLayers"
+          :maskActiveLayerId="maskActiveLayerId"
+          :maskActiveLayer="maskActiveLayer"
+          :maskShowOverlay="maskShowOverlay"
+          :maskActive="maskActive"
+          @update:adjustments="$emit('update:adjustments', $event)"
+          @update:hslAdjustments="$emit('update:hslAdjustments', $event)"
+          @action:uploadImage="$emit('action:uploadImage', $event)"
+          @action:save="$emit('action:save', $event)"
+          @action:reset="$emit('action:reset')"
+          @mask:toggleActive="$emit('mask:toggleActive')"
+          @mask:toggleOverlay="$emit('mask:toggleOverlay')"
+          @mask:addLayer="$emit('mask:addLayer', $event)"
+          @mask:removeLayer="$emit('mask:removeLayer', $event)"
+          @mask:selectLayer="$emit('mask:selectLayer', $event)"
+          @mask:toggleLayerEnabled="$emit('mask:toggleLayerEnabled', $event)"
+          @mask:updateLayer="$emit('mask:updateLayer', $event)"
+          @mask:invert="$emit('mask:invert')"
+          @mask:clear="$emit('mask:clear')"
         />
+        <MaskAdjustPanel v-else-if="activeTab === 'mask'" />
+      </div>
+
+      <!-- 右侧导航栏 -->
+      <div class="side-rail">
+        <div class="rail-item" :class="{ active: activeTab === 'basic' }" title="基础调色" @click="activeTab = 'basic'">
+          <svg viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+            <circle cx="12" cy="12" r="4" stroke="currentColor" stroke-width="1.5"/>
+            <path d="M12 2v3M12 19v3M2 12h3M19 12h3" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/>
+            <path d="M5.636 5.636l2.121 2.121M16.243 16.243l2.121 2.121M5.636 18.364l2.121-2.121M16.243 7.757l2.121-2.121" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/>
+          </svg>
+        </div>
+        <div class="rail-item" :class="{ active: activeTab === 'mask' }" title="蒙版" @click="activeTab = 'mask'">
+          <svg viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+            <rect x="3" y="3" width="18" height="18" rx="3" stroke="currentColor" stroke-width="1.5"/>
+            <path d="M3 12h18" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-dasharray="3 2"/>
+            <rect x="3" y="3" width="18" height="9" rx="3" fill="currentColor" fill-opacity="0.25"/>
+          </svg>
+        </div>
       </div>
     </div>
   </div>
@@ -73,11 +69,9 @@
 import type { AdjustmentValues } from '../component-interfaces'
 import type { HSLAdjustments } from '../composables/useHSLState'
 import type { MaskLayer, MaskType } from '../composables/useMaskState'
-import RGBAnalysis from './RGBAnalysis.vue'
-import AdjustmentControls from './AdjustmentControls.vue'
-import HSLControls from './HSLControls.vue'
-import MaskControls from './MaskControls.vue'
-import ActionButtons from './ActionButtons.vue'
+import { ref } from 'vue'
+import BasicAdjustPanel from './BasicAdjustPanel.vue'
+import MaskAdjustPanel from './MaskAdjustPanel.vue'
 
 interface AdjustPanelProps {
   rightPanelWidth: number
@@ -114,11 +108,8 @@ interface AdjustPanelEvents {
 const props = defineProps<AdjustPanelProps>()
 const emit  = defineEmits<AdjustPanelEvents>()
 
-const handleUploadImage       = (file: File)              => emit('action:uploadImage', file)
-const handleUpdateAdjustments = (adj: AdjustmentValues)   => emit('update:adjustments', adj)
-const handleUpdateHSL         = (hsl: HSLAdjustments)     => emit('update:hslAdjustments', hsl)
-const handleSave              = (fmt: 'png' | 'jpeg')     => emit('action:save', fmt)
-const handleReset             = ()                        => emit('action:reset')
+const activeTab = ref<'basic' | 'mask'>('basic')
+
 </script>
 
 <style scoped>
@@ -148,15 +139,44 @@ const handleReset             = ()                        => emit('action:reset'
   color: #e2e4e9; letter-spacing: 0.5px; text-transform: uppercase;
 }
 
+.panel-body {
+  flex: 1;
+  display: flex;
+  flex-direction: row;
+  overflow: hidden;
+}
+
 .panel-content {
   flex: 1; overflow-y: auto; padding: 12px;
   display: flex; flex-direction: column; gap: 8px;
+  scrollbar-width: none;
 }
 
-.panel-content::-webkit-scrollbar { width: 4px; }
-.panel-content::-webkit-scrollbar-track { background: transparent; }
-.panel-content::-webkit-scrollbar-thumb { background: rgba(255,255,255,0.1); border-radius: 2px; }
-.panel-content::-webkit-scrollbar-thumb:hover { background: rgba(255,255,255,0.2); }
+.panel-content::-webkit-scrollbar { display: none; }
+
+.side-rail {
+  width: 3vh;
+  flex-shrink: 0;
+  border-left: 1px solid rgba(255, 255, 255, 0.06);
+  background: #1c1e22;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  padding-top: 10px;
+  gap: 4px;
+}
+
+.rail-item {
+  width: 28px; height: 28px;
+  display: flex; align-items: center; justify-content: center;
+  border-radius: 6px;
+  color: #4b5563;
+  cursor: pointer;
+  transition: all 0.15s;
+}
+.rail-item svg { width: 14px; height: 14px; }
+.rail-item:hover { color: #9ca3af; background: rgba(255,255,255,0.06); }
+.rail-item.active { color: #5b6af0; background: rgba(91,106,240,0.12); }
 
 .section {
   background: #24272d; border-radius: 10px; padding: 14px;

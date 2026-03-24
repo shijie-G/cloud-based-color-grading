@@ -55,7 +55,7 @@
         @update:hslAdjustments="(v) => Object.assign(hslAdjustments, v)"
         @action:uploadImage="handleImageUpload"
         @action:save="handleSaveImage"
-        @action:reset="() => { resetAdjustments(); resetHSL(); resetMask(); setMaskCanvas(null) }"
+        @action:reset="() => { resetAdjustments(); setBasicAdjustments({ brightness:0, contrast:0, saturation:0, vibrance:0, hue:0, temperature:0, clarity:0 }); resetHSL(); resetMask(); setMaskCanvas(null) }"
         @mask:toggleActive="handleMaskToggleActive"
         @mask:toggleOverlay="handleMaskToggleOverlay"
         @mask:addLayer="handleMaskAddLayer"

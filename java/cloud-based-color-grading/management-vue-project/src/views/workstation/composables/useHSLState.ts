@@ -256,7 +256,8 @@ export function useHSLState(): UseHSLStateReturn {
 
     try {
       const result = await runFullChain(data, bAdj, hAdj, hires, currentMaskCanvas)
-      if (result) processedSrc.value = result
+      // result 为空字符串表示无任何调整，清空 processedSrc 让 ImagePreview 显示原图
+      processedSrc.value = result
     } finally {
       poolBusy = false
       isProcessing.value = false
