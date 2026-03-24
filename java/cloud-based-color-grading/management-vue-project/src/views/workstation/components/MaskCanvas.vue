@@ -42,10 +42,11 @@ import type { MaskLayer, LinearMaskParams, RadialMaskParams } from '../composabl
 
 interface Props {
   active: boolean
-  layer: MaskLayer | null   // 当前激活层（可为 null）
+  layer: MaskLayer | null
   showOverlay: boolean
   imageCanvas: HTMLCanvasElement | null
-  /** 图片当前的 CSS transform 参数，变化时触发 rect 更新 */
+  /** 裁剪容器（image-wrapper），overlay 不超出此范围 */
+  clipContainer?: HTMLElement | null
   imgScale: number
   imgOffsetX: number
   imgOffsetY: number
@@ -61,9 +62,30 @@ const emit  = defineEmits<Emits>()
 const overlayEl = ref<HTMLCanvasElement | null>(null)
 
 // ── 定位 ──────────────────────────────────────────────────────────────
-const imgRect = ref<DOMRect | null>(null)
+const imgRect    = ref<DOMRect | null>(null)  // canvas 实际屏幕 rect（可能超出容器）
+const clipRect   = ref<DOMRect | null>(null)  // canvas 与容器的交集（用于 overlay/交互层）
+
 const updateRect = () => {
-  if (props.imageCanvas) imgRect.value = props.imageCanvas.getBoundingClientRect()
+  if (!props.imageCanvas) { imgRect.value = null; clipRect.value = null; return }
+  const cr = props.imageCanvas.getBoundingClientRect()
+  imgRect.value = cr
+
+  // 与容器取交集，限制 overlay 不超出预览区
+  const container = props.clipContainer
+  if (container) {
+    const br = container.getBoundingClientRect()
+    const left   = Math.max(cr.left,   br.left)
+    const top    = Math.max(cr.top,    br.top)
+    const right  = Math.min(cr.right,  br.right)
+    const bottom = Math.min(cr.bottom, br.bottom)
+    if (right > left && bottom > top) {
+      clipRect.value = new DOMRect(left, top, right - left, bottom - top)
+    } else {
+      clipRect.value = null
+    }
+  } else {
+    clipRect.value = cr
+  }
 }
 
 let ro: ResizeObserver | null = null
@@ -96,19 +118,20 @@ onUnmounted(() => {
 
 // ── 样式 ──────────────────────────────────────────────────────────────
 const overlayStyle = computed(() => {
-  const r = imgRect.value
+  const r = clipRect.value
   if (!r) return { display: 'none' }
   return {
     position: 'fixed' as const,
     left: `${r.left}px`, top: `${r.top}px`,
     width: `${r.width}px`, height: `${r.height}px`,
     zIndex: 9, pointerEvents: 'none' as const,
+    overflow: 'hidden' as const,
   }
 })
 
-// 交互层：覆盖全图，zIndex 低于手柄，用于新建拖拽
+// 交互层：覆盖裁剪后区域，zIndex 低于手柄
 const interactStyle = computed(() => {
-  const r = imgRect.value
+  const r = clipRect.value
   if (!r) return { display: 'none' }
   return {
     position: 'fixed' as const,
@@ -120,6 +143,7 @@ const interactStyle = computed(() => {
 })
 
 // ── 坐标工具 ──────────────────────────────────────────────────────────
+// 始终基于完整图片 rect 归一化，保证蒙版参数与图片像素对应
 const toNorm = (clientX: number, clientY: number) => {
   const r = imgRect.value!
   return {
@@ -399,26 +423,33 @@ const handles = computed<Handle[]>(() => {
 
 const handleStyle = (h: Handle) => {
   const r = imgRect.value!
+  const clip = clipRect.value
   const x = r.left + h.nx * r.width
   const y = r.top  + h.ny * r.height
+  // 手柄中心超出裁剪区则隐藏
+  const hidden = clip
+    ? (x < clip.left || x > clip.right || y < clip.top || y > clip.bottom)
+    : false
   return {
     position: 'fixed' as const,
     left: `${x - 8}px`, top: `${y - 8}px`,
     width: '16px', height: '16px',
     cursor: h.cursor,
     zIndex: 13,
-    pointerEvents: 'auto' as const,
+    pointerEvents: (hidden ? 'none' : 'auto') as 'none' | 'auto',
+    opacity: hidden ? 0 : 1,
   }
 }
 
 // ── Overlay 绘制 ──────────────────────────────────────────────────────
 const redrawOverlay = () => {
   const canvas = overlayEl.value
-  const r = imgRect.value
-  if (!canvas || !r || !props.layer) return
+  const cr = clipRect.value   // overlay canvas 的屏幕区域
+  const ir = imgRect.value    // 完整图片的屏幕区域
+  if (!canvas || !cr || !ir || !props.layer) return
 
   const dpr = Math.min(window.devicePixelRatio || 1, 2)
-  const w = Math.round(r.width), h = Math.round(r.height)
+  const w = Math.round(cr.width), h = Math.round(cr.height)
   if (canvas.width !== w * dpr || canvas.height !== h * dpr) {
     canvas.width = w * dpr; canvas.height = h * dpr
   }
@@ -426,22 +457,30 @@ const redrawOverlay = () => {
   ctx.setTransform(dpr, 0, 0, dpr, 0, 0)
   ctx.clearRect(0, 0, w, h)
 
+  // 将完整图片坐标系平移到 clipRect 的偏移量
+  // overlay canvas 左上角对应图片内 (cr.left - ir.left, cr.top - ir.top)
+  const ox = cr.left - ir.left  // 裁剪区左上角在图片坐标系中的 x
+  const oy = cr.top  - ir.top   // 裁剪区左上角在图片坐标系中的 y
+  const iw = ir.width, ih = ir.height  // 完整图片的屏幕尺寸
+
+  ctx.save()
+  ctx.translate(-ox, -oy)  // 平移使图片坐标系原点对齐
+
   const l = props.layer
   if (l.type === 'linear') {
-    _overlayLinear(ctx, w, h, l.linear)
-    // 连线
-    ctx.save()
+    _overlayLinear(ctx, iw, ih, l.linear)
     ctx.strokeStyle = 'rgba(255,255,255,0.6)'
     ctx.lineWidth = 1.5
     ctx.setLineDash([5, 4])
     ctx.beginPath()
-    ctx.moveTo(l.linear.x1 * w, l.linear.y1 * h)
-    ctx.lineTo(l.linear.x2 * w, l.linear.y2 * h)
+    ctx.moveTo(l.linear.x1 * iw, l.linear.y1 * ih)
+    ctx.lineTo(l.linear.x2 * iw, l.linear.y2 * ih)
     ctx.stroke()
-    ctx.restore()
   } else {
-    _overlayRadial(ctx, w, h, l.radial)
+    _overlayRadial(ctx, iw, ih, l.radial)
   }
+
+  ctx.restore()
 }
 
 const _overlayLinear = (ctx: CanvasRenderingContext2D, w: number, h: number, p: LinearMaskParams) => {

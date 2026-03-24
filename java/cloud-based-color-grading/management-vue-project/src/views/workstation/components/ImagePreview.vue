@@ -30,6 +30,7 @@
         :layer="maskActiveLayer"
         :showOverlay="maskShowOverlay"
         :imageCanvas="previewCanvas"
+        :clipContainer="wrapperRef"
         :imgScale="scale"
         :imgOffsetX="offsetX"
         :imgOffsetY="offsetY"
@@ -83,6 +84,7 @@ const props = defineProps<ImagePreviewProps>()
 const emit  = defineEmits<ImagePreviewEvents>()
 
 const previewCanvas = ref<HTMLCanvasElement | null>(null)
+const wrapperRef    = ref<HTMLElement | null>(null)
 
 const drawSrc = (src: string) => {
   if (!src || !previewCanvas.value) return
