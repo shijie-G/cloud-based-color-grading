@@ -39,7 +39,6 @@ export interface LayoutState {
 
 export interface ImagePreviewProps {
   imageSrc: string
-  imageFilter: string
   showUploadTips: boolean
 }
 

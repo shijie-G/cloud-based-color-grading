@@ -13,7 +13,7 @@
  * 4. 跳帧：Worker 忙时只保留最新请求
  * 5. 500ms 后触发原图高清处理
  */
-import { reactive, ref, watch, type Ref } from 'vue'
+import { reactive, ref, watch, onUnmounted, type Ref } from 'vue'
 import { defaultHSLAdjustments, type HSLAdjustments, type HSLRange } from './useHSLProcessor'
 import type { AdjustmentValues } from '../component-interfaces'
 
@@ -31,8 +31,8 @@ export interface UseHSLStateReturn {
   hasHSLAdjustments: () => boolean
   setSourceImage: (src: string) => void
   setBasicAdjustments: (adj: AdjustmentValues) => void
-  /** 传入蒙版 canvas（直接引用，处理时异步读取，主线程零 getImageData） */
-  setMaskCanvas: (canvas: HTMLCanvasElement | null) => void
+  /** 传入蒙版层数据（直接引用，处理时异步读取，主线程零 getImageData） */
+  setMaskCanvas: (canvas: HTMLCanvasElement | null, layers?: import('./useMaskState').MaskLayer[]) => void
   exportProcessed: (format?: 'png' | 'jpeg', quality?: number) => Promise<string>
 }
 
@@ -47,8 +47,8 @@ export function useHSLState(): UseHSLStateReturn {
     vibrance: 0, hue: 0, temperature: 0, clarity: 0,
   }
 
-  // 当前蒙版 canvas（直接引用，处理时异步读取）
-  let currentMaskCanvas: HTMLCanvasElement | null = null
+  // 当前蒙版层数据（按层 id 存储，处理时按顺序串行）
+  let currentMaskLayers: import('./useMaskState').MaskLayer[] = []
 
   let sourceSrc   = ''
   let previewData: ImageData | null = null
@@ -141,49 +141,120 @@ export function useHSLState(): UseHSLStateReturn {
   }
 
   /**
-   * 完整处理链：原图 → basicWorker → hslWorker → [maskWorker] → canvas dataURL
+   * 完整处理链：原图 → basicWorker → hslWorker → [逐层蒙版合成] → canvas dataURL
+   *
+   * 蒙版处理逻辑（与 PS 一致）：
+   *   - 全局调色（basicWorker + hslWorker）作用于整张图，得到 globalAdjusted
+   *   - 每个蒙版层从【原图】出发，只走该层自己的调色，得到 layerAdjusted
+   *   - 用该层的 alpha 蒙版：lerp(当前结果, layerAdjusted, alpha)
+   *   - 多层按顺序串行叠加，保证层顺序
    */
   const runFullChain = async (
     data: ImageData,
     bAdj: AdjustmentValues,
     hAdj: HSLAdjustments,
     hires: boolean,
-    maskCanvas?: HTMLCanvasElement | null
+    maskLayers?: import('./useMaskState').MaskLayer[]
   ): Promise<string> => {
     const bAdjCopy = { ...bAdj }
     const hAdjCopy = JSON.parse(JSON.stringify(hAdj)) as HSLAdjustments
 
     const hasBasic = Object.values(bAdjCopy).some(v => v !== 0)
     const hasHSL   = hasHSLAdjustments()
-    const hasMask  = !!maskCanvas
+    // hasMask 只看层是否存在，不依赖 compositeCanvas
+    const enabledLayers = (maskLayers ?? []).filter(l => l.enabled && l.canvas)
+    const hasMask  = enabledLayers.length > 0
 
     if (!hasBasic && !hasHSL && !hasMask) return ''
-    let intermediate: ImageData = data
+
+    // Step 1: 全局调色（basicWorker → hslWorker），得到 globalAdjusted
+    let globalAdjusted: ImageData = data
 
     if (hasBasic) {
-      intermediate = await runParallel(
+      globalAdjusted = await runParallel(
         data, getBasicWorkers(),
         (buffer, _idx) => ({ msg: { buffer, adj: bAdjCopy }, transfer: [buffer] })
       )
     }
 
     if (hasHSL) {
-      intermediate = await runParallel(
-        intermediate, getHslWorkers(),
+      globalAdjusted = await runParallel(
+        globalAdjusted, getHslWorkers(),
         (buffer, idx) => ({ msg: { buffer, adj: hAdjCopy, chunkIndex: idx, hires }, transfer: [buffer] })
       )
     }
 
-    if (hasMask && maskCanvas) {
-      // 用 createImageBitmap 异步读取蒙版，完全不阻塞主线程
-      const maskData = await readCanvasAsync(maskCanvas, intermediate.width, intermediate.height)
-      intermediate = await runMaskCompose(data, intermediate, maskData)
+    // Step 2: 逐层蒙版合成（按层顺序串行）
+    // 每层从原图出发走该层自己的调色，不受全局调色影响
+    let result: ImageData = globalAdjusted
+
+    if (hasMask) {
+      for (const layer of enabledLayers) {
+        const maskAdj = layer.adjustments
+        const hasLayerAdj = Object.values(maskAdj).some(v => v !== 0)
+
+        // 该层的调色结果：从原图出发，只走该层自己的调色，完全独立于全局调色
+        let layerAdjusted: ImageData
+        if (hasLayerAdj) {
+          layerAdjusted = await runMaskLayerAdj(data, maskAdj)
+        } else {
+          // 无调色：蒙版区域保持原图（撤销全局调色效果）
+          layerAdjusted = data
+        }
+
+        // 读取该层自己的 alpha canvas（原图尺寸，缩放到当前处理尺寸）
+        const layerMaskData = await readCanvasAsync(layer.canvas!, data.width, data.height)
+
+        // lerp 合成：result = lerp(result, layerAdjusted, layerAlpha)
+        result = await runMaskCompose(result, layerAdjusted, layerMaskData)
+      }
     }
 
     const canvas = document.createElement('canvas')
-    canvas.width = intermediate.width; canvas.height = intermediate.height
-    canvas.getContext('2d')!.putImageData(intermediate, 0, 0)
+    canvas.width = result.width; canvas.height = result.height
+    canvas.getContext('2d')!.putImageData(result, 0, 0)
     return canvas.toDataURL('image/jpeg', hires ? 0.95 : 0.88)
+  }
+
+  /**
+   * 对原图像素应用蒙版层自身调色，返回新 ImageData
+   * 从原图出发，不包含全局调色，保证蒙版调色独立
+   */
+  const runMaskLayerAdj = (
+    data: ImageData,
+    maskAdj: import('./useMaskState').MaskAdjustments
+  ): Promise<ImageData> => {
+    return new Promise((resolve) => {
+      const pool = getMaskWorkers()
+      const n = pool.length
+      const totalBytes = data.data.length
+      const chunkBytes = Math.ceil(Math.ceil(totalBytes / n / 4) * 4)
+
+      const results = new Array<Uint8ClampedArray>(n)
+      let done = 0
+
+      pool.forEach((w, idx) => {
+        const start = idx * chunkBytes
+        if (start >= totalBytes) {
+          results[idx] = new Uint8ClampedArray(0)
+          if (++done === n) resolve(merge(results, data.width, data.height))
+          return
+        }
+        const end = Math.min(start + chunkBytes, totalBytes)
+        const slice = new Uint8ClampedArray(data.data.buffer.slice(start, end))
+
+        w.onmessage = (e: MessageEvent) => {
+          results[idx] = new Uint8ClampedArray(e.data.buffer)
+          if (++done === n) resolve(merge(results, data.width, data.height))
+        }
+
+        // adjOnly 模式：只做调色，不做 lerp 合成
+        w.postMessage(
+          { adjOnly: slice.buffer, maskAdj },
+          { transfer: [slice.buffer] }
+        )
+      })
+    })
   }
 
   /**
@@ -207,16 +278,16 @@ export function useHSLState(): UseHSLStateReturn {
     return ctx.getImageData(0, 0, targetW, targetH)
   }
 
-  /** 蒙版合成：分片并行 lerp(original, adjusted, mask) */
+  /** 蒙版合成：分片并行 lerp(current, layerAdjusted, alpha) */
   const runMaskCompose = (
-    original: ImageData,
-    adjusted: ImageData,
-    mask: ImageData
+    current: ImageData,
+    layerAdjusted: ImageData,
+    mask: ImageData,
   ): Promise<ImageData> => {
     return new Promise((resolve) => {
       const pool = getMaskWorkers()
       const n = pool.length
-      const totalBytes = original.data.length
+      const totalBytes = current.data.length
       const chunkBytes = Math.ceil(Math.ceil(totalBytes / n / 4) * 4)
 
       const results = new Array<Uint8ClampedArray>(n)
@@ -226,22 +297,22 @@ export function useHSLState(): UseHSLStateReturn {
         const start = idx * chunkBytes
         if (start >= totalBytes) {
           results[idx] = new Uint8ClampedArray(0)
-          if (++done === n) resolve(merge(results, original.width, original.height))
+          if (++done === n) resolve(merge(results, current.width, current.height))
           return
         }
         const end = Math.min(start + chunkBytes, totalBytes)
-        const origSlice = new Uint8ClampedArray(original.data.buffer.slice(start, end))
-        const adjSlice  = new Uint8ClampedArray(adjusted.data.buffer.slice(start, end))
-        const mskSlice  = new Uint8ClampedArray(mask.data.buffer.slice(start, end))
+        const curSlice = new Uint8ClampedArray(current.data.buffer.slice(start, end))
+        const adjSlice = new Uint8ClampedArray(layerAdjusted.data.buffer.slice(start, end))
+        const mskSlice = new Uint8ClampedArray(mask.data.buffer.slice(start, end))
 
         w.onmessage = (e: MessageEvent) => {
           results[idx] = new Uint8ClampedArray(e.data.buffer)
-          if (++done === n) resolve(merge(results, original.width, original.height))
+          if (++done === n) resolve(merge(results, current.width, current.height))
         }
 
         w.postMessage(
-          { original: origSlice.buffer, adjusted: adjSlice.buffer, mask: mskSlice.buffer },
-          { transfer: [origSlice.buffer, adjSlice.buffer, mskSlice.buffer] }
+          { original: curSlice.buffer, adjusted: adjSlice.buffer, mask: mskSlice.buffer },
+          { transfer: [curSlice.buffer, adjSlice.buffer, mskSlice.buffer] }
         )
       })
     })
@@ -255,8 +326,7 @@ export function useHSLState(): UseHSLStateReturn {
     isProcessing.value = true
 
     try {
-      const result = await runFullChain(data, bAdj, hAdj, hires, currentMaskCanvas)
-      // result 为空字符串表示无任何调整，清空 processedSrc 让 ImagePreview 显示原图
+      const result = await runFullChain(data, bAdj, hAdj, hires, currentMaskLayers)
       processedSrc.value = result
     } finally {
       poolBusy = false
@@ -352,9 +422,9 @@ export function useHSLState(): UseHSLStateReturn {
     triggerProcess()
   }
 
-  /** 外部注入蒙版 canvas 引用，触发重新合成（用 rAF 延迟一帧，避免松手卡顿） */
-  const setMaskCanvas = (canvas: HTMLCanvasElement | null) => {
-    currentMaskCanvas = canvas
+  /** 外部注入蒙版层数据，触发重新合成（用 rAF 延迟一帧，避免松手卡顿） */
+  const setMaskCanvas = (_canvas: HTMLCanvasElement | null, layers: import('./useMaskState').MaskLayer[] = []) => {
+    currentMaskLayers = layers
     // 延迟到下一帧，让松手的视觉先完成渲染
     requestAnimationFrame(() => triggerProcess())
   }
@@ -387,9 +457,9 @@ export function useHSLState(): UseHSLStateReturn {
   const exportProcessed = async (format: 'png' | 'jpeg' = 'png', quality = 0.95): Promise<string> => {
     if (!fullData) return sourceSrc
     const hasBasic = Object.values(basicAdj).some(v => v !== 0)
-    if (!hasBasic && !hasHSLAdjustments() && !currentMaskCanvas) return sourceSrc
+    if (!hasBasic && !hasHSLAdjustments() && currentMaskLayers.filter(l => l.enabled && l.canvas).length === 0) return sourceSrc
 
-    const result = await runFullChain(fullData, basicAdj, hslAdjustments, true, currentMaskCanvas)
+    const result = await runFullChain(fullData, basicAdj, hslAdjustments, true, currentMaskLayers)
     if (!result) return sourceSrc
 
     if (format === 'png') {
@@ -401,6 +471,15 @@ export function useHSLState(): UseHSLStateReturn {
     }
     return result
   }
+
+  // Worker 生命周期清理
+  onUnmounted(() => {
+    if (hiresTimer) { clearTimeout(hiresTimer); hiresTimer = null }
+    basicWorkers.forEach(w => w.terminate())
+    hslWorkers.forEach(w => w.terminate())
+    maskWorkers.forEach(w => w.terminate())
+    basicWorkers = []; hslWorkers = []; maskWorkers = []
+  })
 
   return {
     hslAdjustments,

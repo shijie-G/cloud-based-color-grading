@@ -12,6 +12,29 @@ import { ref, reactive, computed } from 'vue'
 
 export type MaskType = 'linear' | 'radial'
 
+/**
+ * 蒙版局部调色参数（PS 蒙版调整面板顺序）
+ * 处理顺序：曝光 → 对比度 → 高光 → 阴影 → 白色色阶 → 黑色色阶 → 清晰度 → 去朦胧 → 饱和度 → 色相
+ */
+export interface MaskAdjustments {
+  exposure:    number  // 曝光     -5.0 ~ +5.0 EV（模拟 PS 曝光滑块）
+  contrast:    number  // 对比度   -100 ~ +100
+  highlights:  number  // 高光     -100 ~ +100
+  shadows:     number  // 阴影     -100 ~ +100
+  whites:      number  // 白色色阶 -100 ~ +100
+  blacks:      number  // 黑色色阶 -100 ~ +100
+  clarity:     number  // 清晰度   -100 ~ +100
+  dehaze:      number  // 去朦胧   -100 ~ +100
+  saturation:  number  // 饱和度   -100 ~ +100
+  hue:         number  // 色相     -180 ~ +180
+}
+
+export const defaultMaskAdjustments = (): MaskAdjustments => ({
+  exposure: 0, contrast: 0, highlights: 0, shadows: 0,
+  whites: 0, blacks: 0, clarity: 0, dehaze: 0,
+  saturation: 0, hue: 0,
+})
+
 export interface LinearMaskParams {
   x1: number; y1: number   // 起点（白=完全应用）
   x2: number; y2: number   // 终点（黑=不应用）
@@ -33,6 +56,7 @@ export interface MaskLayer {
   type: MaskType
   linear: LinearMaskParams
   radial: RadialMaskParams
+  adjustments: MaskAdjustments
   /** 该层的离屏 canvas（原图尺寸），由 generateLayerMask 写入 */
   canvas: HTMLCanvasElement | null
 }
@@ -46,6 +70,7 @@ export const createLinearLayer = (): MaskLayer => ({
   type: 'linear',
   linear: { x1: 0.2, y1: 0.5, x2: 0.8, y2: 0.5, feather: 0.1 },
   radial: { cx: 0.5, cy: 0.5, rx: 0.25, ry: 0.25, angle: 0, feather: 0.15, invert: false },
+  adjustments: defaultMaskAdjustments(),
   canvas: null,
 })
 
@@ -56,6 +81,7 @@ export const createRadialLayer = (): MaskLayer => ({
   type: 'radial',
   linear: { x1: 0.2, y1: 0.5, x2: 0.8, y2: 0.5, feather: 0.1 },
   radial: { cx: 0.5, cy: 0.5, rx: 0.25, ry: 0.25, angle: 0, feather: 0.15, invert: false },
+  adjustments: defaultMaskAdjustments(),
   canvas: null,
 })
 
@@ -267,6 +293,7 @@ export function useMaskState() {
   const getSerializable = () => layers.map(l => ({
     id: l.id, name: l.name, enabled: l.enabled, type: l.type,
     linear: { ...l.linear }, radial: { ...l.radial },
+    adjustments: { ...l.adjustments },
   }))
 
   const loadFromSerializable = (data: ReturnType<typeof getSerializable>) => {
@@ -274,7 +301,9 @@ export function useMaskState() {
     data.forEach(d => {
       const layer: MaskLayer = {
         id: d.id, name: d.name, enabled: d.enabled, type: d.type,
-        linear: { ...d.linear }, radial: { ...d.radial }, canvas: null,
+        linear: { ...d.linear }, radial: { ...d.radial },
+        adjustments: d.adjustments ? { ...defaultMaskAdjustments(), ...d.adjustments } : defaultMaskAdjustments(),
+        canvas: null,
       }
       _ensureLayerCanvas(layer)
       layers.push(layer)

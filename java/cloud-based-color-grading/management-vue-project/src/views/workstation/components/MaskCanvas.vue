@@ -328,8 +328,8 @@ const applyHandle = (nx: number, ny: number) => {
   const l = props.layer
   if (!l) return
   if (l.type === 'linear') {
-    const px = nx - handleOffsetNX
-    const py = ny - handleOffsetNY
+    const px = Math.max(0, Math.min(1, nx - handleOffsetNX))
+    const py = Math.max(0, Math.min(1, ny - handleOffsetNY))
     if (handleId === 'p1') {
       emit('update:layer', { ...l, linear: { ...l.linear, x1: px, y1: py } })
     } else if (handleId === 'p2') {
@@ -340,8 +340,8 @@ const applyHandle = (nx: number, ny: number) => {
       const dy = py - (l.linear.y1 + l.linear.y2) / 2
       emit('update:layer', { ...l, linear: {
         ...l.linear,
-        x1: l.linear.x1 + dx, y1: l.linear.y1 + dy,
-        x2: l.linear.x2 + dx, y2: l.linear.y2 + dy,
+        x1: Math.max(0, Math.min(1, l.linear.x1 + dx)), y1: Math.max(0, Math.min(1, l.linear.y1 + dy)),
+        x2: Math.max(0, Math.min(1, l.linear.x2 + dx)), y2: Math.max(0, Math.min(1, l.linear.y2 + dy)),
       }})
     }
   } else {

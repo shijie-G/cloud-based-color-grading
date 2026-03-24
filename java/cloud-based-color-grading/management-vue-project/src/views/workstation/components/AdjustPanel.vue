@@ -21,16 +21,19 @@
           :canReset="canReset"
           :imageSrc="imageSrc"
           :processedSrc="processedSrc"
-          :maskLayers="maskLayers"
-          :maskActiveLayerId="maskActiveLayerId"
-          :maskActiveLayer="maskActiveLayer"
-          :maskShowOverlay="maskShowOverlay"
-          :maskActive="maskActive"
           @update:adjustments="$emit('update:adjustments', $event)"
           @update:hslAdjustments="$emit('update:hslAdjustments', $event)"
           @action:uploadImage="$emit('action:uploadImage', $event)"
           @action:save="$emit('action:save', $event)"
           @action:reset="$emit('action:reset')"
+        />
+        <MaskAdjustPanel
+          v-else-if="activeTab === 'mask'"
+          :maskLayers="maskLayers"
+          :maskActiveLayerId="maskActiveLayerId"
+          :maskActiveLayer="maskActiveLayer"
+          :maskShowOverlay="maskShowOverlay"
+          :maskActive="maskActive"
           @mask:toggleActive="$emit('mask:toggleActive')"
           @mask:toggleOverlay="$emit('mask:toggleOverlay')"
           @mask:addLayer="$emit('mask:addLayer', $event)"
@@ -41,7 +44,6 @@
           @mask:invert="$emit('mask:invert')"
           @mask:clear="$emit('mask:clear')"
         />
-        <MaskAdjustPanel v-else-if="activeTab === 'mask'" />
       </div>
 
       <!-- 右侧导航栏 -->

@@ -55,7 +55,7 @@
         @update:hslAdjustments="(v) => Object.assign(hslAdjustments, v)"
         @action:uploadImage="handleImageUpload"
         @action:save="handleSaveImage"
-        @action:reset="() => { resetAdjustments(); setBasicAdjustments({ brightness:0, contrast:0, saturation:0, vibrance:0, hue:0, temperature:0, clarity:0 }); resetHSL(); resetMask(); setMaskCanvas(null) }"
+        @action:reset="() => { resetAdjustments(); setBasicAdjustments({ brightness:0, contrast:0, saturation:0, vibrance:0, hue:0, temperature:0, clarity:0 }); resetHSL(); resetMask(); setMaskCanvas(null, []) }"
         @mask:toggleActive="handleMaskToggleActive"
         @mask:toggleOverlay="handleMaskToggleOverlay"
         @mask:addLayer="handleMaskAddLayer"
@@ -82,6 +82,7 @@ import { useLayoutState } from './composables/useLayoutState'
 import { useImageState } from './composables/useImageState'
 import { useAdjustmentState } from './composables/useAdjustmentState'
 import { useHSLState } from './composables/useHSLState'
+import { defaultHSLAdjustments } from './composables/useHSLProcessor'
 import { useImageStorage } from './composables/useImageStorage'
 import { useMaskState } from './composables/useMaskState'
 
@@ -110,7 +111,6 @@ const {
 // 使用调整状态管理
 const {
   adjustments,
-  imageFilter,
   resetAdjustments,
   setAdjustments,
 } = useAdjustmentState();
@@ -169,9 +169,13 @@ const serializeAdjustments = () => {
 // 防抖自动保存（500ms 无操作后写入 DB）
 const scheduleSave = () => {
   if (!selectedImageId.value || isLoadingAdjustments) return
+  const savedId = selectedImageId.value
   if (saveTimer) clearTimeout(saveTimer)
   saveTimer = setTimeout(() => {
-    saveAdjustments(selectedImageId.value!, serializeAdjustments())
+    // 再次确认 id 未切换，避免保存到错误图片
+    if (selectedImageId.value === savedId) {
+      saveAdjustments(savedId, serializeAdjustments())
+    }
   }, 500)
 }
 
@@ -182,28 +186,32 @@ const applyStoredAdjustments = async (imageId: number) => {
     const json = await loadAdjustments(imageId)
     if (!json) {
       resetAdjustments(); resetHSL(); resetMask()
-      setMaskCanvas(null)
+      setMaskCanvas(null, [])
       return
     }
     const data = JSON.parse(json)
     if (data.adjustments) setAdjustments(data.adjustments)
-    if (data.hslAdjustments) Object.assign(hslAdjustments, data.hslAdjustments)
+    if (data.hslAdjustments) Object.assign(hslAdjustments, { ...defaultHSLAdjustments(), ...data.hslAdjustments })
     // 恢复蒙版
     if (data.mask && Array.isArray(data.mask) && data.mask.length > 0 && imageSrc.value) {
-      const img = new Image()
-      img.onload = () => {
-        maskInitSize(img.naturalWidth, img.naturalHeight)
+      const initMask = (naturalWidth: number, naturalHeight: number) => {
+        maskInitSize(naturalWidth, naturalHeight)
         loadMaskFromSerializable(data.mask)
-        setMaskCanvas(maskCompositeCanvas.value)
+        setMaskCanvas(maskCompositeCanvas.value, [...maskLayers])
       }
+      const img = new Image()
+      img.onload = () => initMask(img.naturalWidth, img.naturalHeight)
+      img.onerror = () => { resetMask(); setMaskCanvas(null, []) }
       img.src = imageSrc.value
+      // 若图片已缓存 onload 不会触发，直接读取
+      if (img.complete && img.naturalWidth > 0) initMask(img.naturalWidth, img.naturalHeight)
     } else {
       resetMask()
-      setMaskCanvas(null)
+      setMaskCanvas(null, [])
     }
   } catch {
     resetAdjustments(); resetHSL(); resetMask()
-    setMaskCanvas(null)
+    setMaskCanvas(null, [])
   } finally {
     isLoadingAdjustments = false
   }
@@ -226,20 +234,20 @@ watch(adjustments, (adj) => {
 // 图片切换时重置蒙版
 watch(imageSrc, () => {
   resetMask()
-  setMaskCanvas(null)
+  setMaskCanvas(null, [])
 })
 
 // 蒙版 commit（拖拽结束，重新生成蒙版并触发处理链）
 const handleMaskCommit = () => {
   if (maskActiveLayer.value) generateLayerMask(maskActiveLayer.value)
-  setMaskCanvas(maskCompositeCanvas.value)
+  setMaskCanvas(maskCompositeCanvas.value, [...maskLayers])
   scheduleSave()
 }
 
 // 蒙版参数更新（来自 MaskCanvas 拖拽或 MaskControls 控件）
 const handleMaskUpdateLayer = (newLayer: import('./composables/useMaskState').MaskLayer) => {
   maskUpdateLayer(newLayer)
-  setMaskCanvas(maskCompositeCanvas.value)
+  setMaskCanvas(maskCompositeCanvas.value, [...maskLayers])
   scheduleSave()
 }
 
@@ -247,32 +255,40 @@ const handleMaskUpdateLayer = (newLayer: import('./composables/useMaskState').Ma
 const handleMaskToggleActive = () => {
   maskActive.value = !maskActive.value
   if (maskActive.value && maskLayers.length === 0 && imageSrc.value) {
-    const img = new Image()
-    img.onload = () => {
-      maskInitSize(img.naturalWidth, img.naturalHeight)
-      maskAddLayer('linear')
-      setMaskCanvas(maskCompositeCanvas.value)
+    const initAndAdd = (w: number, h: number) => {
+      maskInitSize(w, h); maskAddLayer('linear')
+      setMaskCanvas(maskCompositeCanvas.value, [...maskLayers])
     }
+    const img = new Image()
+    img.onload = () => initAndAdd(img.naturalWidth, img.naturalHeight)
+    img.onerror = () => {}
     img.src = imageSrc.value
+    if (img.complete && img.naturalWidth > 0) initAndAdd(img.naturalWidth, img.naturalHeight)
   }
 }
 const handleMaskAddLayer    = (type: import('./composables/useMaskState').MaskType) => {
   if (maskLayers.length === 0 && imageSrc.value) {
+    const initAndAdd = (w: number, h: number) => {
+      maskInitSize(w, h); maskAddLayer(type)
+      setMaskCanvas(maskCompositeCanvas.value, [...maskLayers])
+    }
     const img = new Image()
-    img.onload = () => { maskInitSize(img.naturalWidth, img.naturalHeight); maskAddLayer(type); setMaskCanvas(maskCompositeCanvas.value) }
+    img.onload = () => initAndAdd(img.naturalWidth, img.naturalHeight)
+    img.onerror = () => {}
     img.src = imageSrc.value
+    if (img.complete && img.naturalWidth > 0) initAndAdd(img.naturalWidth, img.naturalHeight)
   } else {
     maskAddLayer(type)
-    setMaskCanvas(maskCompositeCanvas.value)
+    setMaskCanvas(maskCompositeCanvas.value, [...maskLayers])
   }
   scheduleSave()
 }
-const handleMaskRemoveLayer = (id: string) => { maskRemoveLayer(id); setMaskCanvas(maskCompositeCanvas.value); scheduleSave() }
+const handleMaskRemoveLayer = (id: string) => { maskRemoveLayer(id); setMaskCanvas(maskCompositeCanvas.value, [...maskLayers]); scheduleSave() }
 const handleMaskSelectLayer = (id: string) => { maskSetActiveLayer(id) }
-const handleMaskToggleLayerEnabled = (id: string) => { maskToggleLayerEnabled(id); setMaskCanvas(maskCompositeCanvas.value); scheduleSave() }
+const handleMaskToggleLayerEnabled = (id: string) => { maskToggleLayerEnabled(id); setMaskCanvas(maskCompositeCanvas.value, [...maskLayers]); scheduleSave() }
 const handleMaskToggleOverlay = () => { toggleMaskOverlay() }
-const handleMaskInvert = () => { maskInvertActive(); setMaskCanvas(maskCompositeCanvas.value); scheduleSave() }
-const handleMaskClear  = () => { maskClearActive();  setMaskCanvas(maskCompositeCanvas.value); scheduleSave() }
+const handleMaskInvert = () => { maskInvertActive(); setMaskCanvas(maskCompositeCanvas.value, [...maskLayers]); scheduleSave() }
+const handleMaskClear  = () => { maskClearActive();  setMaskCanvas(maskCompositeCanvas.value, [...maskLayers]); scheduleSave() }
 
 // selectedImageId 变化时（含页面刷新后 onMounted 恢复）加载调色参数
 watch(selectedImageId, (id) => {
@@ -353,7 +369,6 @@ defineExpose({
   uploadedImages,
   selectedImageId,
   adjustments,
-  imageFilter,
   imageDisplayRef,
   
   // 方法
