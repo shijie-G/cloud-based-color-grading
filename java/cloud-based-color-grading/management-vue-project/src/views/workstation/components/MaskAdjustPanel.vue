@@ -33,7 +33,7 @@
           v-for="layer in maskLayers" :key="layer.id"
           class="layer-card"
           :class="{ selected: layer.id === maskActiveLayerId, disabled: !layer.enabled }"
-          @click="$emit('mask:selectLayer', layer.id)"
+          @click="$emit('mask:selectLayer', layer.id === maskActiveLayerId ? '' : layer.id)"
         >
           <!-- 蒙版缩略图 -->
           <div class="layer-thumb">
@@ -142,6 +142,10 @@
                   <input
                     type="range" class="ps-slider adj-input"
                     :min="item.min" :max="item.max" :value="layerAdj[item.key]"
+                    @mousedown="$emit('mask:adjSliderStart')"
+                    @touchstart="$emit('mask:adjSliderStart')"
+                    @mouseup="$emit('mask:adjSliderEnd')"
+                    @touchend="$emit('mask:adjSliderEnd')"
                     @input="e => updateAdj(item.key, +(e.target as HTMLInputElement).value)"
                   />
                 </div>
@@ -180,6 +184,8 @@ const emit = defineEmits<{
   'mask:toggleLayerEnabled': [id: string]
   'mask:updateLayer':        [layer: MaskLayer]
   'mask:updateLayerAdj':     [payload: { id: string; adjustments: AdjustmentValues }]
+  'mask:adjSliderStart':     []
+  'mask:adjSliderEnd':       []
   'mask:invert':             []
   'mask:clear':              []
 }>()

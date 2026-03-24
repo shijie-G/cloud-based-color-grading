@@ -42,6 +42,8 @@
           @mask:invert="$emit('mask:invert')"
           @mask:clear="$emit('mask:clear')"
           @mask:updateLayerAdj="$emit('mask:updateLayerAdj', $event)"
+          @mask:adjSliderStart="$emit('mask:adjSliderStart')"
+          @mask:adjSliderEnd="$emit('mask:adjSliderEnd')"
         />
       </div>
 
@@ -70,7 +72,7 @@
 import type { AdjustmentValues } from '../component-interfaces'
 import type { HSLAdjustments } from '../composables/useHSLState'
 import type { MaskLayer, MaskType } from '../composables/useMaskState'
-import { ref } from 'vue'
+import { ref, watch } from 'vue'
 import BasicAdjustPanel from './BasicAdjustPanel.vue'
 import MaskAdjustPanel from './MaskAdjustPanel.vue'
 
@@ -101,14 +103,23 @@ interface AdjustPanelEvents {
   'mask:toggleLayerEnabled': [id: string]
   'mask:updateLayer':        [layer: MaskLayer]
   'mask:updateLayerAdj':     [payload: { id: string; adjustments: AdjustmentValues }]
+  'mask:adjSliderStart':     []
+  'mask:adjSliderEnd':       []
   'mask:invert':             []
   'mask:clear':              []
+  'tab:change':              [tab: 'basic' | 'mask']
+  'mask:clearSelection':     []
 }
 
 const props = defineProps<AdjustPanelProps>()
 const emit  = defineEmits<AdjustPanelEvents>()
 
 const activeTab = ref<'basic' | 'mask'>('basic')
+
+watch(activeTab, (tab) => {
+  emit('tab:change', tab)
+  if (tab === 'mask') emit('mask:clearSelection')
+})
 
 </script>
 

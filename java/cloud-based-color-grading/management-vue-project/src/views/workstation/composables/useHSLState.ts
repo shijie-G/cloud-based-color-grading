@@ -34,6 +34,8 @@ export interface UseHSLStateReturn {
   setBasicAdjustments: (adj: AdjustmentValues) => void
   /** 传入蒙版层列表（含每层独立调色参数），处理时逐层应用 */
   setMaskLayers: (layers: MaskLayer[]) => void
+  /** 仅更新某层调色参数，不重传 canvas，用于滑块实时预览 */
+  updateMaskLayerAdj: (id: string, adjustments: AdjustmentValues) => void
   /** 兼容旧接口：传入合成蒙版 canvas（无独立调色） */
   setMaskCanvas: (canvas: HTMLCanvasElement | null) => void
   exportProcessed: (format?: 'png' | 'jpeg', quality?: number) => Promise<string>
@@ -392,6 +394,18 @@ export function useHSLState(): UseHSLStateReturn {
     requestAnimationFrame(() => triggerProcess())
   }
 
+  /**
+   * 仅更新某层的独立调色参数，不重新传 canvas，直接触发处理链。
+   * 用于滑块拖动时的实时预览，避免 rAF 延迟导致蒙版闪烁。
+   */
+  const updateMaskLayerAdj = (id: string, adjustments: AdjustmentValues) => {
+    const layer = currentMaskLayers.find(l => l.id === id)
+    if (layer) {
+      layer.adjustments = { ...adjustments }
+      triggerProcess()
+    }
+  }
+
   // HSL 参数变化时重新处理
   watch(hslAdjustments, () => {
     if (!sourceSrc || !previewData) return
@@ -445,6 +459,7 @@ export function useHSLState(): UseHSLStateReturn {
     setBasicAdjustments,
     setMaskCanvas,
     setMaskLayers,
+    updateMaskLayerAdj,
     exportProcessed,
   }
 }

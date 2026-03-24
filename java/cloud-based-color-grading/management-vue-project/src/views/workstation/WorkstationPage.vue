@@ -16,7 +16,7 @@
         :galleryHeight="galleryHeight"
         :maskActive="maskLayers.length > 0"
         :maskActiveLayer="maskActiveLayer"
-        :maskShowOverlay="!!maskShowOverlay"
+        :maskShowOverlay="!!maskShowOverlay && !adjSliderDragging && activePanelTab === 'mask' && !!maskActiveLayerId"
         @action:selectImage="handleSelectImage"
         @action:uploadImage="handleImageUpload"
         @layout:resetLayout="resetLayout"
@@ -64,13 +64,17 @@
         @mask:invert="handleMaskInvert"
         @mask:clear="handleMaskClear"
         @mask:updateLayerAdj="handleMaskUpdateLayerAdj"
+        @mask:adjSliderStart="adjSliderDragging = true"
+        @mask:adjSliderEnd="adjSliderDragging = false"
+        @tab:change="activePanelTab = $event"
+        @mask:clearSelection="maskSetActiveLayer('')"
       />
     </div>
   </div>
 </template>
 
 <script setup lang="ts">
-import { ref, watch } from 'vue';
+import { ref, watch } from 'vue';;
 import type { ImageItem } from './component-interfaces'
 import TopNavbar from './components/TopNavbar.vue';
 import ImageDisplay from './components/ImageDisplay.vue';
@@ -123,6 +127,7 @@ const {
   setBasicAdjustments,
   setMaskCanvas,
   setMaskLayers,
+  updateMaskLayerAdj,
   exportProcessed,
 } = useHSLState()
 
@@ -272,7 +277,8 @@ const handleMaskUpdateLayerAdj = (payload: { id: string; adjustments: import('./
   const layer = maskLayers.find(l => l.id === payload.id)
   if (!layer) return
   Object.assign(layer.adjustments, payload.adjustments)
-  syncMaskLayers()
+  // 直接更新处理链中的参数，不重传 canvas，避免 rAF 延迟导致蒙版闪烁
+  updateMaskLayerAdj(payload.id, payload.adjustments)
   scheduleSave()
 }
 
@@ -283,6 +289,10 @@ watch(selectedImageId, (id) => {
 
 // 图片显示组件引用（供模板 ref 使用）
 const imageDisplayRef = ref(null)
+// 局部调色滑块拖动中：临时隐藏蒙版叠加层
+const adjSliderDragging = ref(false)
+// 当前激活的面板 tab
+const activePanelTab = ref<'basic' | 'mask'>('basic')
 
 // 处理面板拖拽开始
 const handlePanelResizeStart = () => {
