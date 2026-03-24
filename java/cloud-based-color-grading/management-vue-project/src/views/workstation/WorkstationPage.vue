@@ -16,7 +16,7 @@
         :galleryHeight="galleryHeight"
         :maskActive="maskLayers.length > 0"
         :maskActiveLayer="maskActiveLayer"
-        :maskShowOverlay="!!maskShowOverlay && !adjSliderDragging && activePanelTab === 'mask' && !!maskActiveLayerId"
+        :maskShowOverlay="!!maskShowOverlay && !adjSliderDragging && activePanelTab === 'mask' && !!maskActiveLayerId && (maskActiveLayer?.enabled ?? false)"
         @action:selectImage="handleSelectImage"
         @action:uploadImage="handleImageUpload"
         @layout:resetLayout="resetLayout"

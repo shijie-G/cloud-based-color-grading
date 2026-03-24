@@ -61,21 +61,47 @@
 
           <!-- 层信息 -->
           <div class="layer-info">
-            <span class="layer-name">{{ layer.name }}</span>
+            <template v-if="editingId === layer.id">
+              <input
+                class="name-input"
+                :value="layer.name"
+                :ref="el => { if (el) nameInputRef = el as HTMLInputElement }"
+                @click.stop
+                @blur="e => commitName(layer, (e.target as HTMLInputElement).value)"
+                @keydown.enter.prevent="e => commitName(layer, (e.target as HTMLInputElement).value)"
+                @keydown.escape.prevent="editingId = ''"
+              />
+            </template>
+            <template v-else>
+              <span class="layer-name" @dblclick.stop="startEdit(layer.id)">{{ layer.name }}</span>
+            </template>
             <span class="layer-type-tag">{{ layer.type === 'linear' ? '线性' : '径向' }}</span>
           </div>
 
-          <!-- 右侧操作 -->
           <div class="layer-ops" @click.stop>
             <button
               class="op-btn vis-btn"
               :class="{ on: layer.enabled }"
+              :title="layer.enabled ? '隐藏' : '显示'"
               @click="$emit('mask:toggleLayerEnabled', layer.id)"
-            >{{ layer.enabled ? '显' : '隐' }}</button>
+            >
+              <svg v-if="layer.enabled" viewBox="0 0 16 16" fill="none">
+                <ellipse cx="8" cy="8" rx="6" ry="4" stroke="currentColor" stroke-width="1.4"/>
+                <circle cx="8" cy="8" r="2" fill="currentColor"/>
+              </svg>
+              <svg v-else viewBox="0 0 16 16" fill="none">
+                <path d="M2 2l12 12M6.5 5.5A5.4 5.4 0 018 5c3 0 5.5 3 5.5 3s-.8 1.3-2.2 2.2M4.7 6.7C3.4 7.5 2.5 8 2.5 8s2.5 3 5.5 3c.8 0 1.6-.2 2.3-.5" stroke="currentColor" stroke-width="1.4" stroke-linecap="round"/>
+              </svg>
+            </button>
             <button
               class="op-btn del-btn"
+              title="删除"
               @click="$emit('mask:removeLayer', layer.id)"
-            >删</button>
+            >
+              <svg viewBox="0 0 16 16" fill="none">
+                <path d="M4 4l8 8M12 4l-8 8" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/>
+              </svg>
+            </button>
           </div>
         </div>
       </div>
@@ -164,7 +190,7 @@
 </template>
 
 <script setup lang="ts">
-import { computed } from 'vue'
+import { computed, ref, nextTick } from 'vue'
 import type { MaskLayer, MaskType } from '../composables/useMaskState'
 import type { AdjustmentValues } from '../component-interfaces'
 import { defaultLayerAdjustments } from '../composables/useMaskState'
@@ -183,6 +209,7 @@ const emit = defineEmits<{
   'mask:selectLayer':        [id: string]
   'mask:toggleLayerEnabled': [id: string]
   'mask:updateLayer':        [layer: MaskLayer]
+  'mask:renamLayer':         [payload: { id: string; name: string }]
   'mask:updateLayerAdj':     [payload: { id: string; adjustments: AdjustmentValues }]
   'mask:adjSliderStart':     []
   'mask:adjSliderEnd':       []
@@ -249,6 +276,25 @@ const resetLayerAdj = () => {
     id: props.maskActiveLayer.id,
     adjustments: defaultLayerAdjustments(),
   })
+}
+
+// 名称编辑
+const editingId = ref('')
+const nameInputRef = ref<HTMLInputElement | null>(null)
+
+const startEdit = async (id: string) => {
+  editingId.value = id
+  await nextTick()
+  nameInputRef.value?.focus()
+  nameInputRef.value?.select()
+}
+
+const commitName = (layer: MaskLayer, name: string) => {
+  const trimmed = name.trim()
+  if (trimmed && trimmed !== layer.name) {
+    emit('mask:updateLayer', { ...layer, name: trimmed })
+  }
+  editingId.value = ''
 }
 </script>
 
@@ -391,21 +437,35 @@ const resetLayerAdj = () => {
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
+  cursor: text;
+}
+.name-input {
+  font-size: 11px;
+  color: #c7ceff;
+  background: rgba(91,106,240,0.12);
+  border: 1px solid rgba(91,106,240,0.4);
+  border-radius: 3px;
+  padding: 1px 5px;
+  outline: none;
+  width: 80px;
+  min-width: 0;
 }
 .layer-card.selected .layer-name { color: #c7ceff; }
 .layer-type-tag { font-size: 9px; color: #4b5563; }
 
 .layer-ops { display: flex; gap: 3px; flex-shrink: 0; }
 .op-btn {
-  padding: 2px 7px;
-  font-size: 10px;
+  width: 24px; height: 24px;
+  display: flex; align-items: center; justify-content: center;
   border-radius: 3px;
   border: 1px solid rgba(255,255,255,0.08);
   background: rgba(255,255,255,0.04);
   cursor: pointer;
   outline: none;
   transition: all 0.12s;
+  padding: 0;
 }
+.op-btn svg { width: 12px; height: 12px; }
 .vis-btn { color: #4b5563; }
 .vis-btn.on { color: #a5b0ff; border-color: rgba(91,106,240,0.3); background: rgba(91,106,240,0.1); }
 .vis-btn:hover { color: #9ca3af; }
