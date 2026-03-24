@@ -16,6 +16,7 @@
 import { reactive, ref, watch, type Ref } from 'vue'
 import { defaultHSLAdjustments, type HSLAdjustments, type HSLRange } from './useHSLProcessor'
 import type { AdjustmentValues } from '../component-interfaces'
+import type { MaskLayer } from './useMaskState'
 
 export type { HSLAdjustments, HSLRange }
 
@@ -31,7 +32,9 @@ export interface UseHSLStateReturn {
   hasHSLAdjustments: () => boolean
   setSourceImage: (src: string) => void
   setBasicAdjustments: (adj: AdjustmentValues) => void
-  /** 传入蒙版 canvas（直接引用，处理时异步读取，主线程零 getImageData） */
+  /** 传入蒙版层列表（含每层独立调色参数），处理时逐层应用 */
+  setMaskLayers: (layers: MaskLayer[]) => void
+  /** 兼容旧接口：传入合成蒙版 canvas（无独立调色） */
   setMaskCanvas: (canvas: HTMLCanvasElement | null) => void
   exportProcessed: (format?: 'png' | 'jpeg', quality?: number) => Promise<string>
 }
@@ -47,8 +50,8 @@ export function useHSLState(): UseHSLStateReturn {
     vibrance: 0, hue: 0, temperature: 0, clarity: 0,
   }
 
-  // 当前蒙版 canvas（直接引用，处理时异步读取）
-  let currentMaskCanvas: HTMLCanvasElement | null = null
+  // 当前蒙版层列表（含每层独立调色参数）
+  let currentMaskLayers: MaskLayer[] = []
 
   let sourceSrc   = ''
   let previewData: ImageData | null = null
@@ -141,48 +144,74 @@ export function useHSLState(): UseHSLStateReturn {
   }
 
   /**
-   * 完整处理链：原图 → basicWorker → hslWorker → [maskWorker] → canvas dataURL
+   * 完整处理链（PS 顺序）：
+   *   原图 → basicWorker（全局）→ hslWorker（全局）
+   *        → 逐层蒙版：对当前结果再应用该层 basic adj，用蒙版 alpha 混合
+   *        → canvas dataURL
+   *
+   * 多蒙版叠加：每层以上一层的输出作为"当前图"，逐层累积效果。
+   * 这与 PS 局部调整图层的行为一致。
    */
   const runFullChain = async (
     data: ImageData,
     bAdj: AdjustmentValues,
     hAdj: HSLAdjustments,
     hires: boolean,
-    maskCanvas?: HTMLCanvasElement | null
+    maskLayers?: MaskLayer[]
   ): Promise<string> => {
     const bAdjCopy = { ...bAdj }
     const hAdjCopy = JSON.parse(JSON.stringify(hAdj)) as HSLAdjustments
 
+    const enabledLayers = (maskLayers ?? []).filter(l => l.enabled && l.canvas)
     const hasBasic = Object.values(bAdjCopy).some(v => v !== 0)
     const hasHSL   = hasHSLAdjustments()
-    const hasMask  = !!maskCanvas
+    const hasMask  = enabledLayers.length > 0
 
     if (!hasBasic && !hasHSL && !hasMask) return ''
-    let intermediate: ImageData = data
 
+    // Step 1: 全局基础调色
+    let current: ImageData = data
     if (hasBasic) {
-      intermediate = await runParallel(
+      current = await runParallel(
         data, getBasicWorkers(),
         (buffer, _idx) => ({ msg: { buffer, adj: bAdjCopy }, transfer: [buffer] })
       )
     }
 
+    // Step 2: 全局 HSL
     if (hasHSL) {
-      intermediate = await runParallel(
-        intermediate, getHslWorkers(),
+      current = await runParallel(
+        current, getHslWorkers(),
         (buffer, idx) => ({ msg: { buffer, adj: hAdjCopy, chunkIndex: idx, hires }, transfer: [buffer] })
       )
     }
 
-    if (hasMask && maskCanvas) {
-      // 用 createImageBitmap 异步读取蒙版，完全不阻塞主线程
-      const maskData = await readCanvasAsync(maskCanvas, intermediate.width, intermediate.height)
-      intermediate = await runMaskCompose(data, intermediate, maskData)
+    // Step 3: 逐层蒙版独立调色（PS 局部调整图层顺序）
+    // 每层：对 current 再应用该层的 basic adj → 得到 layerAdjusted
+    //       用蒙版 alpha lerp(current, layerAdjusted) → 新的 current
+    for (const layer of enabledLayers) {
+      const layerAdj = layer.adjustments
+      const hasLayerAdj = Object.values(layerAdj).some(v => v !== 0)
+
+      // 该层调色后的结果
+      let layerAdjusted: ImageData = current
+      if (hasLayerAdj) {
+        layerAdjusted = await runParallel(
+          current, getBasicWorkers(),
+          (buffer, _idx) => ({ msg: { buffer, adj: { ...layerAdj } }, transfer: [buffer] })
+        )
+      }
+
+      // 读取该层蒙版 canvas
+      const maskData = await readCanvasAsync(layer.canvas!, current.width, current.height)
+
+      // 用蒙版 alpha 混合：current lerp layerAdjusted
+      current = await runMaskCompose(current, layerAdjusted, maskData)
     }
 
     const canvas = document.createElement('canvas')
-    canvas.width = intermediate.width; canvas.height = intermediate.height
-    canvas.getContext('2d')!.putImageData(intermediate, 0, 0)
+    canvas.width = current.width; canvas.height = current.height
+    canvas.getContext('2d')!.putImageData(current, 0, 0)
     return canvas.toDataURL('image/jpeg', hires ? 0.95 : 0.88)
   }
 
@@ -255,7 +284,7 @@ export function useHSLState(): UseHSLStateReturn {
     isProcessing.value = true
 
     try {
-      const result = await runFullChain(data, bAdj, hAdj, hires, currentMaskCanvas)
+      const result = await runFullChain(data, bAdj, hAdj, hires, currentMaskLayers)
       // result 为空字符串表示无任何调整，清空 processedSrc 让 ImagePreview 显示原图
       processedSrc.value = result
     } finally {
@@ -289,7 +318,6 @@ export function useHSLState(): UseHSLStateReturn {
       if (fullData) scheduleProcess({ ...basicAdj }, hslAdjustments, true)
     }, HIRES_DELAY)
   }
-
   const makePreviewData = (img: HTMLImageElement): ImageData => {
     const ratio = Math.min(1, PREVIEW_MAX / Math.max(img.naturalWidth, img.naturalHeight))
     const w = Math.round(img.naturalWidth  * ratio)
@@ -352,10 +380,15 @@ export function useHSLState(): UseHSLStateReturn {
     triggerProcess()
   }
 
-  /** 外部注入蒙版 canvas 引用，触发重新合成（用 rAF 延迟一帧，避免松手卡顿） */
-  const setMaskCanvas = (canvas: HTMLCanvasElement | null) => {
-    currentMaskCanvas = canvas
-    // 延迟到下一帧，让松手的视觉先完成渲染
+  /** 兼容旧接口：传入合成蒙版 canvas（无独立调色），已废弃，保留兼容 */
+  const setMaskCanvas = (_canvas: HTMLCanvasElement | null) => {
+    requestAnimationFrame(() => triggerProcess())
+  }
+
+  /** 外部注入蒙版层列表（含每层独立调色参数），触发重新处理 */
+  const setMaskLayers = (layers: MaskLayer[]) => {
+    // 深拷贝参数，保留 canvas 引用（canvas 不可序列化，直接引用）
+    currentMaskLayers = layers.map(l => ({ ...l, adjustments: { ...l.adjustments } }))
     requestAnimationFrame(() => triggerProcess())
   }
 
@@ -387,9 +420,9 @@ export function useHSLState(): UseHSLStateReturn {
   const exportProcessed = async (format: 'png' | 'jpeg' = 'png', quality = 0.95): Promise<string> => {
     if (!fullData) return sourceSrc
     const hasBasic = Object.values(basicAdj).some(v => v !== 0)
-    if (!hasBasic && !hasHSLAdjustments() && !currentMaskCanvas) return sourceSrc
+    if (!hasBasic && !hasHSLAdjustments() && currentMaskLayers.length === 0) return sourceSrc
 
-    const result = await runFullChain(fullData, basicAdj, hslAdjustments, true, currentMaskCanvas)
+    const result = await runFullChain(fullData, basicAdj, hslAdjustments, true, currentMaskLayers)
     if (!result) return sourceSrc
 
     if (format === 'png') {
@@ -411,6 +444,7 @@ export function useHSLState(): UseHSLStateReturn {
     setSourceImage,
     setBasicAdjustments,
     setMaskCanvas,
+    setMaskLayers,
     exportProcessed,
   }
 }

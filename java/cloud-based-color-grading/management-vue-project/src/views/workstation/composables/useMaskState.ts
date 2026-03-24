@@ -2,15 +2,22 @@
  * 蒙版状态管理 — 多层线性/径向蒙版
  *
  * 架构：
- *   - layers: MaskLayer[]  每层独立参数 + canvas
+ *   - layers: MaskLayer[]  每层独立参数 + canvas + 独立调色参数
  *   - activeLayerId: 当前编辑层
- *   - compositeCanvas: 所有启用层 multiply 合成后的结果，供 useHSLState 读取
+ *   - compositeCanvas: 所有启用层 multiply 合成后的结果（仅用于预览叠加）
  *
  * 蒙版完全由数学参数生成，主线程零像素遍历。
+ * 每层有独立的 adjustments，处理链在 useHSLState 中逐层应用。
  */
 import { ref, reactive, computed } from 'vue'
+import type { AdjustmentValues } from '../component-interfaces'
 
 export type MaskType = 'linear' | 'radial'
+
+export const defaultLayerAdjustments = (): AdjustmentValues => ({
+  brightness: 0, contrast: 0, saturation: 0,
+  vibrance: 0, hue: 0, temperature: 0, clarity: 0,
+})
 
 export interface LinearMaskParams {
   x1: number; y1: number   // 起点（白=完全应用）
@@ -33,6 +40,8 @@ export interface MaskLayer {
   type: MaskType
   linear: LinearMaskParams
   radial: RadialMaskParams
+  /** 每层独立的局部调色参数 */
+  adjustments: AdjustmentValues
   /** 该层的离屏 canvas（原图尺寸），由 generateLayerMask 写入 */
   canvas: HTMLCanvasElement | null
 }
@@ -46,6 +55,7 @@ export const createLinearLayer = (): MaskLayer => ({
   type: 'linear',
   linear: { x1: 0.2, y1: 0.5, x2: 0.8, y2: 0.5, feather: 0.1 },
   radial: { cx: 0.5, cy: 0.5, rx: 0.25, ry: 0.25, angle: 0, feather: 0.15, invert: false },
+  adjustments: defaultLayerAdjustments(),
   canvas: null,
 })
 
@@ -56,6 +66,7 @@ export const createRadialLayer = (): MaskLayer => ({
   type: 'radial',
   linear: { x1: 0.2, y1: 0.5, x2: 0.8, y2: 0.5, feather: 0.1 },
   radial: { cx: 0.5, cy: 0.5, rx: 0.25, ry: 0.25, angle: 0, feather: 0.15, invert: false },
+  adjustments: defaultLayerAdjustments(),
   canvas: null,
 })
 
@@ -267,6 +278,7 @@ export function useMaskState() {
   const getSerializable = () => layers.map(l => ({
     id: l.id, name: l.name, enabled: l.enabled, type: l.type,
     linear: { ...l.linear }, radial: { ...l.radial },
+    adjustments: { ...l.adjustments },
   }))
 
   const loadFromSerializable = (data: ReturnType<typeof getSerializable>) => {
@@ -274,7 +286,9 @@ export function useMaskState() {
     data.forEach(d => {
       const layer: MaskLayer = {
         id: d.id, name: d.name, enabled: d.enabled, type: d.type,
-        linear: { ...d.linear }, radial: { ...d.radial }, canvas: null,
+        linear: { ...d.linear }, radial: { ...d.radial },
+        adjustments: d.adjustments ? { ...d.adjustments } : defaultLayerAdjustments(),
+        canvas: null,
       }
       _ensureLayerCanvas(layer)
       layers.push(layer)
