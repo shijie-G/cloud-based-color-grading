@@ -33,8 +33,6 @@
           :maskActiveLayerId="maskActiveLayerId"
           :maskActiveLayer="maskActiveLayer"
           :maskShowOverlay="maskShowOverlay"
-          :maskActive="maskActive"
-          @mask:toggleActive="$emit('mask:toggleActive')"
           @mask:toggleOverlay="$emit('mask:toggleOverlay')"
           @mask:addLayer="$emit('mask:addLayer', $event)"
           @mask:removeLayer="$emit('mask:removeLayer', $event)"
@@ -88,7 +86,6 @@ interface AdjustPanelProps {
   maskActiveLayerId: string
   maskActiveLayer: MaskLayer | null
   maskShowOverlay: boolean
-  maskActive: boolean
 }
 
 interface AdjustPanelEvents {
@@ -97,7 +94,6 @@ interface AdjustPanelEvents {
   'action:uploadImage':      [file: File]
   'action:save':             [format: 'png' | 'jpeg']
   'action:reset':            []
-  'mask:toggleActive':       []
   'mask:toggleOverlay':      []
   'mask:addLayer':           [type: MaskType]
   'mask:removeLayer':        [id: string]

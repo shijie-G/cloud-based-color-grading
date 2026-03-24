@@ -14,7 +14,7 @@
         :processedSrc="processedSrc"
         :showUploadTips="!imageSrc"
         :galleryHeight="galleryHeight"
-        :maskActive="!!maskActive"
+        :maskActive="maskLayers.length > 0"
         :maskActiveLayer="maskActiveLayer"
         :maskShowOverlay="!!maskShowOverlay"
         @action:selectImage="handleSelectImage"
@@ -50,13 +50,11 @@
         :maskActiveLayerId="maskActiveLayerId"
         :maskActiveLayer="maskActiveLayer"
         :maskShowOverlay="!!maskShowOverlay"
-        :maskActive="!!maskActive"
         @update:adjustments="setAdjustments"
         @update:hslAdjustments="(v) => Object.assign(hslAdjustments, v)"
         @action:uploadImage="handleImageUpload"
         @action:save="handleSaveImage"
         @action:reset="() => { resetAdjustments(); setBasicAdjustments({ brightness:0, contrast:0, saturation:0, vibrance:0, hue:0, temperature:0, clarity:0 }); resetHSL(); resetMask(); setMaskLayers([]) }"
-        @mask:toggleActive="handleMaskToggleActive"
         @mask:toggleOverlay="handleMaskToggleOverlay"
         @mask:addLayer="handleMaskAddLayer"
         @mask:removeLayer="handleMaskRemoveLayer"
@@ -251,19 +249,7 @@ const handleMaskUpdateLayer = (newLayer: import('./composables/useMaskState').Ma
 }
 
 // 蒙版工具栏事件
-const handleMaskToggleActive = () => {
-  maskActive.value = !maskActive.value
-  if (maskActive.value && maskLayers.length === 0 && imageSrc.value) {
-    const img = new Image()
-    img.onload = () => {
-      maskInitSize(img.naturalWidth, img.naturalHeight)
-      maskAddLayer('linear')
-      syncMaskLayers()
-    }
-    img.src = imageSrc.value
-  }
-}
-const handleMaskAddLayer    = (type: import('./composables/useMaskState').MaskType) => {
+const handleMaskAddLayer = (type: import('./composables/useMaskState').MaskType) => {
   if (maskLayers.length === 0 && imageSrc.value) {
     const img = new Image()
     img.onload = () => { maskInitSize(img.naturalWidth, img.naturalHeight); maskAddLayer(type); syncMaskLayers() }
