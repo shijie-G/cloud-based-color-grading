@@ -80,7 +80,7 @@ public class AuthzServiceClient {
      * 获取用户菜单树
      * @param userId 用户ID
      * @return 菜单树（JSON格式）
-     */1
+     */
     public Object getUserMenuTree(Long userId) {
         try {
             String url = authzServiceUrl + "/menus/user/" + userId + "/tree";
