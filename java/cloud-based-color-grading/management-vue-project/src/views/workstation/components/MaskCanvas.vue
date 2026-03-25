@@ -89,12 +89,22 @@ const updateRect = () => {
 }
 
 let ro: ResizeObserver | null = null
+let roClip: ResizeObserver | null = null
+
 watch(() => props.imageCanvas, () => {
   ro?.disconnect()
   if (!props.imageCanvas) return
   ro = new ResizeObserver(updateRect)
   ro.observe(props.imageCanvas)
   updateRect()
+}, { immediate: true })
+
+// 监听容器尺寸变化（拖动分割线时 canvas CSS 渲染尺寸变化，ResizeObserver 不感知）
+watch(() => props.clipContainer, (container) => {
+  roClip?.disconnect()
+  if (!container) return
+  roClip = new ResizeObserver(() => nextTick(updateRect))
+  roClip.observe(container)
 }, { immediate: true })
 
 watch(() => props.active, v => { if (v) nextTick(() => { updateRect(); redrawOverlay() }) })
@@ -111,6 +121,7 @@ onMounted(() => {
 })
 onUnmounted(() => {
   ro?.disconnect()
+  roClip?.disconnect()
   window.removeEventListener('scroll', updateRect, true)
   window.removeEventListener('resize', updateRect)
   cleanupHandleDrag()
