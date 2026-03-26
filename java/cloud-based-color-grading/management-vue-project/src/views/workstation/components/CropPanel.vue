@@ -67,7 +67,7 @@ const presets: Preset[] = [
   { label: '9:16', ratio: 9/16, sx: 5, sy: 1, sw: 13, sh: 22 },
 ]
 
-const selected = ref('自由')
+const selected = ref('')
 
 // 自定义数值持久保留，切走再切回时恢复
 const customW = ref<number | null>(null)

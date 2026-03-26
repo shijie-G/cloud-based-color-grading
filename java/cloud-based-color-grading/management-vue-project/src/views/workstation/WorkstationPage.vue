@@ -17,7 +17,7 @@
         :maskActive="maskLayers.length > 0"
         :maskActiveLayer="maskActiveLayer"
         :maskShowOverlay="!!maskShowOverlay && !adjSliderDragging && activePanelTab === 'mask' && !!maskActiveLayerId && (maskActiveLayer?.enabled ?? false)"
-        :cropActive="activePanelTab === 'crop'"
+        :cropActive="activePanelTab === 'crop' && cropToolActive"
         :cropRatio="cropRatio"
         @action:selectImage="handleSelectImage"
         @action:uploadImage="handleImageUpload"
@@ -28,7 +28,7 @@
         @mask:commit="handleMaskCommit"
         @mask:updateLayer="handleMaskUpdateLayer"
         @crop:commit="handleCropCommit"
-        @crop:cancel="activePanelTab = 'basic'"
+        @crop:cancel="() => { cropToolActive = false }"
         ref="imageDisplayRef"
       />
 
@@ -70,11 +70,11 @@
         @mask:updateLayerAdj="handleMaskUpdateLayerAdj"
         @mask:adjSliderStart="adjSliderDragging = true"
         @mask:adjSliderEnd="adjSliderDragging = false"
-        @tab:change="activePanelTab = $event"
+        @tab:change="(t) => { activePanelTab = t; if (t !== 'crop') cropToolActive = false }"
         @mask:clearSelection="maskSetActiveLayer('')"
-        @crop:ratio="cropRatio = $event"
-        @crop:rotate="handleCropRotate"
-        @crop:flip="handleCropFlip"
+        @crop:ratio="(r) => { cropRatio = r; cropToolActive = true }"
+        @crop:rotate="(d) => { cropToolActive = true; handleCropRotate(d) }"
+        @crop:flip="(dir) => { cropToolActive = true; handleCropFlip(dir) }"
       />
     </div>
   </div>
@@ -83,6 +83,8 @@
 <script setup lang="ts">
 import { ref, watch } from 'vue';;
 import type { ImageItem } from './component-interfaces'
+import type { CropState } from './types/cropTypes'
+import { DEFAULT_CROP_STATE } from './types/cropTypes'
 import TopNavbar from './components/TopNavbar.vue';
 import ImageDisplay from './components/ImageDisplay.vue';
 import PanelResizer from './components/PanelResizer.vue';
@@ -162,7 +164,7 @@ const {
 } = useMaskState()
 
 // 调色参数持久化
-const { saveAdjustments, loadAdjustments, saveImageToDB } = useImageStorage()
+const { saveAdjustments, loadAdjustments, saveImageToDB, saveCropData, loadCropData } = useImageStorage()
 
 // 防抖保存 timer
 let saveTimer: ReturnType<typeof setTimeout> | null = null
@@ -289,9 +291,13 @@ const handleMaskUpdateLayerAdj = (payload: { id: string; adjustments: import('./
   scheduleSave()
 }
 
-// selectedImageId 变化时（含页面刷新后 onMounted 恢复）加载调色参数
-watch(selectedImageId, (id) => {
-  if (id != null) applyStoredAdjustments(id)
+// selectedImageId 变化时（含页面刷新后 onMounted 恢复）加载调色参数和裁切状态
+watch(selectedImageId, async (id) => {
+  if (id == null) return
+  currentCropState.value = { ...DEFAULT_CROP_STATE }
+  const cropData = await loadCropData(id)
+  if (cropData?.cropState) currentCropState.value = cropData.cropState
+  applyStoredAdjustments(id)
 }, { immediate: true })
 
 // 图片显示组件引用（供模板 ref 使用）
@@ -303,8 +309,12 @@ const activePanelTab = ref<'basic' | 'crop' | 'mask'>('basic')
 
 // ── 裁切状态 ──────────────────────────────────────────────────
 const cropRatio = ref<number | null>(null)
+// 裁切框是否激活（进入裁切 tab 不自动显示，需用户主动触发）
+const cropToolActive = ref(false)
+// 当前图片的非破坏性裁切参数（内存中维护，切图时重置）
+const currentCropState = ref<CropState>({ ...DEFAULT_CROP_STATE })
 
-// 旋转（用 canvas 重绘原图）
+// 旋转（用 canvas 重绘，更新 editedSrc，保留原图）
 const handleCropRotate = (deg: number) => {
   if (!imageSrc.value) return
   const img = new Image()
@@ -318,7 +328,9 @@ const handleCropRotate = (deg: number) => {
     ctx.translate(sw / 2, sh / 2)
     ctx.rotate(rad)
     ctx.drawImage(img, -img.naturalWidth / 2, -img.naturalHeight / 2)
-    applyNewSrc(c.toDataURL('image/png'))
+    // 累计旋转角度
+    currentCropState.value.rotate = ((currentCropState.value.rotate + deg) % 360 + 360) % 360
+    applyEditedSrc(c.toDataURL('image/png'))
   }
   img.src = imageSrc.value
 }
@@ -331,15 +343,15 @@ const handleCropFlip = (dir: 'h' | 'v') => {
     const c = document.createElement('canvas')
     c.width = img.naturalWidth; c.height = img.naturalHeight
     const ctx = c.getContext('2d')!
-    if (dir === 'h') { ctx.translate(c.width, 0); ctx.scale(-1, 1) }
-    else             { ctx.translate(0, c.height); ctx.scale(1, -1) }
+    if (dir === 'h') { ctx.translate(c.width, 0); ctx.scale(-1, 1); currentCropState.value.flipH = !currentCropState.value.flipH }
+    else             { ctx.translate(0, c.height); ctx.scale(1, -1); currentCropState.value.flipV = !currentCropState.value.flipV }
     ctx.drawImage(img, 0, 0)
-    applyNewSrc(c.toDataURL('image/png'))
+    applyEditedSrc(c.toDataURL('image/png'))
   }
   img.src = imageSrc.value
 }
 
-// 裁切提交（CropTool 已算好原图像素坐标）
+// 裁切提交
 const handleCropCommit = (rect: { x: number; y: number; w: number; h: number }) => {
   if (!imageSrc.value || rect.w <= 0 || rect.h <= 0) return
   const img = new Image()
@@ -347,33 +359,45 @@ const handleCropCommit = (rect: { x: number; y: number; w: number; h: number }) 
     const c = document.createElement('canvas')
     c.width = rect.w; c.height = rect.h
     c.getContext('2d')!.drawImage(img, rect.x, rect.y, rect.w, rect.h, 0, 0, rect.w, rect.h)
-    applyNewSrc(c.toDataURL('image/png'))
-    activePanelTab.value = 'basic'
+    // 记录裁切区域（相对当前 editedSrc 的像素坐标）
+    currentCropState.value.rect = { x: rect.x, y: rect.y, w: rect.w, h: rect.h }
+    applyEditedSrc(c.toDataURL('image/png'))
+    cropToolActive.value = false
   }
   img.src = imageSrc.value
 }
 
-// 更新原图 src，同步图库，重置蒙版
-const applyNewSrc = async (dataUrl: string) => {
+/**
+ * 应用编辑后的图片：
+ * - 更新内存中的 imageSrc（用于预览和调色链）
+ * - 将 editedSrc + cropState 写入 IndexedDB（不覆盖原图）
+ * - 蒙版在有裁切时清除（坐标失效）
+ */
+const applyEditedSrc = async (dataUrl: string) => {
+  const hadMask = maskLayers.length > 0
+
   imageSrc.value = dataUrl
   setSourceImage(dataUrl)
+
+  // 有蒙版时裁切会导致坐标失效，必须清除
+  if (hadMask) {
+    resetMask()
+    setMaskLayers([])
+  }
+
   if (selectedImageId.value != null) {
     const item = uploadedImages.value.find(i => i.id === selectedImageId.value)
     if (item) {
+      // 只更新内存中的展示 src，不改 originalFile（原图保留）
       item.src = dataUrl
-      // 用裁切后的 dataUrl 创建新 File，确保 IndexedDB 存的是裁切后的内容
-      const res  = await fetch(dataUrl)
-      const blob = await res.blob()
-      item.originalFile = new File([blob], item.name, { type: blob.type })
-      try {
-        await saveImageToDB(item)
-      } catch (e) {
-        console.error('裁切图片持久化失败:', e)
-      }
+    }
+    // 持久化：只写 editedSrc + cropState，原图 blob/src 不动
+    try {
+      await saveCropData(selectedImageId.value, dataUrl, currentCropState.value)
+    } catch (e) {
+      console.error('裁切数据持久化失败:', e)
     }
   }
-  resetMask()
-  setMaskLayers([])
 }
 
 // 处理面板拖拽开始
@@ -411,6 +435,12 @@ const updateGalleryHeight = (height: number) => {
 // 处理图片选择
 const handleSelectImage = async (image: ImageItem) => {
   selectImage(image)
+  // 重置当前裁切状态，加载该图片的裁切数据
+  currentCropState.value = { ...DEFAULT_CROP_STATE }
+  const cropData = await loadCropData(image.id)
+  if (cropData?.cropState) {
+    currentCropState.value = cropData.cropState
+  }
   await applyStoredAdjustments(image.id)
 }
 

@@ -1,9 +1,13 @@
 <template>
-  <div v-if="show" class="crop-root">
+  <!-- crop-root 严格覆盖 canvas 区域，不超出图片边界 -->
+  <div v-if="show" class="crop-root" :style="rootStyle" @mousedown.self="onRootDown">
+    <!-- 四块遮罩（坐标相对 crop-root，即相对 canvas） -->
     <div class="shade" :style="shadeTop"/>
     <div class="shade" :style="shadeBottom"/>
     <div class="shade" :style="shadeLeft"/>
     <div class="shade" :style="shadeRight"/>
+
+    <!-- 裁切框（坐标相对 crop-root） -->
     <div class="crop-box" :style="boxStyle" @mousedown.stop="onBoxDown">
       <div class="gl gl-v" style="left:33.33%"/>
       <div class="gl gl-v" style="left:66.66%"/>
@@ -14,6 +18,8 @@
       <div class="corner c-bl"/><div class="corner c-br"/>
       <div v-for="h in visibleHandles" :key="h.id" class="handle" :style="h.style" @mousedown.stop="onHandleDown($event, h.id)"/>
     </div>
+
+    <!-- 操作栏 -->
     <div class="toolbar">
       <span class="size-hint">{{ Math.round(box.w) }} x {{ Math.round(box.h) }}</span>
       <button class="btn-cancel" @click="emit('cancel')">取消</button>
@@ -28,15 +34,28 @@ import { ref, computed, watch, onMounted, onUnmounted, nextTick } from 'vue'
 const props = defineProps<{ show: boolean; canvas: HTMLCanvasElement | null; ratio: number | null }>()
 const emit = defineEmits<{ commit: [rect: { x: number; y: number; w: number; h: number }]; cancel: [] }>()
 
+// canvas 在父容器中的 CSS 位置和尺寸
 const cr = ref({ left: 0, top: 0, w: 0, h: 0 })
 
 const syncRect = () => {
   if (!props.canvas) return
-  const rect = props.canvas.getBoundingClientRect()
+  const rect   = props.canvas.getBoundingClientRect()
   const parent = props.canvas.parentElement!.getBoundingClientRect()
   cr.value = { left: rect.left - parent.left, top: rect.top - parent.top, w: rect.width, h: rect.height }
 }
 
+// crop-root 直接覆盖 canvas，严格限制在图片边界内
+const rootStyle = computed(() => ({
+  position: 'absolute' as const,
+  left:   `${cr.value.left}px`,
+  top:    `${cr.value.top}px`,
+  width:  `${cr.value.w}px`,
+  height: `${cr.value.h}px`,
+  zIndex: 25,
+  pointerEvents: 'none' as const,
+}))
+
+// 裁切框（相对 crop-root / canvas 左上角）
 const box = ref({ x: 0, y: 0, w: 100, h: 100 })
 const clamp = (v: number, lo: number, hi: number) => Math.min(hi, Math.max(lo, v))
 const MIN = 20
@@ -74,48 +93,18 @@ watch(() => props.ratio, async r => {
   box.value = { x: clamp(cx - bw / 2, 0, W - bw), y: clamp(cy - bh / 2, 0, H - bh), w: bw, h: bh }
 })
 
-// ── 双重监听：MutationObserver(width/height attribute) + ResizeObserver(CSS尺寸) ──
-let ro: ResizeObserver | null = null
-let mo: MutationObserver | null = null
-let rafId = 0
+// 遮罩四块（坐标相对 crop-root，即相对 canvas）
+const shadeTop    = computed(() => ({ left: '0', top: '0', width: '100%', height: `${box.value.y}px` }))
+const shadeBottom = computed(() => ({ left: '0', top: `${box.value.y + box.value.h}px`, width: '100%', height: `${cr.value.h - box.value.y - box.value.h}px` }))
+const shadeLeft   = computed(() => ({ left: '0', top: `${box.value.y}px`, width: `${box.value.x}px`, height: `${box.value.h}px` }))
+const shadeRight  = computed(() => ({ left: `${box.value.x + box.value.w}px`, top: `${box.value.y}px`, width: `${cr.value.w - box.value.x - box.value.w}px`, height: `${box.value.h}px` }))
 
-const onCanvasChanged = () => {
-  if (!props.show) return
-  cancelAnimationFrame(rafId)
-  // 双 rAF：等浏览器完成 CSS 布局重算后再读取尺寸
-  rafId = requestAnimationFrame(() => {
-    requestAnimationFrame(() => {
-      syncRect()
-      initBox()
-    })
-  })
-}
-
-const attachObserver = () => {
-  if (!props.canvas) return
-  ro?.disconnect()
-  mo?.disconnect()
-
-  // MutationObserver：canvas.width / canvas.height attribute 被 drawSrc 直接赋值时触发
-  mo = new MutationObserver(onCanvasChanged)
-  mo.observe(props.canvas, { attributes: true, attributeFilter: ['width', 'height'] })
-
-  // ResizeObserver：CSS 渲染尺寸变化时兜底触发
-  ro = new ResizeObserver(onCanvasChanged)
-  ro.observe(props.canvas)
-}
-
-watch(() => props.canvas, (c) => {
-  ro?.disconnect()
-  mo?.disconnect()
-  if (c && props.show) attachObserver()
-})
-
-const shadeTop    = computed(() => ({ left: `${cr.value.left}px`, top: `${cr.value.top}px`, width: `${cr.value.w}px`, height: `${box.value.y}px` }))
-const shadeBottom = computed(() => ({ left: `${cr.value.left}px`, top: `${cr.value.top + box.value.y + box.value.h}px`, width: `${cr.value.w}px`, height: `${cr.value.h - box.value.y - box.value.h}px` }))
-const shadeLeft   = computed(() => ({ left: `${cr.value.left}px`, top: `${cr.value.top + box.value.y}px`, width: `${box.value.x}px`, height: `${box.value.h}px` }))
-const shadeRight  = computed(() => ({ left: `${cr.value.left + box.value.x + box.value.w}px`, top: `${cr.value.top + box.value.y}px`, width: `${cr.value.w - box.value.x - box.value.w}px`, height: `${box.value.h}px` }))
-const boxStyle    = computed(() => ({ left: `${cr.value.left + box.value.x}px`, top: `${cr.value.top + box.value.y}px`, width: `${box.value.w}px`, height: `${box.value.h}px` }))
+const boxStyle = computed(() => ({
+  left:   `${box.value.x}px`,
+  top:    `${box.value.y}px`,
+  width:  `${box.value.w}px`,
+  height: `${box.value.h}px`,
+}))
 
 const allHandles = [
   { id: 'tl', style: { top: '-5px', left: '-5px', cursor: 'nwse-resize' } },
@@ -131,6 +120,37 @@ const visibleHandles = computed(() =>
   props.ratio !== null ? allHandles.filter(h => ['tl','tr','bl','br'].includes(h.id)) : allHandles
 )
 
+// 双重监听：canvas 尺寸变化时重新同步
+let ro: ResizeObserver | null = null
+let mo: MutationObserver | null = null
+let rafId = 0
+
+const onCanvasChanged = () => {
+  if (!props.show) return
+  cancelAnimationFrame(rafId)
+  rafId = requestAnimationFrame(() => {
+    requestAnimationFrame(() => {
+      syncRect()
+      initBox()
+    })
+  })
+}
+
+const attachObserver = () => {
+  if (!props.canvas) return
+  ro?.disconnect(); mo?.disconnect()
+  mo = new MutationObserver(onCanvasChanged)
+  mo.observe(props.canvas, { attributes: true, attributeFilter: ['width', 'height'] })
+  ro = new ResizeObserver(onCanvasChanged)
+  ro.observe(props.canvas)
+}
+
+watch(() => props.canvas, (c) => {
+  ro?.disconnect(); mo?.disconnect()
+  if (c && props.show) attachObserver()
+})
+
+// 拖拽
 type DragMode = 'move'|'tl'|'tc'|'tr'|'ml'|'mr'|'bl'|'bc'|'br'
 let mode: DragMode = 'move', sx = 0, sy = 0, sb = { x: 0, y: 0, w: 0, h: 0 }
 
@@ -140,14 +160,30 @@ const startDrag = (e: MouseEvent, m: DragMode) => {
   document.addEventListener('mouseup', onUp)
   document.body.style.userSelect = 'none'
 }
-const onBoxDown    = (e: MouseEvent) => startDrag(e, 'move')
+const onBoxDown = (e: MouseEvent) => startDrag(e, 'move')
 const onHandleDown = (e: MouseEvent, id: string) => startDrag(e, id as DragMode)
+
+// 在 crop-root（即 canvas 区域）内重新绘制裁切框
+const onRootDown = (e: MouseEvent) => {
+  const rect = (e.currentTarget as HTMLElement).getBoundingClientRect()
+  const sx_ = e.clientX - rect.left
+  const sy_ = e.clientY - rect.top
+  box.value = { x: sx_, y: sy_, w: MIN, h: MIN }
+  sb = { x: sx_, y: sy_, w: 0, h: 0 }
+  sx = e.clientX; sy = e.clientY
+  mode = 'br'  // 从右下角开始拖拽
+  document.addEventListener('mousemove', onMove)
+  document.addEventListener('mouseup', onUp)
+  document.body.style.userSelect = 'none'
+}
 
 const onMove = (e: MouseEvent) => {
   const dx = e.clientX - sx, dy = e.clientY - sy
   const { w: W, h: H } = cr.value, r = props.ratio
   let { x, y, w, h } = sb, nx = x, ny = y, nw = w, nh = h
+
   if (mode === 'move') { box.value = { x: clamp(x+dx,0,W-w), y: clamp(y+dy,0,H-h), w, h }; return }
+
   if (mode==='tl') { nx=x+dx; nw=w-dx; ny=y+dy; nh=h-dy }
   else if (mode==='tc') { ny=y+dy; nh=h-dy }
   else if (mode==='tr') { nw=w+dx; ny=y+dy; nh=h-dy }
@@ -156,14 +192,29 @@ const onMove = (e: MouseEvent) => {
   else if (mode==='bl') { nx=x+dx; nw=w-dx; nh=h+dy }
   else if (mode==='bc') { nh=h+dy }
   else if (mode==='br') { nw=w+dx; nh=h+dy }
+
   if (r !== null) {
     nh = nw / r
     if (['tl','tc','tr'].includes(mode)) ny = y + h - nh
     if (['tl','ml','bl'].includes(mode)) nx = x + w - nw
   }
+
   if (nw < MIN) { nw=MIN; if(r!==null) nh=nw/r; if(['tl','ml','bl'].includes(mode)) nx=x+w-MIN }
   if (nh < MIN) { nh=MIN; if(r!==null) nw=nh*r; if(['tl','tc','tr'].includes(mode)) ny=y+h-MIN }
-  box.value = { x: clamp(nx,0,W-MIN), y: clamp(ny,0,H-MIN), w: clamp(nw,MIN,W), h: clamp(nh,MIN,H) }
+
+  // 先约束位置，再约束尺寸，确保 x+w<=W 且 y+h<=H（不超出图片边界）
+  nx = clamp(nx, 0, W - MIN)
+  ny = clamp(ny, 0, H - MIN)
+  nw = clamp(nw, MIN, W - nx)
+  nh = clamp(nh, MIN, H - ny)
+  // 固定比例时，尺寸被边界截断后需要同步另一轴
+  if (r !== null) {
+    if (nw / r > H - ny) { nh = H - ny; nw = nh * r }
+    if (nh * r > W - nx) { nw = W - nx; nh = nw / r }
+    nw = clamp(nw, MIN, W - nx)
+    nh = clamp(nh, MIN, H - ny)
+  }
+  box.value = { x: nx, y: ny, w: nw, h: nh }
 }
 
 const onUp = () => {
@@ -194,19 +245,19 @@ onMounted(() => {
   window.addEventListener('keydown', onKey)
   if (props.canvas && props.show) attachObserver()
 })
-
 onUnmounted(() => {
   window.removeEventListener('keydown', onKey)
   document.removeEventListener('mousemove', onMove)
   document.removeEventListener('mouseup', onUp)
   cancelAnimationFrame(rafId)
-  ro?.disconnect()
-  mo?.disconnect()
+  ro?.disconnect(); mo?.disconnect()
 })
 </script>
 
 <style scoped>
-.crop-root { position: absolute; inset: 0; z-index: 25; pointer-events: none; }
+/* crop-root 由 rootStyle 动态定位，严格等于 canvas 的位置和尺寸 */
+.crop-root { overflow: hidden; }
+
 .shade { position: absolute; background: rgba(0,0,0,0.55); pointer-events: auto; }
 .crop-box { position: absolute; box-sizing: border-box; cursor: move; pointer-events: auto; }
 .box-border { position: absolute; inset: 0; border: 1px solid rgba(255,255,255,0.9); pointer-events: none; }

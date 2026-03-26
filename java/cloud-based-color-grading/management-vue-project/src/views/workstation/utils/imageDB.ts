@@ -4,19 +4,21 @@
  */
 
 const DB_NAME = 'WorkstationDB'
-const DB_VERSION = 4
+const DB_VERSION = 5
 const STORE_NAME = 'images'
 
 export interface ImageDBItem {
   id: number
   name: string
-  blob: Blob
-  src: string
+  blob: Blob          // 原始图片（永不覆盖）
+  src: string         // 原始图片 dataUrl（永不覆盖）
+  editedSrc?: string  // 裁切/旋转/翻转后的图片 dataUrl（可选，有则优先用于预览）
+  cropStateJson?: string // 非破坏性裁切参数 JSON（CropState）
   thumbnail?: string
   uploadTime: Date
   lastModified: Date
   fileHash?: string
-  adjustmentsJson?: string // JSON 格式存储调色参数，便于后续扩展
+  adjustmentsJson?: string
 }
 
 class ImageDatabase {
@@ -55,6 +57,7 @@ class ImageDatabase {
           }
         }
         // v3→v4: adjustmentsJson 是普通字段，无需建索引，自动兼容旧记录（值为 undefined）
+        // v4→v5: editedSrc / cropStateJson 是普通字段，自动兼容旧记录（值为 undefined）
       }
     })
   }
@@ -109,6 +112,49 @@ class ImageDatabase {
 
       request.onsuccess = () => resolve(request.result || null)
       request.onerror = () => reject(new Error('Failed to get image'))
+    })
+  }
+
+  /**
+   * 仅更新 editedSrc 和 cropStateJson（不重写 blob/src，保留原图）
+   */
+  async updateCropData(id: number, editedSrc: string, cropStateJson: string): Promise<void> {
+    if (!this.db) await this.init()
+
+    return new Promise((resolve, reject) => {
+      const transaction = this.db!.transaction([STORE_NAME], 'readwrite')
+      const objectStore = transaction.objectStore(STORE_NAME)
+      const getReq = objectStore.get(id)
+      getReq.onsuccess = () => {
+        const record = getReq.result
+        if (!record) { resolve(); return }
+        record.editedSrc     = editedSrc
+        record.cropStateJson = cropStateJson
+        record.lastModified  = new Date()
+        const putReq = objectStore.put(record)
+        putReq.onsuccess = () => resolve()
+        putReq.onerror  = () => reject(new Error('Failed to update crop data'))
+      }
+      getReq.onerror = () => reject(new Error('Failed to get record for crop update'))
+    })
+  }
+
+  /**
+   * 获取裁切数据（editedSrc + cropStateJson）
+   */
+  async getCropData(id: number): Promise<{ editedSrc?: string; cropStateJson?: string } | null> {
+    if (!this.db) await this.init()
+
+    return new Promise((resolve, reject) => {
+      const transaction = this.db!.transaction([STORE_NAME], 'readonly')
+      const objectStore = transaction.objectStore(STORE_NAME)
+      const request = objectStore.get(id)
+      request.onsuccess = () => {
+        const r = request.result
+        if (!r) { resolve(null); return }
+        resolve({ editedSrc: r.editedSrc, cropStateJson: r.cropStateJson })
+      }
+      request.onerror = () => reject(new Error('Failed to get crop data'))
     })
   }
 
