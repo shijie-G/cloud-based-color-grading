@@ -40,12 +40,20 @@
 
       <!-- 裁切工具层 -->
       <CropTool
+        ref="cropToolRef"
         :show="cropActive && !!imageSrc"
         :canvas="previewCanvas"
         :ratio="cropRatio"
         @commit="onCropCommit"
         @cancel="emit('crop:cancel')"
       />
+
+      <!-- 裁切操作栏：悬浮在 image-wrapper 底部，不受 crop-root overflow:hidden 限制 -->
+      <div v-if="cropActive && !!imageSrc" class="crop-toolbar">
+        <span class="crop-size">{{ cropToolRef?.pixelW ?? 0 }} × {{ cropToolRef?.pixelH ?? 0 }}</span>
+        <button class="crop-btn-cancel" @click="emit('crop:cancel')">取消</button>
+        <button class="crop-btn-apply" @click="cropToolRef?.doCommit()">应用</button>
+      </div>
 
       <div class="scale-indicator" v-if="imageSrc && scale !== 1">
         {{ Math.round(scale * 100) }}%
@@ -97,8 +105,9 @@ interface ImagePreviewEvents {
 const props = defineProps<ImagePreviewProps>()
 const emit  = defineEmits<ImagePreviewEvents>()
 
-const previewCanvas = ref<HTMLCanvasElement | null>(null)
-const wrapperRef    = ref<HTMLElement | null>(null)
+const previewCanvas  = ref<HTMLCanvasElement | null>(null)
+const wrapperRef     = ref<HTMLElement | null>(null)
+const cropToolRef    = ref<InstanceType<typeof CropTool> | null>(null)
 
 const drawSrc = (src: string) => {
   if (!src || !previewCanvas.value) return
@@ -133,7 +142,7 @@ const handleDoubleClick = () => {
 }
 
 const handleWheel = (e: WheelEvent) => {
-  if (!props.imageSrc || props.cropActive) return
+  if (!props.imageSrc) return
   const delta = e.deltaY < 0 ? 0.1 : -0.1
   scale.value = Math.min(4, Math.max(0.2, parseFloat((scale.value + delta).toFixed(1))))
 }
@@ -284,4 +293,45 @@ defineExpose({ previewCanvas, resetTransform })
 }
 .drag-content { text-align: center; color: rgba(255,255,255,0.8); font-weight: bold; }
 .drag-content p { font-size: 16px; margin: 0; }
+
+/* 裁切操作栏：悬浮在预览区底部，不受 crop-root 裁剪 */
+.crop-toolbar {
+  position: absolute;
+  bottom: 16px;
+  left: 50%;
+  transform: translateX(-50%);
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  background: rgba(20, 22, 26, 0.92);
+  border: 1px solid rgba(255,255,255,0.12);
+  border-radius: 10px;
+  padding: 7px 14px;
+  pointer-events: auto;
+  backdrop-filter: blur(8px);
+  z-index: 35;
+  user-select: none;
+  white-space: nowrap;
+  box-shadow: 0 4px 16px rgba(0,0,0,0.4);
+}
+.crop-size {
+  font-size: 11px;
+  color: #9ca3af;
+  font-family: 'Courier New', monospace;
+  min-width: 90px;
+  text-align: center;
+}
+.crop-btn-cancel, .crop-btn-apply {
+  padding: 4px 14px;
+  border-radius: 6px;
+  font-size: 12px;
+  font-weight: 500;
+  cursor: pointer;
+  border: none;
+  transition: all 0.15s;
+}
+.crop-btn-cancel { background: rgba(255,255,255,0.08); color: #9ca3af; border: 1px solid rgba(255,255,255,0.1); }
+.crop-btn-cancel:hover { background: rgba(255,255,255,0.14); color: #c4c9d4; }
+.crop-btn-apply { background: #5b6af0; color: #fff; }
+.crop-btn-apply:hover { background: #6b7af8; }
 </style>

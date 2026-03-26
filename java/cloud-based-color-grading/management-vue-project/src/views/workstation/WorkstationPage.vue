@@ -75,6 +75,7 @@
         @crop:ratio="(r) => { cropRatio = r; cropToolActive = true }"
         @crop:rotate="(d) => { cropToolActive = true; handleCropRotate(d) }"
         @crop:flip="(dir) => { cropToolActive = true; handleCropFlip(dir) }"
+        @crop:restore="handleCropRestore"
       />
     </div>
   </div>
@@ -85,6 +86,7 @@ import { ref, watch } from 'vue';;
 import type { ImageItem } from './component-interfaces'
 import type { CropState } from './types/cropTypes'
 import { DEFAULT_CROP_STATE } from './types/cropTypes'
+import { imageDB } from './utils/imageDB'
 import TopNavbar from './components/TopNavbar.vue';
 import ImageDisplay from './components/ImageDisplay.vue';
 import PanelResizer from './components/PanelResizer.vue';
@@ -164,7 +166,7 @@ const {
 } = useMaskState()
 
 // 调色参数持久化
-const { saveAdjustments, loadAdjustments, saveImageToDB, saveCropData, loadCropData } = useImageStorage()
+const { saveAdjustments, loadAdjustments, saveImageToDB, saveCropData, loadCropData, loadOriginalSrc } = useImageStorage()
 
 // 防抖保存 timer
 let saveTimer: ReturnType<typeof setTimeout> | null = null
@@ -400,7 +402,34 @@ const applyEditedSrc = async (dataUrl: string) => {
   }
 }
 
-// 处理面板拖拽开始
+// 复原原图：从 IndexedDB 读取原始 src，清除裁切数据
+const handleCropRestore = async () => {
+  if (selectedImageId.value == null) return
+  const originalSrc = await loadOriginalSrc(selectedImageId.value)
+  if (!originalSrc) return
+
+  imageSrc.value = originalSrc
+  setSourceImage(originalSrc)
+
+  // 更新内存图库
+  const item = uploadedImages.value.find(i => i.id === selectedImageId.value)
+  if (item) item.src = originalSrc
+
+  // 清除 IndexedDB 中的裁切数据
+  try {
+    await imageDB.updateCropData(selectedImageId.value, '', '')
+  } catch (e) {
+    console.error('清除裁切数据失败:', e)
+  }
+
+  // 重置裁切状态
+  currentCropState.value = { ...DEFAULT_CROP_STATE }
+  cropToolActive.value = false
+
+  // 蒙版坐标基于裁切后图片，复原后失效，清除
+  resetMask()
+  setMaskLayers([])
+}
 const handlePanelResizeStart = () => {
   isResizing.value = true;
 };

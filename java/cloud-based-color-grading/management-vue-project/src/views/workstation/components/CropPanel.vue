@@ -10,27 +10,11 @@
           <span>{{ p.label }}</span>
         </button>
       </div>
-
-      <!-- 自定义比例 -->
       <div class="custom-ratio" :class="{ active: selected === '自定义' }" @click="pickCustom">
         <span class="custom-label">自定义</span>
-        <input
-          ref="inputW"
-          type="number" min="1" max="9999" placeholder="宽"
-          :value="customW ?? ''"
-          @input="onInputW"
-          @focus="pickCustom"
-          @click.stop
-        />
+        <input type="number" min="1" max="9999" placeholder="宽" :value="customW ?? ''" @input="onInputW" @focus="pickCustom" @click.stop/>
         <span class="sep">:</span>
-        <input
-          ref="inputH"
-          type="number" min="1" max="9999" placeholder="高"
-          :value="customH ?? ''"
-          @input="onInputH"
-          @focus="pickCustom"
-          @click.stop
-        />
+        <input type="number" min="1" max="9999" placeholder="高" :value="customH ?? ''" @input="onInputH" @focus="pickCustom" @click.stop/>
       </div>
     </div>
 
@@ -48,6 +32,16 @@
       <p>在左侧图片上拖拽调整裁切框</p>
       <p>按 <kbd>Enter</kbd> 确认，<kbd>Esc</kbd> 取消</p>
     </div>
+
+    <div class="section section-restore">
+      <button class="btn-restore" @click="emit('restore')">
+        <svg viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+          <path d="M3 12a9 9 0 1 0 9-9 9 9 0 0 0-6.364 2.636L3 8" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/>
+          <path d="M3 3v5h5" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/>
+        </svg>
+        复原原图
+      </button>
+    </div>
   </div>
 </template>
 
@@ -56,7 +50,7 @@ import { ref } from 'vue'
 
 interface Preset { label: string; ratio: number | null; sx: number; sy: number; sw: number; sh: number }
 
-const emit = defineEmits<{ ratio: [r: number | null]; rotate: [deg: number]; flip: [dir: 'h' | 'v'] }>()
+const emit = defineEmits<{ ratio: [r: number | null]; rotate: [deg: number]; flip: [dir: 'h' | 'v']; restore: [] }>()
 
 const presets: Preset[] = [
   { label: '自由', ratio: null, sx: 3, sy: 3, sw: 18, sh: 18 },
@@ -68,17 +62,11 @@ const presets: Preset[] = [
 ]
 
 const selected = ref('')
+const customW  = ref<number | null>(null)
+const customH  = ref<number | null>(null)
 
-// 自定义数值持久保留，切走再切回时恢复
-const customW = ref<number | null>(null)
-const customH = ref<number | null>(null)
+const pick = (p: Preset) => { selected.value = p.label; emit('ratio', p.ratio) }
 
-const pick = (p: Preset) => {
-  selected.value = p.label
-  emit('ratio', p.ratio)
-}
-
-// 点击自定义区域切换到自定义模式，若已有数值则立即恢复比例
 const pickCustom = () => {
   selected.value = '自定义'
   if (customW.value && customH.value && customW.value > 0 && customH.value > 0) {
@@ -86,21 +74,18 @@ const pickCustom = () => {
   }
 }
 
-// 解析输入值，只接受正整数
 const parseVal = (e: Event): number | null => {
   const v = parseInt((e.target as HTMLInputElement).value, 10)
   return Number.isFinite(v) && v > 0 ? v : null
 }
 
 const onInputW = (e: Event) => {
-  customW.value = parseVal(e)
-  selected.value = '自定义'
+  customW.value = parseVal(e); selected.value = '自定义'
   if (customW.value && customH.value) emit('ratio', customW.value / customH.value)
 }
 
 const onInputH = (e: Event) => {
-  customH.value = parseVal(e)
-  selected.value = '自定义'
+  customH.value = parseVal(e); selected.value = '自定义'
   if (customW.value && customH.value) emit('ratio', customW.value / customH.value)
 }
 </script>
@@ -118,27 +103,15 @@ const onInputH = (e: Event) => {
 .ratio-btn:hover { border-color: rgba(91,106,240,0.4); color: #c4c9d4; }
 .ratio-btn.active { border-color: #5b6af0; color: #5b6af0; background: rgba(91,106,240,0.1); }
 
-.custom-ratio {
-  display: flex; align-items: center; gap: 6px;
-  padding: 7px 10px; border-radius: 7px;
-  border: 1px solid rgba(255,255,255,0.07);
-  background: #1c1e22; cursor: pointer; transition: border-color 0.15s;
-}
+.custom-ratio { display: flex; align-items: center; gap: 6px; padding: 7px 10px; border-radius: 7px; border: 1px solid rgba(255,255,255,0.07); background: #1c1e22; cursor: pointer; transition: border-color 0.15s; }
 .custom-ratio:hover { border-color: rgba(91,106,240,0.4); }
 .custom-ratio.active { border-color: #5b6af0; background: rgba(91,106,240,0.06); }
 .custom-label { font-size: 10px; font-weight: 500; color: #9ca3af; flex-shrink: 0; min-width: 32px; }
 .custom-ratio.active .custom-label { color: #5b6af0; }
-.custom-ratio input {
-  width: 0; flex: 1; background: transparent;
-  border: none; outline: none;
-  color: #e2e4e9; font-size: 12px; text-align: center;
-  border-bottom: 1px solid rgba(255,255,255,0.12);
-  padding: 2px 0; cursor: text;
-}
+.custom-ratio input { width: 0; flex: 1; background: transparent; border: none; outline: none; color: #e2e4e9; font-size: 12px; text-align: center; border-bottom: 1px solid rgba(255,255,255,0.12); padding: 2px 0; cursor: text; }
 .custom-ratio input:focus { border-bottom-color: #5b6af0; }
 .custom-ratio input::placeholder { color: #4b5563; }
-.custom-ratio input::-webkit-inner-spin-button,
-.custom-ratio input::-webkit-outer-spin-button { display: none; }
+.custom-ratio input::-webkit-inner-spin-button, .custom-ratio input::-webkit-outer-spin-button { display: none; }
 .sep { color: #4b5563; font-size: 13px; flex-shrink: 0; }
 
 .transform-row { display: grid; grid-template-columns: repeat(4, 1fr); gap: 6px; }
@@ -151,4 +124,10 @@ const onInputH = (e: Event) => {
 .hint-box { padding: 10px 14px; }
 .hint-box p { font-size: 11px; color: #6b7280; margin: 0 0 4px; line-height: 1.5; }
 kbd { display: inline-block; padding: 1px 5px; background: #1c1e22; border: 1px solid rgba(255,255,255,0.15); border-radius: 3px; font-size: 10px; color: #9ca3af; }
+
+.section-restore { background: transparent; border: none; padding: 4px 0 0; }
+.section-restore:hover { border-color: transparent; }
+.btn-restore { width: 100%; display: flex; align-items: center; justify-content: center; gap: 6px; padding: 8px; border-radius: 8px; font-size: 12px; font-weight: 500; cursor: pointer; border: 1px solid rgba(255,255,255,0.1); background: rgba(255,255,255,0.05); color: #9ca3af; transition: all 0.15s; }
+.btn-restore svg { width: 14px; height: 14px; }
+.btn-restore:hover { background: rgba(255,100,100,0.12); border-color: rgba(255,100,100,0.3); color: #f87171; }
 </style>

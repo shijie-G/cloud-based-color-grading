@@ -21,6 +21,8 @@ export interface UseImageStorageReturn {
   saveCropData: (imageId: number, editedSrc: string, cropState: CropState) => Promise<void>
   /** 加载裁切数据 */
   loadCropData: (imageId: number) => Promise<{ editedSrc?: string; cropState?: CropState } | null>
+  /** 读取原图 src（永不被裁切覆盖） */
+  loadOriginalSrc: (imageId: number) => Promise<string | null>
 }
 
 export function useImageStorage(): UseImageStorageReturn {
@@ -190,6 +192,16 @@ export function useImageStorage(): UseImageStorageReturn {
     }
   }
 
+  /** 读取原图 src（永不被裁切覆盖的原始 dataUrl） */
+  const loadOriginalSrc = async (imageId: number): Promise<string | null> => {
+    try {
+      const item = await imageDB.getImage(imageId)
+      return item?.src ?? null
+    } catch {
+      return null
+    }
+  }
+
   return {
     saveImageToDB,
     loadImagesFromDB,
@@ -202,5 +214,6 @@ export function useImageStorage(): UseImageStorageReturn {
     loadAdjustments,
     saveCropData,
     loadCropData,
+    loadOriginalSrc,
   }
 }

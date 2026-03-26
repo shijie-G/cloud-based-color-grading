@@ -1,13 +1,10 @@
 <template>
-  <!-- crop-root 严格覆盖 canvas 区域，不超出图片边界 -->
   <div v-if="show" class="crop-root" :style="rootStyle" @mousedown.self="onRootDown">
-    <!-- 四块遮罩（坐标相对 crop-root，即相对 canvas） -->
     <div class="shade" :style="shadeTop"/>
     <div class="shade" :style="shadeBottom"/>
     <div class="shade" :style="shadeLeft"/>
     <div class="shade" :style="shadeRight"/>
 
-    <!-- 裁切框（坐标相对 crop-root） -->
     <div class="crop-box" :style="boxStyle" @mousedown.stop="onBoxDown">
       <div class="gl gl-v" style="left:33.33%"/>
       <div class="gl gl-v" style="left:66.66%"/>
@@ -19,12 +16,6 @@
       <div v-for="h in visibleHandles" :key="h.id" class="handle" :style="h.style" @mousedown.stop="onHandleDown($event, h.id)"/>
     </div>
 
-    <!-- 操作栏 -->
-    <div class="toolbar">
-      <span class="size-hint">{{ pixelW }} x {{ pixelH }}</span>
-      <button class="btn-cancel" @click="emit('cancel')">取消</button>
-      <button class="btn-apply" @click="doCommit">应用</button>
-    </div>
   </div>
 </template>
 
@@ -34,7 +25,7 @@ import { ref, computed, watch, onMounted, onUnmounted, nextTick } from 'vue'
 const props = defineProps<{ show: boolean; canvas: HTMLCanvasElement | null; ratio: number | null }>()
 const emit = defineEmits<{ commit: [rect: { x: number; y: number; w: number; h: number }]; cancel: [] }>()
 
-// canvas 在父容器中的 CSS 位置和尺寸
+// canvas 在父容器中的 CSS 位置和尺寸（随缩放实时变化）
 const cr = ref({ left: 0, top: 0, w: 0, h: 0 })
 
 const syncRect = () => {
@@ -44,32 +35,34 @@ const syncRect = () => {
   cr.value = { left: rect.left - parent.left, top: rect.top - parent.top, w: rect.width, h: rect.height }
 }
 
-// crop-root 直接覆盖 canvas，严格限制在图片边界内
-const rootStyle = computed(() => ({
-  position: 'absolute' as const,
-  left:   `${cr.value.left}px`,
-  top:    `${cr.value.top}px`,
-  width:  `${cr.value.w}px`,
-  height: `${cr.value.h}px`,
-  zIndex: 25,
-  pointerEvents: 'none' as const,
-}))
+// ── 裁切框用比例坐标存储（0~1），与缩放无关 ──────────────────
+// 这样图片缩放时只需更新 cr，框自动跟随，不需要重新计算
+const box = ref({ rx: 0, ry: 0, rw: 1, rh: 1 })  // 相对比例
 
-// 裁切框（相对 crop-root / canvas 左上角）
-const box = ref({ x: 0, y: 0, w: 100, h: 100 })
+// 比例 → CSS px（用于渲染）
+const bx = computed(() => box.value.rx * cr.value.w)
+const by = computed(() => box.value.ry * cr.value.h)
+const bw = computed(() => box.value.rw * cr.value.w)
+const bh = computed(() => box.value.rh * cr.value.h)
+
 const clamp = (v: number, lo: number, hi: number) => Math.min(hi, Math.max(lo, v))
-const MIN = 20
+const MIN_R = 0.01  // 最小比例（约 1% 的图片尺寸）
 
 const initBox = () => {
   const { w: W, h: H } = cr.value
   if (W <= 0 || H <= 0) return
   const pad = 20
-  let bw = W - pad * 2, bh = H - pad * 2
+  let bwPx = W - pad * 2, bhPx = H - pad * 2
   if (props.ratio !== null) {
-    bh = bw / props.ratio
-    if (bh > H - pad * 2) { bh = H - pad * 2; bw = bh * props.ratio }
+    bhPx = bwPx / props.ratio
+    if (bhPx > H - pad * 2) { bhPx = H - pad * 2; bwPx = bhPx * props.ratio }
   }
-  box.value = { x: (W - bw) / 2, y: (H - bh) / 2, w: bw, h: bh }
+  box.value = {
+    rx: (W - bwPx) / 2 / W,
+    ry: (H - bhPx) / 2 / H,
+    rw: bwPx / W,
+    rh: bhPx / H,
+  }
 }
 
 watch(() => props.show, async v => {
@@ -87,34 +80,51 @@ watch(() => props.ratio, async r => {
   syncRect()
   const { w: W, h: H } = cr.value
   if (W <= 0 || H <= 0 || r === null) return
-  const cx = box.value.x + box.value.w / 2, cy = box.value.y + box.value.h / 2
-  let bw = box.value.w, bh = bw / r
-  if (bh > H) { bh = H; bw = bh * r }
-  if (bw > W) { bw = W; bh = bw / r }
-  box.value = { x: clamp(cx - bw / 2, 0, W - bw), y: clamp(cy - bh / 2, 0, H - bh), w: bw, h: bh }
+  // 以当前框中心为基准重新计算
+  const cx = box.value.rx + box.value.rw / 2
+  const cy = box.value.ry + box.value.rh / 2
+  let rw = box.value.rw
+  let rh = rw * (W / H) / r  // 转换为比例空间的高
+  // 边界检查
+  if (rh > 1) { rh = 1; rw = rh * r * (H / W) }
+  if (rw > 1) { rw = 1; rh = rw / r * (W / H) }
+  box.value = {
+    rx: clamp(cx - rw / 2, 0, 1 - rw),
+    ry: clamp(cy - rh / 2, 0, 1 - rh),
+    rw, rh,
+  }
 })
 
-// 遮罩四块（坐标相对 crop-root，即相对 canvas）
-const shadeTop    = computed(() => ({ left: '0', top: '0', width: '100%', height: `${box.value.y}px` }))
-const shadeBottom = computed(() => ({ left: '0', top: `${box.value.y + box.value.h}px`, width: '100%', height: `${cr.value.h - box.value.y - box.value.h}px` }))
-const shadeLeft   = computed(() => ({ left: '0', top: `${box.value.y}px`, width: `${box.value.x}px`, height: `${box.value.h}px` }))
-const shadeRight  = computed(() => ({ left: `${box.value.x + box.value.w}px`, top: `${box.value.y}px`, width: `${cr.value.w - box.value.x - box.value.w}px`, height: `${box.value.h}px` }))
-
-// 原图像素尺寸（用于 toolbar 显示）
+// 原图像素尺寸（toolbar 显示）
 const pixelW = computed(() => {
-  if (!props.canvas || cr.value.w <= 0) return Math.round(box.value.w)
-  return Math.round(box.value.w * (props.canvas.width / cr.value.w))
+  if (!props.canvas || cr.value.w <= 0) return 0
+  return Math.round(box.value.rw * props.canvas.width)
 })
 const pixelH = computed(() => {
-  if (!props.canvas || cr.value.h <= 0) return Math.round(box.value.h)
-  return Math.round(box.value.h * (props.canvas.height / cr.value.h))
+  if (!props.canvas || cr.value.h <= 0) return 0
+  return Math.round(box.value.rh * props.canvas.height)
 })
 
+const rootStyle = computed(() => ({
+  position: 'absolute' as const,
+  left:   `${cr.value.left}px`,
+  top:    `${cr.value.top}px`,
+  width:  `${cr.value.w}px`,
+  height: `${cr.value.h}px`,
+  zIndex: 25,
+  pointerEvents: 'none' as const,
+}))
+
+const shadeTop    = computed(() => ({ left: '0', top: '0', width: '100%', height: `${by.value}px` }))
+const shadeBottom = computed(() => ({ left: '0', top: `${by.value + bh.value}px`, width: '100%', height: `${cr.value.h - by.value - bh.value}px` }))
+const shadeLeft   = computed(() => ({ left: '0', top: `${by.value}px`, width: `${bx.value}px`, height: `${bh.value}px` }))
+const shadeRight  = computed(() => ({ left: `${bx.value + bw.value}px`, top: `${by.value}px`, width: `${cr.value.w - bx.value - bw.value}px`, height: `${bh.value}px` }))
+
 const boxStyle = computed(() => ({
-  left:   `${box.value.x}px`,
-  top:    `${box.value.y}px`,
-  width:  `${box.value.w}px`,
-  height: `${box.value.h}px`,
+  left:   `${bx.value}px`,
+  top:    `${by.value}px`,
+  width:  `${bw.value}px`,
+  height: `${bh.value}px`,
 }))
 
 const allHandles = [
@@ -147,8 +157,7 @@ const onCanvasChanged = () => {
   })
 }
 
-// 位置轮询：面板拖拽时 canvas 位置变化但尺寸不变，ResizeObserver 不触发
-// 每帧检查位置，只更新 cr（不重置裁切框）
+// 位置轮询：面板拖拽/图片缩放时 canvas 位置变化，每帧同步 cr（不重置裁切框）
 let posRafId = 0
 const startPositionPoll = () => {
   const poll = () => {
@@ -158,8 +167,15 @@ const startPositionPoll = () => {
     if (parent) {
       const newLeft = rect.left - parent.left
       const newTop  = rect.top  - parent.top
-      if (Math.abs(newLeft - cr.value.left) > 0.5 || Math.abs(newTop - cr.value.top) > 0.5) {
-        cr.value = { ...cr.value, left: newLeft, top: newTop }
+      const newW    = rect.width
+      const newH    = rect.height
+      if (
+        Math.abs(newLeft - cr.value.left) > 0.5 ||
+        Math.abs(newTop  - cr.value.top)  > 0.5 ||
+        Math.abs(newW    - cr.value.w)    > 0.5 ||
+        Math.abs(newH    - cr.value.h)    > 0.5
+      ) {
+        cr.value = { left: newLeft, top: newTop, w: newW, h: newH }
       }
     }
     posRafId = requestAnimationFrame(poll)
@@ -182,9 +198,11 @@ watch(() => props.canvas, (c) => {
   if (c && props.show) attachObserver()
 })
 
-// 拖拽
+// 拖拽（操作比例坐标）
 type DragMode = 'move'|'tl'|'tc'|'tr'|'ml'|'mr'|'bl'|'bc'|'br'
-let mode: DragMode = 'move', sx = 0, sy = 0, sb = { x: 0, y: 0, w: 0, h: 0 }
+let mode: DragMode = 'move'
+let sx = 0, sy = 0
+let sb = { rx: 0, ry: 0, rw: 0, rh: 0 }
 
 const startDrag = (e: MouseEvent, m: DragMode) => {
   mode = m; sx = e.clientX; sy = e.clientY; sb = { ...box.value }
@@ -195,58 +213,66 @@ const startDrag = (e: MouseEvent, m: DragMode) => {
 const onBoxDown = (e: MouseEvent) => startDrag(e, 'move')
 const onHandleDown = (e: MouseEvent, id: string) => startDrag(e, id as DragMode)
 
-// 在 crop-root（即 canvas 区域）内重新绘制裁切框
 const onRootDown = (e: MouseEvent) => {
   const rect = (e.currentTarget as HTMLElement).getBoundingClientRect()
-  const sx_ = e.clientX - rect.left
-  const sy_ = e.clientY - rect.top
-  box.value = { x: sx_, y: sy_, w: MIN, h: MIN }
-  sb = { x: sx_, y: sy_, w: 0, h: 0 }
+  const px = (e.clientX - rect.left) / cr.value.w
+  const py = (e.clientY - rect.top)  / cr.value.h
+  box.value = { rx: px, ry: py, rw: MIN_R, rh: MIN_R }
+  sb = { rx: px, ry: py, rw: 0, rh: 0 }
   sx = e.clientX; sy = e.clientY
-  mode = 'br'  // 从右下角开始拖拽
+  mode = 'br'
   document.addEventListener('mousemove', onMove)
   document.addEventListener('mouseup', onUp)
   document.body.style.userSelect = 'none'
 }
 
 const onMove = (e: MouseEvent) => {
-  const dx = e.clientX - sx, dy = e.clientY - sy
-  const { w: W, h: H } = cr.value, r = props.ratio
-  let { x, y, w, h } = sb, nx = x, ny = y, nw = w, nh = h
+  // 鼠标位移转换为比例增量
+  const drx = (e.clientX - sx) / cr.value.w
+  const dry = (e.clientY - sy) / cr.value.h
+  const r   = props.ratio
+  const W   = cr.value.w, H = cr.value.h
+  let { rx, ry, rw, rh } = sb
+  let nx = rx, ny = ry, nw = rw, nh = rh
 
-  if (mode === 'move') { box.value = { x: clamp(x+dx,0,W-w), y: clamp(y+dy,0,H-h), w, h }; return }
-
-  if (mode==='tl') { nx=x+dx; nw=w-dx; ny=y+dy; nh=h-dy }
-  else if (mode==='tc') { ny=y+dy; nh=h-dy }
-  else if (mode==='tr') { nw=w+dx; ny=y+dy; nh=h-dy }
-  else if (mode==='ml') { nx=x+dx; nw=w-dx }
-  else if (mode==='mr') { nw=w+dx }
-  else if (mode==='bl') { nx=x+dx; nw=w-dx; nh=h+dy }
-  else if (mode==='bc') { nh=h+dy }
-  else if (mode==='br') { nw=w+dx; nh=h+dy }
-
-  if (r !== null) {
-    nh = nw / r
-    if (['tl','tc','tr'].includes(mode)) ny = y + h - nh
-    if (['tl','ml','bl'].includes(mode)) nx = x + w - nw
+  if (mode === 'move') {
+    box.value = { rx: clamp(rx+drx, 0, 1-rw), ry: clamp(ry+dry, 0, 1-rh), rw, rh }
+    return
   }
 
-  if (nw < MIN) { nw=MIN; if(r!==null) nh=nw/r; if(['tl','ml','bl'].includes(mode)) nx=x+w-MIN }
-  if (nh < MIN) { nh=MIN; if(r!==null) nw=nh*r; if(['tl','tc','tr'].includes(mode)) ny=y+h-MIN }
+  if (mode==='tl') { nx=rx+drx; nw=rw-drx; ny=ry+dry; nh=rh-dry }
+  else if (mode==='tc') { ny=ry+dry; nh=rh-dry }
+  else if (mode==='tr') { nw=rw+drx; ny=ry+dry; nh=rh-dry }
+  else if (mode==='ml') { nx=rx+drx; nw=rw-drx }
+  else if (mode==='mr') { nw=rw+drx }
+  else if (mode==='bl') { nx=rx+drx; nw=rw-drx; nh=rh+dry }
+  else if (mode==='bc') { nh=rh+dry }
+  else if (mode==='br') { nw=rw+drx; nh=rh+dry }
 
-  // 先约束位置，再约束尺寸，确保 x+w<=W 且 y+h<=H（不超出图片边界）
-  nx = clamp(nx, 0, W - MIN)
-  ny = clamp(ny, 0, H - MIN)
-  nw = clamp(nw, MIN, W - nx)
-  nh = clamp(nh, MIN, H - ny)
-  // 固定比例时，尺寸被边界截断后需要同步另一轴
+  // 固定比例：以 nw 为基准，转换为比例空间的 nh
   if (r !== null) {
-    if (nw / r > H - ny) { nh = H - ny; nw = nh * r }
-    if (nh * r > W - nx) { nw = W - nx; nh = nw / r }
-    nw = clamp(nw, MIN, W - nx)
-    nh = clamp(nh, MIN, H - ny)
+    nh = nw * (W / H) / r
+    if (['tl','tc','tr'].includes(mode)) ny = ry + rh - nh
+    if (['tl','ml','bl'].includes(mode)) nx = rx + rw - nw
   }
-  box.value = { x: nx, y: ny, w: nw, h: nh }
+
+  // 最小尺寸
+  if (nw < MIN_R) { nw=MIN_R; if(r!==null) nh=nw*(W/H)/r; if(['tl','ml','bl'].includes(mode)) nx=rx+rw-MIN_R }
+  if (nh < MIN_R) { nh=MIN_R; if(r!==null) nw=nh*r*(H/W); if(['tl','tc','tr'].includes(mode)) ny=ry+rh-MIN_R }
+
+  // 边界约束
+  nx = clamp(nx, 0, 1 - MIN_R)
+  ny = clamp(ny, 0, 1 - MIN_R)
+  nw = clamp(nw, MIN_R, 1 - nx)
+  nh = clamp(nh, MIN_R, 1 - ny)
+  if (r !== null) {
+    if (nw * (W/H) / r > 1 - ny) { nh = 1 - ny; nw = nh * r * (H/W) }
+    if (nh * r * (H/W) > 1 - nx) { nw = 1 - nx; nh = nw * (W/H) / r }
+    nw = clamp(nw, MIN_R, 1 - nx)
+    nh = clamp(nh, MIN_R, 1 - ny)
+  }
+
+  box.value = { rx: nx, ry: ny, rw: nw, rh: nh }
 }
 
 const onUp = () => {
@@ -257,13 +283,11 @@ const onUp = () => {
 
 const doCommit = () => {
   if (!props.canvas) return
-  const scaleX = props.canvas.width / cr.value.w
-  const scaleY = props.canvas.height / cr.value.h
   emit('commit', {
-    x: Math.round(box.value.x * scaleX),
-    y: Math.round(box.value.y * scaleY),
-    w: Math.round(box.value.w * scaleX),
-    h: Math.round(box.value.h * scaleY),
+    x: Math.round(box.value.rx * props.canvas.width),
+    y: Math.round(box.value.ry * props.canvas.height),
+    w: Math.round(box.value.rw * props.canvas.width),
+    h: Math.round(box.value.rh * props.canvas.height),
   })
 }
 
@@ -272,6 +296,8 @@ const onKey = (e: KeyboardEvent) => {
   if (e.key === 'Enter')  doCommit()
   if (e.key === 'Escape') emit('cancel')
 }
+
+defineExpose({ doCommit, pixelW, pixelH })
 
 onMounted(() => {
   window.addEventListener('keydown', onKey)
@@ -291,9 +317,7 @@ onUnmounted(() => {
 </script>
 
 <style scoped>
-/* crop-root 由 rootStyle 动态定位，严格等于 canvas 的位置和尺寸 */
 .crop-root { overflow: hidden; }
-
 .shade { position: absolute; background: rgba(0,0,0,0.55); pointer-events: auto; }
 .crop-box { position: absolute; box-sizing: border-box; cursor: move; pointer-events: auto; }
 .box-border { position: absolute; inset: 0; border: 1px solid rgba(255,255,255,0.9); pointer-events: none; }
@@ -309,11 +333,5 @@ onUnmounted(() => {
 .c-tr { top: -1px; right: -1px; } .c-tr::before { top: 0; right: 0; } .c-tr::after { top: 0; right: 0; }
 .c-bl { bottom: -1px; left: -1px; } .c-bl::before { bottom: 0; left: 0; } .c-bl::after { bottom: 0; left: 0; }
 .c-br { bottom: -1px; right: -1px; } .c-br::before { bottom: 0; right: 0; } .c-br::after { bottom: 0; right: 0; }
-.toolbar { position: absolute; bottom: 12px; left: 50%; transform: translateX(-50%); display: flex; align-items: center; gap: 8px; background: rgba(20,22,26,0.88); border: 1px solid rgba(255,255,255,0.1); border-radius: 10px; padding: 6px 12px; pointer-events: auto; backdrop-filter: blur(6px); z-index: 10; user-select: none; }
-.size-hint { font-size: 11px; color: #9ca3af; font-family: 'Courier New', monospace; min-width: 80px; text-align: center; }
-.btn-cancel, .btn-apply { padding: 4px 14px; border-radius: 6px; font-size: 12px; font-weight: 500; cursor: pointer; border: none; transition: all 0.15s; }
-.btn-cancel { background: rgba(255,255,255,0.08); color: #9ca3af; border: 1px solid rgba(255,255,255,0.1); }
-.btn-cancel:hover { background: rgba(255,255,255,0.14); color: #c4c9d4; }
-.btn-apply { background: #5b6af0; color: #fff; }
-.btn-apply:hover { background: #6b7af8; }
+
 </style>

@@ -32,6 +32,7 @@
           @ratio="$emit('crop:ratio', $event)"
           @rotate="$emit('crop:rotate', $event)"
           @flip="$emit('crop:flip', $event)"
+          @restore="$emit('crop:restore')"
         />
         <MaskAdjustPanel
           v-else-if="activeTab === 'mask'"
@@ -125,6 +126,7 @@ interface AdjustPanelEvents {
   'crop:ratio':              [r: number | null]
   'crop:rotate':             [deg: number]
   'crop:flip':               [dir: 'h' | 'v']
+  'crop:restore':            []
 }
 
 const props = defineProps<AdjustPanelProps>()
