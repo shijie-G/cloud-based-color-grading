@@ -162,7 +162,7 @@ const {
 } = useMaskState()
 
 // 调色参数持久化
-const { saveAdjustments, loadAdjustments } = useImageStorage()
+const { saveAdjustments, loadAdjustments, saveImageToDB } = useImageStorage()
 
 // 防抖保存 timer
 let saveTimer: ReturnType<typeof setTimeout> | null = null
@@ -354,12 +354,23 @@ const handleCropCommit = (rect: { x: number; y: number; w: number; h: number }) 
 }
 
 // 更新原图 src，同步图库，重置蒙版
-const applyNewSrc = (dataUrl: string) => {
+const applyNewSrc = async (dataUrl: string) => {
   imageSrc.value = dataUrl
   setSourceImage(dataUrl)
   if (selectedImageId.value != null) {
     const item = uploadedImages.value.find(i => i.id === selectedImageId.value)
-    if (item) item.src = dataUrl
+    if (item) {
+      item.src = dataUrl
+      // 用裁切后的 dataUrl 创建新 File，确保 IndexedDB 存的是裁切后的内容
+      const res  = await fetch(dataUrl)
+      const blob = await res.blob()
+      item.originalFile = new File([blob], item.name, { type: blob.type })
+      try {
+        await saveImageToDB(item)
+      } catch (e) {
+        console.error('裁切图片持久化失败:', e)
+      }
+    }
   }
   resetMask()
   setMaskLayers([])

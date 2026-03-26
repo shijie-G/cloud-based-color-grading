@@ -24,30 +24,47 @@
 
 <script setup lang="ts">
 import { ref, computed, watch, onMounted, onUnmounted, nextTick } from 'vue'
+
 const props = defineProps<{ show: boolean; canvas: HTMLCanvasElement | null; ratio: number | null }>()
 const emit = defineEmits<{ commit: [rect: { x: number; y: number; w: number; h: number }]; cancel: [] }>()
+
 const cr = ref({ left: 0, top: 0, w: 0, h: 0 })
+
 const syncRect = () => {
   if (!props.canvas) return
   const rect = props.canvas.getBoundingClientRect()
   const parent = props.canvas.parentElement!.getBoundingClientRect()
   cr.value = { left: rect.left - parent.left, top: rect.top - parent.top, w: rect.width, h: rect.height }
 }
+
 const box = ref({ x: 0, y: 0, w: 100, h: 100 })
 const clamp = (v: number, lo: number, hi: number) => Math.min(hi, Math.max(lo, v))
 const MIN = 20
+
 const initBox = () => {
   const { w: W, h: H } = cr.value
   if (W <= 0 || H <= 0) return
   const pad = 20
   let bw = W - pad * 2, bh = H - pad * 2
-  if (props.ratio !== null) { bh = bw / props.ratio; if (bh > H - pad * 2) { bh = H - pad * 2; bw = bh * props.ratio } }
+  if (props.ratio !== null) {
+    bh = bw / props.ratio
+    if (bh > H - pad * 2) { bh = H - pad * 2; bw = bh * props.ratio }
+  }
   box.value = { x: (W - bw) / 2, y: (H - bh) / 2, w: bw, h: bh }
 }
-watch(() => props.show, async v => { if (!v) return; await nextTick(); syncRect(); initBox() })
+
+watch(() => props.show, async v => {
+  if (!v) return
+  await nextTick()
+  syncRect()
+  initBox()
+  if (props.canvas) attachObserver()
+})
+
 watch(() => props.ratio, async r => {
   if (!props.show) return
-  await nextTick(); syncRect()
+  await nextTick()
+  syncRect()
   const { w: W, h: H } = cr.value
   if (W <= 0 || H <= 0 || r === null) return
   const cx = box.value.x + box.value.w / 2, cy = box.value.y + box.value.h / 2
@@ -56,11 +73,50 @@ watch(() => props.ratio, async r => {
   if (bw > W) { bw = W; bh = bw / r }
   box.value = { x: clamp(cx - bw / 2, 0, W - bw), y: clamp(cy - bh / 2, 0, H - bh), w: bw, h: bh }
 })
+
+// ── 双重监听：MutationObserver(width/height attribute) + ResizeObserver(CSS尺寸) ──
+let ro: ResizeObserver | null = null
+let mo: MutationObserver | null = null
+let rafId = 0
+
+const onCanvasChanged = () => {
+  if (!props.show) return
+  cancelAnimationFrame(rafId)
+  // 双 rAF：等浏览器完成 CSS 布局重算后再读取尺寸
+  rafId = requestAnimationFrame(() => {
+    requestAnimationFrame(() => {
+      syncRect()
+      initBox()
+    })
+  })
+}
+
+const attachObserver = () => {
+  if (!props.canvas) return
+  ro?.disconnect()
+  mo?.disconnect()
+
+  // MutationObserver：canvas.width / canvas.height attribute 被 drawSrc 直接赋值时触发
+  mo = new MutationObserver(onCanvasChanged)
+  mo.observe(props.canvas, { attributes: true, attributeFilter: ['width', 'height'] })
+
+  // ResizeObserver：CSS 渲染尺寸变化时兜底触发
+  ro = new ResizeObserver(onCanvasChanged)
+  ro.observe(props.canvas)
+}
+
+watch(() => props.canvas, (c) => {
+  ro?.disconnect()
+  mo?.disconnect()
+  if (c && props.show) attachObserver()
+})
+
 const shadeTop    = computed(() => ({ left: `${cr.value.left}px`, top: `${cr.value.top}px`, width: `${cr.value.w}px`, height: `${box.value.y}px` }))
 const shadeBottom = computed(() => ({ left: `${cr.value.left}px`, top: `${cr.value.top + box.value.y + box.value.h}px`, width: `${cr.value.w}px`, height: `${cr.value.h - box.value.y - box.value.h}px` }))
 const shadeLeft   = computed(() => ({ left: `${cr.value.left}px`, top: `${cr.value.top + box.value.y}px`, width: `${box.value.x}px`, height: `${box.value.h}px` }))
 const shadeRight  = computed(() => ({ left: `${cr.value.left + box.value.x + box.value.w}px`, top: `${cr.value.top + box.value.y}px`, width: `${cr.value.w - box.value.x - box.value.w}px`, height: `${box.value.h}px` }))
 const boxStyle    = computed(() => ({ left: `${cr.value.left + box.value.x}px`, top: `${cr.value.top + box.value.y}px`, width: `${box.value.w}px`, height: `${box.value.h}px` }))
+
 const allHandles = [
   { id: 'tl', style: { top: '-5px', left: '-5px', cursor: 'nwse-resize' } },
   { id: 'tc', style: { top: '-5px', left: 'calc(50% - 5px)', cursor: 'ns-resize' } },
@@ -71,16 +127,22 @@ const allHandles = [
   { id: 'bc', style: { bottom: '-5px', left: 'calc(50% - 5px)', cursor: 'ns-resize' } },
   { id: 'br', style: { bottom: '-5px', right: '-5px', cursor: 'nwse-resize' } },
 ]
-const visibleHandles = computed(() => props.ratio !== null ? allHandles.filter(h => ['tl','tr','bl','br'].includes(h.id)) : allHandles)
+const visibleHandles = computed(() =>
+  props.ratio !== null ? allHandles.filter(h => ['tl','tr','bl','br'].includes(h.id)) : allHandles
+)
+
 type DragMode = 'move'|'tl'|'tc'|'tr'|'ml'|'mr'|'bl'|'bc'|'br'
 let mode: DragMode = 'move', sx = 0, sy = 0, sb = { x: 0, y: 0, w: 0, h: 0 }
+
 const startDrag = (e: MouseEvent, m: DragMode) => {
   mode = m; sx = e.clientX; sy = e.clientY; sb = { ...box.value }
-  document.addEventListener('mousemove', onMove); document.addEventListener('mouseup', onUp)
+  document.addEventListener('mousemove', onMove)
+  document.addEventListener('mouseup', onUp)
   document.body.style.userSelect = 'none'
 }
-const onBoxDown = (e: MouseEvent) => startDrag(e, 'move')
+const onBoxDown    = (e: MouseEvent) => startDrag(e, 'move')
 const onHandleDown = (e: MouseEvent, id: string) => startDrag(e, id as DragMode)
+
 const onMove = (e: MouseEvent) => {
   const dx = e.clientX - sx, dy = e.clientY - sy
   const { w: W, h: H } = cr.value, r = props.ratio
@@ -103,15 +165,44 @@ const onMove = (e: MouseEvent) => {
   if (nh < MIN) { nh=MIN; if(r!==null) nw=nh*r; if(['tl','tc','tr'].includes(mode)) ny=y+h-MIN }
   box.value = { x: clamp(nx,0,W-MIN), y: clamp(ny,0,H-MIN), w: clamp(nw,MIN,W), h: clamp(nh,MIN,H) }
 }
-const onUp = () => { document.removeEventListener('mousemove', onMove); document.removeEventListener('mouseup', onUp); document.body.style.userSelect = '' }
+
+const onUp = () => {
+  document.removeEventListener('mousemove', onMove)
+  document.removeEventListener('mouseup', onUp)
+  document.body.style.userSelect = ''
+}
+
 const doCommit = () => {
   if (!props.canvas) return
-  const scaleX = props.canvas.width / cr.value.w, scaleY = props.canvas.height / cr.value.h
-  emit('commit', { x: Math.round(box.value.x*scaleX), y: Math.round(box.value.y*scaleY), w: Math.round(box.value.w*scaleX), h: Math.round(box.value.h*scaleY) })
+  const scaleX = props.canvas.width / cr.value.w
+  const scaleY = props.canvas.height / cr.value.h
+  emit('commit', {
+    x: Math.round(box.value.x * scaleX),
+    y: Math.round(box.value.y * scaleY),
+    w: Math.round(box.value.w * scaleX),
+    h: Math.round(box.value.h * scaleY),
+  })
 }
-const onKey = (e: KeyboardEvent) => { if (!props.show) return; if (e.key==='Enter') doCommit(); if (e.key==='Escape') emit('cancel') }
-onMounted(() => window.addEventListener('keydown', onKey))
-onUnmounted(() => { window.removeEventListener('keydown', onKey); document.removeEventListener('mousemove', onMove); document.removeEventListener('mouseup', onUp) })
+
+const onKey = (e: KeyboardEvent) => {
+  if (!props.show) return
+  if (e.key === 'Enter')  doCommit()
+  if (e.key === 'Escape') emit('cancel')
+}
+
+onMounted(() => {
+  window.addEventListener('keydown', onKey)
+  if (props.canvas && props.show) attachObserver()
+})
+
+onUnmounted(() => {
+  window.removeEventListener('keydown', onKey)
+  document.removeEventListener('mousemove', onMove)
+  document.removeEventListener('mouseup', onUp)
+  cancelAnimationFrame(rafId)
+  ro?.disconnect()
+  mo?.disconnect()
+})
 </script>
 
 <style scoped>
