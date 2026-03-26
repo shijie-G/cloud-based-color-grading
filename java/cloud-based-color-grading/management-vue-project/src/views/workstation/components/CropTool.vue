@@ -21,7 +21,7 @@
 
     <!-- 操作栏 -->
     <div class="toolbar">
-      <span class="size-hint">{{ Math.round(box.w) }} x {{ Math.round(box.h) }}</span>
+      <span class="size-hint">{{ pixelW }} x {{ pixelH }}</span>
       <button class="btn-cancel" @click="emit('cancel')">取消</button>
       <button class="btn-apply" @click="doCommit">应用</button>
     </div>
@@ -73,11 +73,12 @@ const initBox = () => {
 }
 
 watch(() => props.show, async v => {
-  if (!v) return
+  if (!v) { stopPositionPoll(); return }
   await nextTick()
   syncRect()
   initBox()
   if (props.canvas) attachObserver()
+  startPositionPoll()
 })
 
 watch(() => props.ratio, async r => {
@@ -98,6 +99,16 @@ const shadeTop    = computed(() => ({ left: '0', top: '0', width: '100%', height
 const shadeBottom = computed(() => ({ left: '0', top: `${box.value.y + box.value.h}px`, width: '100%', height: `${cr.value.h - box.value.y - box.value.h}px` }))
 const shadeLeft   = computed(() => ({ left: '0', top: `${box.value.y}px`, width: `${box.value.x}px`, height: `${box.value.h}px` }))
 const shadeRight  = computed(() => ({ left: `${box.value.x + box.value.w}px`, top: `${box.value.y}px`, width: `${cr.value.w - box.value.x - box.value.w}px`, height: `${box.value.h}px` }))
+
+// 原图像素尺寸（用于 toolbar 显示）
+const pixelW = computed(() => {
+  if (!props.canvas || cr.value.w <= 0) return Math.round(box.value.w)
+  return Math.round(box.value.w * (props.canvas.width / cr.value.w))
+})
+const pixelH = computed(() => {
+  if (!props.canvas || cr.value.h <= 0) return Math.round(box.value.h)
+  return Math.round(box.value.h * (props.canvas.height / cr.value.h))
+})
 
 const boxStyle = computed(() => ({
   left:   `${box.value.x}px`,
@@ -120,7 +131,7 @@ const visibleHandles = computed(() =>
   props.ratio !== null ? allHandles.filter(h => ['tl','tr','bl','br'].includes(h.id)) : allHandles
 )
 
-// 双重监听：canvas 尺寸变化时重新同步
+// 双重监听：canvas 尺寸变化时重新同步（重置裁切框）
 let ro: ResizeObserver | null = null
 let mo: MutationObserver | null = null
 let rafId = 0
@@ -135,6 +146,27 @@ const onCanvasChanged = () => {
     })
   })
 }
+
+// 位置轮询：面板拖拽时 canvas 位置变化但尺寸不变，ResizeObserver 不触发
+// 每帧检查位置，只更新 cr（不重置裁切框）
+let posRafId = 0
+const startPositionPoll = () => {
+  const poll = () => {
+    if (!props.show || !props.canvas) return
+    const rect   = props.canvas.getBoundingClientRect()
+    const parent = props.canvas.parentElement?.getBoundingClientRect()
+    if (parent) {
+      const newLeft = rect.left - parent.left
+      const newTop  = rect.top  - parent.top
+      if (Math.abs(newLeft - cr.value.left) > 0.5 || Math.abs(newTop - cr.value.top) > 0.5) {
+        cr.value = { ...cr.value, left: newLeft, top: newTop }
+      }
+    }
+    posRafId = requestAnimationFrame(poll)
+  }
+  posRafId = requestAnimationFrame(poll)
+}
+const stopPositionPoll = () => cancelAnimationFrame(posRafId)
 
 const attachObserver = () => {
   if (!props.canvas) return
@@ -243,13 +275,17 @@ const onKey = (e: KeyboardEvent) => {
 
 onMounted(() => {
   window.addEventListener('keydown', onKey)
-  if (props.canvas && props.show) attachObserver()
+  if (props.canvas && props.show) {
+    attachObserver()
+    startPositionPoll()
+  }
 })
 onUnmounted(() => {
   window.removeEventListener('keydown', onKey)
   document.removeEventListener('mousemove', onMove)
   document.removeEventListener('mouseup', onUp)
   cancelAnimationFrame(rafId)
+  stopPositionPoll()
   ro?.disconnect(); mo?.disconnect()
 })
 </script>
