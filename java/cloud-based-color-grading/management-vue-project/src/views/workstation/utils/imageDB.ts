@@ -116,6 +116,30 @@ class ImageDatabase {
   }
 
   /**
+   * 清除裁切数据（删除 editedSrc 和 cropStateJson 字段，恢复原图）
+   */
+  async clearCropData(id: number): Promise<void> {
+    if (!this.db) await this.init()
+
+    return new Promise((resolve, reject) => {
+      const transaction = this.db!.transaction([STORE_NAME], 'readwrite')
+      const objectStore = transaction.objectStore(STORE_NAME)
+      const getReq = objectStore.get(id)
+      getReq.onsuccess = () => {
+        const record = getReq.result
+        if (!record) { resolve(); return }
+        delete record.editedSrc
+        delete record.cropStateJson
+        record.lastModified = new Date()
+        const putReq = objectStore.put(record)
+        putReq.onsuccess = () => resolve()
+        putReq.onerror  = () => reject(new Error('Failed to clear crop data'))
+      }
+      getReq.onerror = () => reject(new Error('Failed to get record for clear crop'))
+    })
+  }
+
+  /**
    * 仅更新 editedSrc 和 cropStateJson（不重写 blob/src，保留原图）
    */
   async updateCropData(id: number, editedSrc: string, cropStateJson: string): Promise<void> {

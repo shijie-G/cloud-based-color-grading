@@ -6,9 +6,10 @@ export interface ImageItem {
   id: number
   name: string
   src: string
-  thumbnail?: string // 压缩缩略图（用于全览区显示）
+  originalSrc?: string  // 原始图片 dataUrl，永不覆盖，内存缓存用于快速重建
+  thumbnail?: string
   originalFile: File
-  fileHash?: string // 文件唯一标识：名称+大小+格式
+  fileHash?: string
 }
 
 // 调整参数接口（PS 风格，默认值均为 0）

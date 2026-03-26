@@ -11,6 +11,7 @@
       :maskShowOverlay="maskShowOverlay"
       :cropActive="cropActive"
       :cropRatio="cropRatio"
+      :cropInitialRect="cropInitialRect"
       @upload:image="handleImageUpload"
       @mask:commit="emit('mask:commit')"
       @mask:updateLayer="emit('mask:updateLayer', $event)"
@@ -62,6 +63,7 @@ interface ImageDisplayProps {
   maskShowOverlay: boolean
   cropActive: boolean
   cropRatio: number | null
+  cropInitialRect: { x: number; y: number; w: number; h: number } | null
 }
 
 interface ImageDisplayEvents {

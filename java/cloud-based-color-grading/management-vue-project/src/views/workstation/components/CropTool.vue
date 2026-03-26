@@ -22,7 +22,7 @@
 <script setup lang="ts">
 import { ref, computed, watch, onMounted, onUnmounted, nextTick } from 'vue'
 
-const props = defineProps<{ show: boolean; canvas: HTMLCanvasElement | null; ratio: number | null }>()
+const props = defineProps<{ show: boolean; canvas: HTMLCanvasElement | null; ratio: number | null; initialRect?: { x: number; y: number; w: number; h: number } | null }>()
 const emit = defineEmits<{ commit: [rect: { x: number; y: number; w: number; h: number }]; cancel: [] }>()
 
 // canvas 在父容器中的 CSS 位置和尺寸（随缩放实时变化）
@@ -51,6 +51,21 @@ const MIN_R = 0.01  // 最小比例（约 1% 的图片尺寸）
 const initBox = () => {
   const { w: W, h: H } = cr.value
   if (W <= 0 || H <= 0) return
+
+  // 如果有上次的裁切区域，用原图像素坐标还原为比例坐标
+  if (props.initialRect && props.canvas && props.canvas.width > 0) {
+    const natW = props.canvas.width
+    const natH = props.canvas.height
+    box.value = {
+      rx: props.initialRect.x / natW,
+      ry: props.initialRect.y / natH,
+      rw: props.initialRect.w / natW,
+      rh: props.initialRect.h / natH,
+    }
+    return
+  }
+
+  // 默认：全图初始化（带 padding，按比例适配）
   const pad = 20
   let bwPx = W - pad * 2, bhPx = H - pad * 2
   if (props.ratio !== null) {

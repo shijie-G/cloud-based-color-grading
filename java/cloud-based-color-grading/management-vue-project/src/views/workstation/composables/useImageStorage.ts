@@ -88,7 +88,8 @@ export function useImageStorage(): UseImageStorageReturn {
       const images: ImageItem[] = dbItems.map(item => ({
         id: item.id,
         name: item.name,
-        src: item.editedSrc ?? item.src,  // 有裁切版本则用裁切版本
+        src: item.editedSrc || item.src,  // 有裁切版本则用裁切版本（空字符串也走原图）
+        originalSrc: item.src,            // 始终指向原始图，用于快速重建
         thumbnail: item.thumbnail,
         originalFile: new File([item.blob], item.name, { type: item.blob.type }),
         fileHash: item.fileHash,

@@ -44,6 +44,7 @@
         :show="cropActive && !!imageSrc"
         :canvas="previewCanvas"
         :ratio="cropRatio"
+        :initialRect="cropInitialRect"
         @commit="onCropCommit"
         @cancel="emit('crop:cancel')"
       />
@@ -93,6 +94,7 @@ interface ImagePreviewProps {
   maskShowOverlay: boolean
   cropActive: boolean
   cropRatio: number | null
+  cropInitialRect: { x: number; y: number; w: number; h: number } | null
 }
 interface ImagePreviewEvents {
   'upload:image':     [file: File]
@@ -117,9 +119,15 @@ const drawSrc = (src: string) => {
     canvas.width  = img.naturalWidth
     canvas.height = img.naturalHeight
     canvas.getContext('2d')!.drawImage(img, 0, 0)
+    // 绘制完成后通知外部（用于裁切模式下重置缩放）
+    onDrawComplete?.()
   }
   img.src = src
 }
+
+// 外部可注入的绘制完成回调（用一次后自动清除）
+let onDrawComplete: (() => void) | null = null
+const onceDrawComplete = (cb: () => void) => { onDrawComplete = () => { onDrawComplete = null; cb() } }
 
 watch(
   [() => props.processedSrc, () => props.imageSrc],
@@ -214,7 +222,7 @@ const onCropCommit = (rect: { x: number; y: number; w: number; h: number }) => {
   emit('crop:commit', rect)
 }
 
-defineExpose({ previewCanvas, resetTransform })
+defineExpose({ previewCanvas, resetTransform, onceDrawComplete })
 </script>
 
 <style scoped>

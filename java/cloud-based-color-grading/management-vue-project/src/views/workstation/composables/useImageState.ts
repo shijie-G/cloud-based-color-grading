@@ -92,9 +92,10 @@ export function useImageState(): UseImageStateReturn {
           const thumbnail = await generateThumbnail(result)
 
           const imageData: ImageItem = {
-            id: Date.now() + Math.random(), // 添加随机数避免ID冲突
+            id: Date.now() + Math.random(),
             name: file.name,
             src: result,
+            originalSrc: result,  // 缓存原始 dataUrl，永不覆盖
             thumbnail,
             originalFile: file,
             fileHash: fileHash

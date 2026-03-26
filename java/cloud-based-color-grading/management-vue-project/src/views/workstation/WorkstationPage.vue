@@ -19,6 +19,7 @@
         :maskShowOverlay="!!maskShowOverlay && !adjSliderDragging && activePanelTab === 'mask' && !!maskActiveLayerId && (maskActiveLayer?.enabled ?? false)"
         :cropActive="activePanelTab === 'crop' && cropToolActive"
         :cropRatio="cropRatio"
+        :cropInitialRect="currentCropState.rect"
         @action:selectImage="handleSelectImage"
         @action:uploadImage="handleImageUpload"
         @layout:resetLayout="resetLayout"
@@ -28,7 +29,7 @@
         @mask:commit="handleMaskCommit"
         @mask:updateLayer="handleMaskUpdateLayer"
         @crop:commit="handleCropCommit"
-        @crop:cancel="() => { cropToolActive = false }"
+        @crop:cancel="() => { cropToolActive = false; restoreCropPreview() }"
         ref="imageDisplayRef"
       />
 
@@ -70,11 +71,11 @@
         @mask:updateLayerAdj="handleMaskUpdateLayerAdj"
         @mask:adjSliderStart="adjSliderDragging = true"
         @mask:adjSliderEnd="adjSliderDragging = false"
-        @tab:change="(t) => { activePanelTab = t; if (t !== 'crop') cropToolActive = false }"
+        @tab:change="(t) => { activePanelTab = t; if (t !== 'crop') { cropToolActive = false; restoreCropPreview() } if (t === 'crop') prewarmTransformCache() }"
         @mask:clearSelection="maskSetActiveLayer('')"
-        @crop:ratio="(r) => { cropRatio = r; cropToolActive = true }"
-        @crop:rotate="(d) => { cropToolActive = true; handleCropRotate(d) }"
-        @crop:flip="(dir) => { cropToolActive = true; handleCropFlip(dir) }"
+        @crop:ratio="(r) => { cropRatio = r; cropToolActive = true; handleCropRatioChange() }"
+        @crop:rotate="(d) => { handleCropRotate(d) }"
+        @crop:flip="(dir) => { handleCropFlip(dir) }"
         @crop:restore="handleCropRestore"
       />
     </div>
@@ -82,7 +83,7 @@
 </template>
 
 <script setup lang="ts">
-import { ref, watch } from 'vue';;
+import { ref, watch, nextTick } from 'vue';;
 import type { ImageItem } from './component-interfaces'
 import type { CropState } from './types/cropTypes'
 import { DEFAULT_CROP_STATE } from './types/cropTypes'
@@ -229,8 +230,22 @@ const applyStoredAdjustments = async (imageId: number) => {
 watch(adjustments, scheduleSave, { deep: true })
 watch(hslAdjustments, scheduleSave, { deep: true })
 
-// 当选中图片变化时，通知 HSL 处理器 + 加载该图片的调色参数
+// 裁切预览恢复标志位（需在 watch 之前声明，避免 TDZ 错误）
+let isCropPreviewRestoring = false
+
+// 恢复裁切预览：只恢复 imageSrc，不触发 resetMask 等副作用
+const restoreCropPreview = () => {
+  if (cropPreviewBackup === null) return
+  isCropPreviewRestoring = true
+  imageSrc.value = cropPreviewBackup
+  setSourceImage(cropPreviewBackup)
+  cropPreviewBackup = null
+  Promise.resolve().then(() => { isCropPreviewRestoring = false })
+}
+
+// 当选中图片变化时，通知 HSL 处理器
 watch(imageSrc, (src) => {
+  if (isCropPreviewRestoring) return  // 裁切预览恢复时跳过
   setSourceImage(src)
 }, { immediate: true })
 
@@ -239,8 +254,9 @@ watch(adjustments, (adj) => {
   setBasicAdjustments({ ...adj })
 }, { deep: true })
 
-// 图片切换时重置蒙版
+// 图片切换时重置蒙版（裁切预览恢复时跳过）
 watch(imageSrc, () => {
+  if (isCropPreviewRestoring) return
   resetMask()
   setMaskLayers([])
 })
@@ -302,6 +318,23 @@ watch(selectedImageId, async (id) => {
   applyStoredAdjustments(id)
 }, { immediate: true })
 
+// imageSrc 有值时（图片已加载到内存）立即后台预热变换缓存
+// 用 requestIdleCallback 在浏览器空闲时执行，不影响首屏渲染
+watch(imageSrc, (src) => {
+  if (!src || selectedImageId.value == null) return
+  const doPrewarm = () => {
+    const item = uploadedImages.value.find(i => i.id === selectedImageId.value)
+    const originalSrc = item?.originalSrc ?? src
+    const { rotate, flipH, flipV } = currentCropState.value
+    applyTransforms(originalSrc, rotate, flipH, flipV)
+  }
+  if ('requestIdleCallback' in window) {
+    requestIdleCallback(doPrewarm, { timeout: 3000 })
+  } else {
+    setTimeout(doPrewarm, 800)
+  }
+})
+
 // 图片显示组件引用（供模板 ref 使用）
 const imageDisplayRef = ref(null)
 // 局部调色滑块拖动中：临时隐藏蒙版叠加层
@@ -311,10 +344,102 @@ const activePanelTab = ref<'basic' | 'crop' | 'mask'>('basic')
 
 // ── 裁切状态 ──────────────────────────────────────────────────
 const cropRatio = ref<number | null>(null)
-// 裁切框是否激活（进入裁切 tab 不自动显示，需用户主动触发）
 const cropToolActive = ref(false)
-// 当前图片的非破坏性裁切参数（内存中维护，切图时重置）
 const currentCropState = ref<CropState>({ ...DEFAULT_CROP_STATE })
+// 裁切预览前保存的 imageSrc，取消时恢复
+let cropPreviewBackup: string | null = null
+
+/**
+ * 从原始 src 按 rotate → flipH → flipV 顺序重建图片（不含裁切）
+ * 内置缓存：相同参数直接返回缓存结果，避免重复 canvas 变换
+ */
+const transformCache = new Map<string, string>()
+
+const applyTransforms = (src: string, rotate: number, flipH: boolean, flipV: boolean): Promise<string> => {
+  // 无变换直接返回原图
+  if (rotate === 0 && !flipH && !flipV) return Promise.resolve(src)
+
+  const cacheKey = `${src.slice(-32)}_${rotate}_${flipH}_${flipV}`
+  if (transformCache.has(cacheKey)) return Promise.resolve(transformCache.get(cacheKey)!)
+
+  return new Promise(resolve => {
+    const img = new Image()
+    img.onload = () => {
+      let c = document.createElement('canvas')
+      if (rotate !== 0) {
+        const rad = (rotate * Math.PI) / 180
+        const sw = rotate % 180 !== 0 ? img.naturalHeight : img.naturalWidth
+        const sh = rotate % 180 !== 0 ? img.naturalWidth  : img.naturalHeight
+        c.width = sw; c.height = sh
+        const ctx = c.getContext('2d')!
+        ctx.translate(sw / 2, sh / 2); ctx.rotate(rad)
+        ctx.drawImage(img, -img.naturalWidth / 2, -img.naturalHeight / 2)
+      } else {
+        c.width = img.naturalWidth; c.height = img.naturalHeight
+        c.getContext('2d')!.drawImage(img, 0, 0)
+      }
+      if (flipH || flipV) {
+        const c2 = document.createElement('canvas')
+        c2.width = c.width; c2.height = c.height
+        const ctx2 = c2.getContext('2d')!
+        if (flipH) { ctx2.translate(c.width, 0); ctx2.scale(-1, 1) }
+        if (flipV) { ctx2.translate(0, c.height); ctx2.scale(1, -1) }
+        ctx2.drawImage(c, 0, 0)
+        c = c2
+      }
+      const result = c.toDataURL('image/png')
+      transformCache.set(cacheKey, result)
+      resolve(result)
+    }
+    img.src = src
+  })
+}
+
+/**
+ * 触发裁切比例切换时：
+ * 1. 从原图 + cropState 重建旋转/翻转后的图（不含裁切）
+ * 2. 更新 imageSrc，等 canvas 重绘完成后重置缩放到 100%
+ * 3. CropTool 用上次的 rect 初始化裁切框
+ */
+/**
+ * 进入裁切 tab 时预热变换缓存：
+ * 在后台异步执行 applyTransforms，等用户点比例时缓存已就绪
+ */
+const prewarmTransformCache = () => {
+  if (selectedImageId.value == null) return
+  const item = uploadedImages.value.find(i => i.id === selectedImageId.value)
+  const originalSrc = item?.originalSrc
+  if (!originalSrc) return
+  const { rotate, flipH, flipV } = currentCropState.value
+  // 后台静默执行，不 await，不阻塞 UI
+  applyTransforms(originalSrc, rotate, flipH, flipV)
+}
+
+const handleCropRatioChange = async () => {
+  if (selectedImageId.value == null) return
+
+  // 备份当前 imageSrc，取消时恢复（只备份一次，避免重复点比例时覆盖备份）
+  if (cropPreviewBackup === null) {
+    cropPreviewBackup = imageSrc.value
+  }
+
+  const item = uploadedImages.value.find(i => i.id === selectedImageId.value)
+  const originalSrc = item?.originalSrc ?? await loadOriginalSrc(selectedImageId.value)
+  if (!originalSrc) return
+
+  const { rotate, flipH, flipV } = currentCropState.value
+  const rebuiltSrc = await applyTransforms(originalSrc, rotate, flipH, flipV)
+
+  // 只更新预览用的 imageSrc，不写 editedSrc
+  imageSrc.value = rebuiltSrc
+  setSourceImage(rebuiltSrc)
+
+  await nextTick()
+  const previewRef = (imageDisplayRef.value as any)?.imagePreviewRef
+  previewRef?.onceDrawComplete(() => {
+    previewRef.resetTransform()
+  })
+}
 
 // 旋转（用 canvas 重绘，更新 editedSrc，保留原图）
 const handleCropRotate = (deg: number) => {
@@ -361,8 +486,8 @@ const handleCropCommit = (rect: { x: number; y: number; w: number; h: number }) 
     const c = document.createElement('canvas')
     c.width = rect.w; c.height = rect.h
     c.getContext('2d')!.drawImage(img, rect.x, rect.y, rect.w, rect.h, 0, 0, rect.w, rect.h)
-    // 记录裁切区域（相对当前 editedSrc 的像素坐标）
     currentCropState.value.rect = { x: rect.x, y: rect.y, w: rect.w, h: rect.h }
+    cropPreviewBackup = null  // 提交成功，清除备份
     applyEditedSrc(c.toDataURL('image/png'))
     cropToolActive.value = false
   }
@@ -405,19 +530,21 @@ const applyEditedSrc = async (dataUrl: string) => {
 // 复原原图：从 IndexedDB 读取原始 src，清除裁切数据
 const handleCropRestore = async () => {
   if (selectedImageId.value == null) return
-  const originalSrc = await loadOriginalSrc(selectedImageId.value)
+
+  // 优先从内存缓存读取原始图
+  const item = uploadedImages.value.find(i => i.id === selectedImageId.value)
+  const originalSrc = item?.originalSrc ?? await loadOriginalSrc(selectedImageId.value)
   if (!originalSrc) return
 
   imageSrc.value = originalSrc
   setSourceImage(originalSrc)
 
-  // 更新内存图库
-  const item = uploadedImages.value.find(i => i.id === selectedImageId.value)
+  // 更新内存图库展示 src
   if (item) item.src = originalSrc
 
-  // 清除 IndexedDB 中的裁切数据
+  // 清除 IndexedDB 中的裁切数据（删除字段，不写空字符串）
   try {
-    await imageDB.updateCropData(selectedImageId.value, '', '')
+    await imageDB.clearCropData(selectedImageId.value)
   } catch (e) {
     console.error('清除裁切数据失败:', e)
   }
@@ -464,13 +591,18 @@ const updateGalleryHeight = (height: number) => {
 // 处理图片选择
 const handleSelectImage = async (image: ImageItem) => {
   selectImage(image)
-  // 重置当前裁切状态，加载该图片的裁切数据
+  cropPreviewBackup = null  // 切图时清除裁切预览备份
   currentCropState.value = { ...DEFAULT_CROP_STATE }
   const cropData = await loadCropData(image.id)
   if (cropData?.cropState) {
     currentCropState.value = cropData.cropState
   }
   await applyStoredAdjustments(image.id)
+  // 后台预热变换缓存
+  if (image.originalSrc) {
+    const { rotate, flipH, flipV } = currentCropState.value
+    applyTransforms(image.originalSrc, rotate, flipH, flipV)
+  }
 }
 
 // 暴露方法供测试使用
