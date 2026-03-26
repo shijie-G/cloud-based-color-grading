@@ -27,6 +27,12 @@
           @action:save="$emit('action:save', $event)"
           @action:reset="$emit('action:reset')"
         />
+        <CropPanel
+          v-else-if="activeTab === 'crop'"
+          @ratio="$emit('crop:ratio', $event)"
+          @rotate="$emit('crop:rotate', $event)"
+          @flip="$emit('crop:flip', $event)"
+        />
         <MaskAdjustPanel
           v-else-if="activeTab === 'mask'"
           :maskLayers="maskLayers"
@@ -56,6 +62,12 @@
             <path d="M5.636 5.636l2.121 2.121M16.243 16.243l2.121 2.121M5.636 18.364l2.121-2.121M16.243 7.757l2.121-2.121" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/>
           </svg>
         </div>
+        <div class="rail-item" :class="{ active: activeTab === 'crop' }" title="裁切" @click="activeTab = 'crop'">
+          <svg viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+            <path d="M6 2v14a2 2 0 0 0 2 2h14" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/>
+            <path d="M2 6h14a2 2 0 0 1 2 2v14" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/>
+          </svg>
+        </div>
         <div class="rail-item" :class="{ active: activeTab === 'mask' }" title="蒙版" @click="activeTab = 'mask'">
           <svg viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
             <rect x="3" y="3" width="18" height="18" rx="3" stroke="currentColor" stroke-width="1.5"/>
@@ -75,6 +87,7 @@ import type { MaskLayer, MaskType } from '../composables/useMaskState'
 import { ref, watch } from 'vue'
 import BasicAdjustPanel from './BasicAdjustPanel.vue'
 import MaskAdjustPanel from './MaskAdjustPanel.vue'
+import CropPanel from './CropPanel.vue'
 
 interface AdjustPanelProps {
   rightPanelWidth: number
@@ -107,14 +120,17 @@ interface AdjustPanelEvents {
   'mask:adjSliderEnd':       []
   'mask:invert':             []
   'mask:clear':              []
-  'tab:change':              [tab: 'basic' | 'mask']
+  'tab:change':              [tab: 'basic' | 'crop' | 'mask']
   'mask:clearSelection':     []
+  'crop:ratio':              [r: number | null]
+  'crop:rotate':             [deg: number]
+  'crop:flip':               [dir: 'h' | 'v']
 }
 
 const props = defineProps<AdjustPanelProps>()
 const emit  = defineEmits<AdjustPanelEvents>()
 
-const activeTab = ref<'basic' | 'mask'>('basic')
+const activeTab = ref<'basic' | 'crop' | 'mask'>('basic')
 
 watch(activeTab, (tab) => {
   emit('tab:change', tab)

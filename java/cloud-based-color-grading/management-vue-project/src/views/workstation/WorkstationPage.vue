@@ -17,6 +17,8 @@
         :maskActive="maskLayers.length > 0"
         :maskActiveLayer="maskActiveLayer"
         :maskShowOverlay="!!maskShowOverlay && !adjSliderDragging && activePanelTab === 'mask' && !!maskActiveLayerId && (maskActiveLayer?.enabled ?? false)"
+        :cropActive="activePanelTab === 'crop'"
+        :cropRatio="cropRatio"
         @action:selectImage="handleSelectImage"
         @action:uploadImage="handleImageUpload"
         @layout:resetLayout="resetLayout"
@@ -25,6 +27,8 @@
         @resize:end="handleGalleryResizeEnd"
         @mask:commit="handleMaskCommit"
         @mask:updateLayer="handleMaskUpdateLayer"
+        @crop:commit="handleCropCommit"
+        @crop:cancel="activePanelTab = 'basic'"
         ref="imageDisplayRef"
       />
 
@@ -68,6 +72,9 @@
         @mask:adjSliderEnd="adjSliderDragging = false"
         @tab:change="activePanelTab = $event"
         @mask:clearSelection="maskSetActiveLayer('')"
+        @crop:ratio="cropRatio = $event"
+        @crop:rotate="handleCropRotate"
+        @crop:flip="handleCropFlip"
       />
     </div>
   </div>
@@ -292,7 +299,71 @@ const imageDisplayRef = ref(null)
 // 局部调色滑块拖动中：临时隐藏蒙版叠加层
 const adjSliderDragging = ref(false)
 // 当前激活的面板 tab
-const activePanelTab = ref<'basic' | 'mask'>('basic')
+const activePanelTab = ref<'basic' | 'crop' | 'mask'>('basic')
+
+// ── 裁切状态 ──────────────────────────────────────────────────
+const cropRatio = ref<number | null>(null)
+
+// 旋转（用 canvas 重绘原图）
+const handleCropRotate = (deg: number) => {
+  if (!imageSrc.value) return
+  const img = new Image()
+  img.onload = () => {
+    const rad = (deg * Math.PI) / 180
+    const sw = Math.abs(deg) === 90 ? img.naturalHeight : img.naturalWidth
+    const sh = Math.abs(deg) === 90 ? img.naturalWidth  : img.naturalHeight
+    const c = document.createElement('canvas')
+    c.width = sw; c.height = sh
+    const ctx = c.getContext('2d')!
+    ctx.translate(sw / 2, sh / 2)
+    ctx.rotate(rad)
+    ctx.drawImage(img, -img.naturalWidth / 2, -img.naturalHeight / 2)
+    applyNewSrc(c.toDataURL('image/png'))
+  }
+  img.src = imageSrc.value
+}
+
+// 翻转
+const handleCropFlip = (dir: 'h' | 'v') => {
+  if (!imageSrc.value) return
+  const img = new Image()
+  img.onload = () => {
+    const c = document.createElement('canvas')
+    c.width = img.naturalWidth; c.height = img.naturalHeight
+    const ctx = c.getContext('2d')!
+    if (dir === 'h') { ctx.translate(c.width, 0); ctx.scale(-1, 1) }
+    else             { ctx.translate(0, c.height); ctx.scale(1, -1) }
+    ctx.drawImage(img, 0, 0)
+    applyNewSrc(c.toDataURL('image/png'))
+  }
+  img.src = imageSrc.value
+}
+
+// 裁切提交（CropTool 已算好原图像素坐标）
+const handleCropCommit = (rect: { x: number; y: number; w: number; h: number }) => {
+  if (!imageSrc.value || rect.w <= 0 || rect.h <= 0) return
+  const img = new Image()
+  img.onload = () => {
+    const c = document.createElement('canvas')
+    c.width = rect.w; c.height = rect.h
+    c.getContext('2d')!.drawImage(img, rect.x, rect.y, rect.w, rect.h, 0, 0, rect.w, rect.h)
+    applyNewSrc(c.toDataURL('image/png'))
+    activePanelTab.value = 'basic'
+  }
+  img.src = imageSrc.value
+}
+
+// 更新原图 src，同步图库，重置蒙版
+const applyNewSrc = (dataUrl: string) => {
+  imageSrc.value = dataUrl
+  setSourceImage(dataUrl)
+  if (selectedImageId.value != null) {
+    const item = uploadedImages.value.find(i => i.id === selectedImageId.value)
+    if (item) item.src = dataUrl
+  }
+  resetMask()
+  setMaskLayers([])
+}
 
 // 处理面板拖拽开始
 const handlePanelResizeStart = () => {

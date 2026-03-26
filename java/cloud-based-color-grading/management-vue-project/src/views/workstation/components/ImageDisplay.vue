@@ -9,9 +9,13 @@
       :maskActive="maskActive"
       :maskActiveLayer="maskActiveLayer"
       :maskShowOverlay="maskShowOverlay"
+      :cropActive="cropActive"
+      :cropRatio="cropRatio"
       @upload:image="handleImageUpload"
       @mask:commit="emit('mask:commit')"
       @mask:updateLayer="emit('mask:updateLayer', $event)"
+      @crop:commit="emit('crop:commit', $event)"
+      @crop:cancel="emit('crop:cancel')"
       ref="imagePreviewRef"
     />
     
@@ -56,6 +60,8 @@ interface ImageDisplayProps {
   maskActive: boolean
   maskActiveLayer: MaskLayer | null
   maskShowOverlay: boolean
+  cropActive: boolean
+  cropRatio: number | null
 }
 
 interface ImageDisplayEvents {
@@ -67,6 +73,8 @@ interface ImageDisplayEvents {
   'resize:end':                []
   'mask:commit':               []
   'mask:updateLayer':          [layer: import('../composables/useMaskState').MaskLayer]
+  'crop:commit':               [rect: { x: number; y: number; w: number; h: number }]
+  'crop:cancel':               []
 }
 
 // 使用 defineProps 和 defineEmits 定义接口

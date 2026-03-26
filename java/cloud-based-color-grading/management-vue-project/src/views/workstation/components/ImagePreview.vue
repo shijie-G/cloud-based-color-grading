@@ -17,7 +17,7 @@
         v-show="!!imageSrc"
         :style="{
           transform: `translate(${offsetX}px, ${offsetY}px) scale(${scale})`,
-          cursor: scale > 1 ? (isPanning ? 'grabbing' : 'grab') : 'default',
+          cursor: cropActive ? 'default' : (scale > 1 ? (isPanning ? 'grabbing' : 'grab') : 'default'),
         }"
         @dblclick="handleDoubleClick"
         @mousedown="handleMouseDown"
@@ -25,7 +25,7 @@
 
       <!-- 蒙版交互层 -->
       <MaskCanvas
-        v-if="!!imageSrc"
+        v-if="!!imageSrc && !cropActive"
         :active="maskActive"
         :layer="maskActiveLayer"
         :showOverlay="maskShowOverlay"
@@ -36,6 +36,15 @@
         :imgOffsetY="offsetY"
         @update:layer="emit('mask:updateLayer', $event)"
         @commit="emit('mask:commit')"
+      />
+
+      <!-- 裁切工具层 -->
+      <CropTool
+        :show="cropActive && !!imageSrc"
+        :canvas="previewCanvas"
+        :ratio="cropRatio"
+        @commit="onCropCommit"
+        @cancel="emit('crop:cancel')"
       />
 
       <div class="scale-indicator" v-if="imageSrc && scale !== 1">
@@ -63,6 +72,7 @@
 <script setup lang="ts">
 import { ref, watch, onMounted, onUnmounted } from 'vue'
 import MaskCanvas from './MaskCanvas.vue'
+import CropTool from './CropTool.vue'
 import type { MaskLayer } from '../composables/useMaskState'
 
 interface ImagePreviewProps {
@@ -73,11 +83,15 @@ interface ImagePreviewProps {
   maskActive: boolean
   maskActiveLayer: MaskLayer | null
   maskShowOverlay: boolean
+  cropActive: boolean
+  cropRatio: number | null
 }
 interface ImagePreviewEvents {
-  'upload:image': [file: File]
-  'mask:commit': []
+  'upload:image':     [file: File]
+  'mask:commit':      []
   'mask:updateLayer': [layer: MaskLayer]
+  'crop:commit':      [rect: { x: number; y: number; w: number; h: number }]
+  'crop:cancel':      []
 }
 
 const props = defineProps<ImagePreviewProps>()
@@ -113,13 +127,13 @@ const isPanning = ref(false)
 const resetTransform = () => { scale.value = 1; offsetX.value = 0; offsetY.value = 0 }
 
 const handleDoubleClick = () => {
-  if (!props.imageSrc) return
+  if (!props.imageSrc || props.cropActive) return
   if (scale.value !== 1 || offsetX.value !== 0 || offsetY.value !== 0) resetTransform()
   else scale.value = 1.5
 }
 
 const handleWheel = (e: WheelEvent) => {
-  if (!props.imageSrc) return
+  if (!props.imageSrc || props.cropActive) return
   const delta = e.deltaY < 0 ? 0.1 : -0.1
   scale.value = Math.min(4, Math.max(0.2, parseFloat((scale.value + delta).toFixed(1))))
 }
@@ -129,7 +143,7 @@ let px = 0, py = 0, pox = 0, poy = 0, moved = false
 const THRESHOLD = 4
 
 const handleMouseDown = (e: MouseEvent) => {
-  if (!props.imageSrc || e.button !== 0 || scale.value <= 1 || props.maskActive) return
+  if (!props.imageSrc || e.button !== 0 || scale.value <= 1 || props.maskActive || props.cropActive) return
   e.preventDefault()
   px = e.clientX; py = e.clientY; pox = offsetX.value; poy = offsetY.value; moved = false
   document.addEventListener('mousemove', onMove)
@@ -184,6 +198,11 @@ const handleDrop = (e: DragEvent) => {
     if (['image/jpeg','image/jpg','image/png','image/gif'].includes(f.type)) emit('upload:image', f)
     else alert(`${f.name} 不是有效图片格式`)
   })
+}
+
+// ── 裁切提交 ──────────────────────────────────────────────────
+const onCropCommit = (rect: { x: number; y: number; w: number; h: number }) => {
+  emit('crop:commit', rect)
 }
 
 defineExpose({ previewCanvas, resetTransform })
