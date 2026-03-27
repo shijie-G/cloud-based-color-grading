@@ -170,8 +170,8 @@
                     :min="item.min" :max="item.max" :value="layerAdj[item.key]"
                     @mousedown="$emit('mask:adjSliderStart')"
                     @touchstart="$emit('mask:adjSliderStart')"
-                    @mouseup="$emit('mask:adjSliderEnd')"
-                    @touchend="$emit('mask:adjSliderEnd')"
+                    @mouseup="$emit('mask:adjSliderEnd'); $emit('mask:adjSliderCommit')"
+                    @touchend="$emit('mask:adjSliderEnd'); $emit('mask:adjSliderCommit')"
                     @input="e => updateAdj(item.key, +(e.target as HTMLInputElement).value)"
                   />
                 </div>
@@ -213,6 +213,7 @@ const emit = defineEmits<{
   'mask:updateLayerAdj':     [payload: { id: string; adjustments: AdjustmentValues }]
   'mask:adjSliderStart':     []
   'mask:adjSliderEnd':       []
+  'mask:adjSliderCommit':    []
   'mask:invert':             []
   'mask:clear':              []
 }>()
@@ -276,6 +277,7 @@ const resetLayerAdj = () => {
     id: props.maskActiveLayer.id,
     adjustments: defaultLayerAdjustments(),
   })
+  emit('mask:adjSliderCommit')
 }
 
 // 名称编辑

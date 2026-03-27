@@ -67,7 +67,7 @@
         @update:hslAdjustments="(v) => Object.assign(hslAdjustments, v)"
         @action:uploadImage="handleImageUpload"
         @action:save="handleSaveImage"
-        @action:reset="() => { resetAdjustments(); setBasicAdjustments({ brightness:0, contrast:0, saturation:0, vibrance:0, hue:0, temperature:0, clarity:0 }); resetHSL(); resetMask(); setMaskLayers([]) }"
+        @action:reset="() => { resetAdjustments(); setBasicAdjustments({ brightness:0, contrast:0, saturation:0, vibrance:0, hue:0, temperature:0, clarity:0 }); resetHSL(); resetMask(); setMaskLayers([]); pushHistory() }"
         @mask:toggleOverlay="handleMaskToggleOverlay"
         @mask:addLayer="handleMaskAddLayer"
         @mask:removeLayer="handleMaskRemoveLayer"
@@ -79,6 +79,8 @@
         @mask:updateLayerAdj="handleMaskUpdateLayerAdj"
         @mask:adjSliderStart="adjSliderDragging = true"
         @mask:adjSliderEnd="adjSliderDragging = false"
+        @mask:adjSliderCommit="pushHistory"
+        @sliderEnd="pushHistory"
         @tab:change="(t) => { activePanelTab = t; if (t !== 'crop') { cropToolActive = false; if (transformPending) { handleTransformCancel() } else { restoreCropPreview() } } if (t === 'crop') prewarmTransformCache() }"
         @mask:clearSelection="maskSetActiveLayer('')"
         @crop:ratio="(r) => { cropRatio = r; cropToolActive = true; handleCropRatioChange() }"
@@ -91,7 +93,7 @@
 </template>
 
 <script setup lang="ts">
-import { ref, watch, nextTick, computed } from 'vue';;
+import { ref, watch, nextTick, computed, onMounted, onUnmounted } from 'vue';;
 import type { ImageItem } from './component-interfaces'
 import type { CropState } from './types/cropTypes'
 import { DEFAULT_CROP_STATE } from './types/cropTypes'
@@ -108,6 +110,8 @@ import { useHSLState } from './composables/useHSLState'
 import { useImageStorage } from './composables/useImageStorage'
 import { useMaskState } from './composables/useMaskState'
 import { useGridState } from './composables/useGridState'
+import { useHistoryState } from './composables/useHistoryState'
+import type { SerializedMaskLayer } from './composables/useHistoryState'
 
 // 使用布局状态管理
 const {
@@ -176,6 +180,64 @@ const {
 } = useMaskState()
 
 const { settings: gridSettings, applyPreset: applyGridPreset } = useGridState()
+
+// ── 历史栈（撤销 / 重做） ─────────────────────────────────────
+const history = useHistoryState()
+
+/** 采集当前状态快照 */
+const captureSnapshot = () => ({
+  adjustments: { ...adjustments },
+  hslAdjustments: JSON.parse(JSON.stringify(hslAdjustments)),
+  maskLayers: getMaskSerializable() as SerializedMaskLayer[],
+  cropState: { ...currentCropState.value, rect: currentCropState.value.rect ? { ...currentCropState.value.rect } : null },
+  imageSrc: imageSrc.value,
+})
+
+/** 保存一步历史（操作完成后调用） */
+const pushHistory = () => history.push(captureSnapshot())
+
+/** 将快照应用回内存（撤销/重做共用） */
+const applySnapshot = (snap: ReturnType<typeof captureSnapshot>) => {
+  isLoadingAdjustments = true
+  try {
+    setAdjustments(snap.adjustments)
+    Object.assign(hslAdjustments, snap.hslAdjustments)
+    setBasicAdjustments({ ...snap.adjustments })
+    // 恢复图片（裁切/旋转/翻转会改变 imageSrc 像素内容）
+    if (snap.imageSrc && snap.imageSrc !== imageSrc.value) {
+      isCropPreviewRestoring = true
+      imageSrc.value = snap.imageSrc
+      setSourceImage(snap.imageSrc)
+      Promise.resolve().then(() => { isCropPreviewRestoring = false })
+    }
+    // 恢复蒙版
+    if (snap.maskLayers.length > 0 && snap.imageSrc) {
+      const img = new Image()
+      img.onload = () => {
+        maskInitSize(img.naturalWidth, img.naturalHeight)
+        loadMaskFromSerializable(snap.maskLayers)
+        setMaskLayers([...maskLayers])
+      }
+      img.src = snap.imageSrc
+    } else {
+      resetMask()
+      setMaskLayers([])
+    }
+    currentCropState.value = { ...snap.cropState, rect: snap.cropState.rect ? { ...snap.cropState.rect } : null }
+  } finally {
+    isLoadingAdjustments = false
+  }
+}
+
+const handleUndo = () => {
+  const snap = history.undo()
+  if (snap) applySnapshot(snap)
+}
+
+const handleRedo = () => {
+  const snap = history.redo()
+  if (snap) applySnapshot(snap)
+}
 
 // 调色参数持久化
 const { saveAdjustments, loadAdjustments, saveImageToDB, saveCropData, loadCropData, loadOriginalSrc } = useImageStorage()
@@ -284,6 +346,7 @@ const syncMaskLayers = () => {
 const handleMaskCommit = () => {
   if (maskActiveLayer.value) generateLayerMask(maskActiveLayer.value)
   syncMaskLayers()
+  pushHistory()
   scheduleSave()
 }
 
@@ -298,20 +361,21 @@ const handleMaskUpdateLayer = (newLayer: import('./composables/useMaskState').Ma
 const handleMaskAddLayer = (type: import('./composables/useMaskState').MaskType) => {
   if (maskLayers.length === 0 && imageSrc.value) {
     const img = new Image()
-    img.onload = () => { maskInitSize(img.naturalWidth, img.naturalHeight); maskAddLayer(type); syncMaskLayers() }
+    img.onload = () => { maskInitSize(img.naturalWidth, img.naturalHeight); maskAddLayer(type); syncMaskLayers(); pushHistory() }
     img.src = imageSrc.value
   } else {
     maskAddLayer(type)
     syncMaskLayers()
+    pushHistory()
   }
   scheduleSave()
 }
-const handleMaskRemoveLayer = (id: string) => { maskRemoveLayer(id); syncMaskLayers(); scheduleSave() }
+const handleMaskRemoveLayer = (id: string) => { maskRemoveLayer(id); syncMaskLayers(); pushHistory(); scheduleSave() }
 const handleMaskSelectLayer = (id: string) => { maskSetActiveLayer(id) }
-const handleMaskToggleLayerEnabled = (id: string) => { maskToggleLayerEnabled(id); syncMaskLayers(); scheduleSave() }
+const handleMaskToggleLayerEnabled = (id: string) => { maskToggleLayerEnabled(id); syncMaskLayers(); pushHistory(); scheduleSave() }
 const handleMaskToggleOverlay = () => { toggleMaskOverlay() }
-const handleMaskInvert = () => { maskInvertActive(); syncMaskLayers(); scheduleSave() }
-const handleMaskClear  = () => { maskClearActive();  syncMaskLayers(); scheduleSave() }
+const handleMaskInvert = () => { maskInvertActive(); syncMaskLayers(); pushHistory(); scheduleSave() }
+const handleMaskClear  = () => { maskClearActive();  syncMaskLayers(); pushHistory(); scheduleSave() }
 
 // 蒙版层独立调色参数更新
 const handleMaskUpdateLayerAdj = (payload: { id: string; adjustments: import('./component-interfaces').AdjustmentValues }) => {
@@ -329,7 +393,14 @@ watch(selectedImageId, async (id) => {
   currentCropState.value = { ...DEFAULT_CROP_STATE }
   const cropData = await loadCropData(id)
   if (cropData?.cropState) currentCropState.value = cropData.cropState
-  applyStoredAdjustments(id)
+  await applyStoredAdjustments(id)
+  // 图片切换后保存初始快照作为 #0，确保第一步操作也能撤销回初始状态
+  // 用 setTimeout 等蒙版异步恢复完成（img.onload）
+  setTimeout(() => {
+    history.clear()
+    pushHistory()
+    console.log('[History] initial snapshot saved for image', id)
+  }, 100)
 }, { immediate: true })
 
 // imageSrc 有值时（图片已加载到内存）立即后台预热变换缓存
@@ -365,7 +436,9 @@ const handleToggleCompare = () => {
 }
 
 // 切换图片时退出对比模式
-watch(selectedImageId, () => { compareActive.value = false })
+watch(selectedImageId, () => {
+  compareActive.value = false
+})
 
 // 对比模式下传给 ImageDisplay 的 processedSrc：对比时传空字符串，让预览区显示 imageSrc
 const displayProcessedSrc = computed(() => compareActive.value ? '' : processedSrc.value)
@@ -549,6 +622,7 @@ const handleTransformConfirm = () => {
   // 旋转/翻转改变了图片内容，旧的裁切坐标已失效，清除
   currentCropState.value.rect = null
   applyEditedSrc(imageSrc.value)
+  pushHistory()
 }
 
 // 取消旋转/翻转：恢复到进入裁切前的图，回滚 currentCropState
@@ -570,9 +644,10 @@ const handleCropCommit = (rect: { x: number; y: number; w: number; h: number }) 
     c.width = rect.w; c.height = rect.h
     c.getContext('2d')!.drawImage(img, rect.x, rect.y, rect.w, rect.h, 0, 0, rect.w, rect.h)
     currentCropState.value.rect = { x: rect.x, y: rect.y, w: rect.w, h: rect.h }
-    cropPreviewBackup = null  // 提交成功，清除备份
+    cropPreviewBackup = null  // 确认裁切，清除备份
     applyEditedSrc(c.toDataURL('image/png'))
     cropToolActive.value = false
+    pushHistory()
   }
   img.src = imageSrc.value
 }
@@ -710,6 +785,17 @@ const handleSaveImage = async (format: 'png' | 'jpeg' = 'png') => {
   link.href = dataUrl
   link.click()
 }
+
+// ── 键盘快捷键：Ctrl+Z 撤销，Ctrl+Shift+Z / Ctrl+Y 重做 ──────
+const onKeyDown = (e: KeyboardEvent) => {
+  const ctrl = e.ctrlKey || e.metaKey
+  if (!ctrl) return
+  if (e.key === 'z' && !e.shiftKey) { e.preventDefault(); handleUndo() }
+  if ((e.key === 'z' && e.shiftKey) || e.key === 'y') { e.preventDefault(); handleRedo() }
+}
+
+onMounted(() => window.addEventListener('keydown', onKeyDown))
+onUnmounted(() => window.removeEventListener('keydown', onKeyDown))
 
 // 暴露属性和方法供测试使用
 defineExpose({

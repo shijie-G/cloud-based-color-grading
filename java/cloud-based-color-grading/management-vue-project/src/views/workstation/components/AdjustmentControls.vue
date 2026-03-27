@@ -11,7 +11,7 @@
         </span>
         <button class="reset-btn" :style="{ visibility: adjustments[item.key] !== 0 ? 'visible' : 'hidden' }" @click="resetOne(item.key)">↺</button>
       </div>
-      <input type="range" class="slider" :min="item.min" :max="item.max" :value="adjustments[item.key]" @input="onInput(item.key, $event)" />
+      <input type="range" class="slider" :min="item.min" :max="item.max" :value="adjustments[item.key]" @input="onInput(item.key, $event)" @change="emit('sliderEnd')" />
       <div class="track-labels">
         <span>{{ item.min }}</span>
         <span class="center-tick">0</span>
@@ -29,7 +29,7 @@
         </span>
         <button class="reset-btn" :style="{ visibility: adjustments[item.key] !== 0 ? 'visible' : 'hidden' }" @click="resetOne(item.key)">↺</button>
       </div>
-      <input type="range" class="slider" :class="item.key" :min="item.min" :max="item.max" :value="adjustments[item.key]" @input="onInput(item.key, $event)" />
+      <input type="range" class="slider" :class="item.key" :min="item.min" :max="item.max" :value="adjustments[item.key]" @input="onInput(item.key, $event)" @change="emit('sliderEnd')" />
       <div class="track-labels">
         <span>{{ item.min }}</span>
         <span class="center-tick">0</span>
@@ -65,7 +65,10 @@ const colorItems: SliderDef[] = [
 ]
 
 interface Props { adjustments: AdjustmentValues }
-interface Emits { 'update:adjustments': [adjustments: AdjustmentValues] }
+interface Emits {
+  'update:adjustments': [adjustments: AdjustmentValues]
+  'sliderEnd': []
+}
 
 const props = defineProps<Props>()
 const emit = defineEmits<Emits>()
@@ -83,6 +86,7 @@ const onInput = (key: keyof AdjustmentValues, e: Event) => {
 
 const resetOne = (key: keyof AdjustmentValues) => {
   emit('update:adjustments', { ...props.adjustments, [key]: 0 })
+  emit('sliderEnd')
 }
 </script>
 

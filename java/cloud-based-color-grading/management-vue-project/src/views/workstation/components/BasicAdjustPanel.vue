@@ -4,10 +4,10 @@
       <RGBAnalysis :imageSrc="imageSrc ?? ''" :processedSrc="processedSrc ?? ''" />
     </div>
     <div class="section">
-      <AdjustmentControls :adjustments="adjustments" @update:adjustments="$emit('update:adjustments', $event)" />
+      <AdjustmentControls :adjustments="adjustments" @update:adjustments="$emit('update:adjustments', $event)" @sliderEnd="$emit('sliderEnd')" />
     </div>
     <div class="section">
-      <HSLControls :hslAdjustments="hslAdjustments" @update:hslAdjustments="$emit('update:hslAdjustments', $event)" />
+      <HSLControls :hslAdjustments="hslAdjustments" @update:hslAdjustments="$emit('update:hslAdjustments', $event)" @sliderEnd="$emit('sliderEnd')" />
     </div>
     <div class="section section-actions">
       <ActionButtons
@@ -44,6 +44,7 @@ defineEmits<{
   'action:uploadImage':    [file: File]
   'action:save':           [format: 'png' | 'jpeg']
   'action:reset':          []
+  'sliderEnd':             []
 }>()
 </script>
 

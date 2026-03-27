@@ -26,6 +26,7 @@
           @action:uploadImage="$emit('action:uploadImage', $event)"
           @action:save="$emit('action:save', $event)"
           @action:reset="$emit('action:reset')"
+          @sliderEnd="$emit('sliderEnd')"
         />
         <CropPanel
           v-else-if="activeTab === 'crop'"
@@ -51,6 +52,7 @@
           @mask:updateLayerAdj="$emit('mask:updateLayerAdj', $event)"
           @mask:adjSliderStart="$emit('mask:adjSliderStart')"
           @mask:adjSliderEnd="$emit('mask:adjSliderEnd')"
+          @mask:adjSliderCommit="$emit('mask:adjSliderCommit')"
         />
       </div>
 
@@ -133,6 +135,7 @@ interface AdjustPanelEvents {
   'mask:updateLayerAdj':     [payload: { id: string; adjustments: AdjustmentValues }]
   'mask:adjSliderStart':     []
   'mask:adjSliderEnd':       []
+  'mask:adjSliderCommit':    []
   'mask:invert':             []
   'mask:clear':              []
   'tab:change':              [tab: 'basic' | 'crop' | 'mask']
@@ -141,6 +144,7 @@ interface AdjustPanelEvents {
   'crop:rotate':             [deg: number]
   'crop:flip':               [dir: 'h' | 'v']
   'crop:restore':            []
+  'sliderEnd':               []
 }
 
 const props = defineProps<AdjustPanelProps>()

@@ -31,7 +31,7 @@
           <button class="reset-btn" :style="{ visibility: currentRange.hue !== 0 ? 'visible' : 'hidden' }" @click="resetAxis('hue')">↺</button>
         </div>
         <input type="range" class="slider" :style="{ background: currentTab.hueGradient }"
-          min="-180" max="180" :value="currentRange.hue" @input="onInput('hue', $event)" />
+          min="-180" max="180" :value="currentRange.hue" @input="onInput('hue', $event)" @change="emit('sliderEnd')" />
         <div class="track-labels"><span>-180°</span><span>0</span><span>+180°</span></div>
       </div>
 
@@ -45,7 +45,7 @@
           <button class="reset-btn" :style="{ visibility: currentRange.saturation !== 0 ? 'visible' : 'hidden' }" @click="resetAxis('saturation')">↺</button>
         </div>
         <input type="range" class="slider slider-sat" :style="{ '--c': currentTab.color }"
-          min="-100" max="100" :value="currentRange.saturation" @input="onInput('saturation', $event)" />
+          min="-100" max="100" :value="currentRange.saturation" @input="onInput('saturation', $event)" @change="emit('sliderEnd')" />
         <div class="track-labels"><span>-100</span><span>0</span><span>+100</span></div>
       </div>
 
@@ -59,7 +59,7 @@
           <button class="reset-btn" :style="{ visibility: currentRange.lightness !== 0 ? 'visible' : 'hidden' }" @click="resetAxis('lightness')">↺</button>
         </div>
         <input type="range" class="slider slider-light"
-          min="-100" max="100" :value="currentRange.lightness" @input="onInput('lightness', $event)" />
+          min="-100" max="100" :value="currentRange.lightness" @input="onInput('lightness', $event)" @change="emit('sliderEnd')" />
         <div class="track-labels"><span>-100</span><span>0</span><span>+100</span></div>
       </div>
     </div>
@@ -73,7 +73,10 @@ import { ref, computed } from 'vue'
 import type { HSLAdjustments, HSLRange } from '../composables/useHSLState'
 
 interface Props { hslAdjustments: HSLAdjustments }
-interface Emits { 'update:hslAdjustments': [v: HSLAdjustments] }
+interface Emits {
+  'update:hslAdjustments': [v: HSLAdjustments]
+  'sliderEnd': []
+}
 
 const props = defineProps<Props>()
 const emit  = defineEmits<Emits>()
@@ -111,13 +114,14 @@ const emitUpdate = (patch: Partial<HSLRange>) =>
   } as HSLAdjustments)
 
 const onInput   = (key: AxisKey, e: Event) => emitUpdate({ [key]: Number((e.target as HTMLInputElement).value) })
-const resetAxis = (key: AxisKey) => emitUpdate({ [key]: 0 })
+const resetAxis = (key: AxisKey) => { emitUpdate({ [key]: 0 }); emit('sliderEnd') }
 
 const resetAll = () => {
   const blank: HSLRange = { hue: 0, saturation: 0, lightness: 0 }
   const next = {} as HSLAdjustments
   ;(Object.keys(props.hslAdjustments) as TabKey[]).forEach(k => { next[k] = { ...blank } })
   emit('update:hslAdjustments', next)
+  emit('sliderEnd')
 }
 </script>
 
