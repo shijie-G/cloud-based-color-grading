@@ -20,6 +20,7 @@
         :cropActive="activePanelTab === 'crop' && cropToolActive"
         :cropRatio="cropRatio"
         :cropInitialRect="currentCropState.rect"
+        :transformPending="transformPending"
         @action:selectImage="handleSelectImage"
         @action:uploadImage="handleImageUpload"
         @layout:resetLayout="resetLayout"
@@ -30,6 +31,8 @@
         @mask:updateLayer="handleMaskUpdateLayer"
         @crop:commit="handleCropCommit"
         @crop:cancel="() => { cropToolActive = false; restoreCropPreview() }"
+        @transform:confirm="handleTransformConfirm"
+        @transform:cancel="handleTransformCancel"
         ref="imageDisplayRef"
       />
 
@@ -71,7 +74,7 @@
         @mask:updateLayerAdj="handleMaskUpdateLayerAdj"
         @mask:adjSliderStart="adjSliderDragging = true"
         @mask:adjSliderEnd="adjSliderDragging = false"
-        @tab:change="(t) => { activePanelTab = t; if (t !== 'crop') { cropToolActive = false; restoreCropPreview() } if (t === 'crop') prewarmTransformCache() }"
+        @tab:change="(t) => { activePanelTab = t; if (t !== 'crop') { cropToolActive = false; if (transformPending) { handleTransformCancel() } else { restoreCropPreview() } } if (t === 'crop') prewarmTransformCache() }"
         @mask:clearSelection="maskSetActiveLayer('')"
         @crop:ratio="(r) => { cropRatio = r; cropToolActive = true; handleCropRatioChange() }"
         @crop:rotate="(d) => { handleCropRotate(d) }"
@@ -233,14 +236,17 @@ watch(hslAdjustments, scheduleSave, { deep: true })
 // 裁切预览恢复标志位（需在 watch 之前声明，避免 TDZ 错误）
 let isCropPreviewRestoring = false
 
-// 恢复裁切预览：只恢复 imageSrc，不触发 resetMask 等副作用
+// 恢复裁切预览：只恢复 imageSrc，跳过调色链重跑和蒙版重置，避免闪烁
 const restoreCropPreview = () => {
   if (cropPreviewBackup === null) return
   isCropPreviewRestoring = true
   imageSrc.value = cropPreviewBackup
-  setSourceImage(cropPreviewBackup)
   cropPreviewBackup = null
-  Promise.resolve().then(() => { isCropPreviewRestoring = false })
+  // 微任务结束后关闭标志位，再触发一次处理链（此时 imageSrc 已稳定）
+  Promise.resolve().then(() => {
+    isCropPreviewRestoring = false
+    setSourceImage(imageSrc.value)  // 恢复完成后补一次处理链，不触发蒙版重置
+  })
 }
 
 // 当选中图片变化时，通知 HSL 处理器
@@ -348,6 +354,8 @@ const cropToolActive = ref(false)
 const currentCropState = ref<CropState>({ ...DEFAULT_CROP_STATE })
 // 裁切预览前保存的 imageSrc，取消时恢复
 let cropPreviewBackup: string | null = null
+// 旋转/翻转待确认标志（true 时显示确认/取消操作栏）
+const transformPending = ref(false)
 
 /**
  * 从原始 src 按 rotate → flipH → flipV 顺序重建图片（不含裁切）
@@ -411,14 +419,38 @@ const prewarmTransformCache = () => {
   const originalSrc = item?.originalSrc
   if (!originalSrc) return
   const { rotate, flipH, flipV } = currentCropState.value
-  // 后台静默执行，不 await，不阻塞 UI
-  applyTransforms(originalSrc, rotate, flipH, flipV)
+
+  // 无变换时不需要重建
+  if (rotate === 0 && !flipH && !flipV) return
+
+  const cacheKey = `${originalSrc.slice(-32)}_${rotate}_${flipH}_${flipV}`
+
+  if (transformCache.has(cacheKey)) {
+    // 缓存命中：备份并同步切换，零等待
+    if (cropPreviewBackup === null) cropPreviewBackup = imageSrc.value
+    const cached = transformCache.get(cacheKey)!
+    if (imageSrc.value !== cached) {
+      imageSrc.value = cached
+      setSourceImage(cached)
+    }
+  } else {
+    // 缓存未命中：后台计算，完成后静默替换
+    applyTransforms(originalSrc, rotate, flipH, flipV).then(rebuiltSrc => {
+      if (activePanelTab.value === 'crop') {
+        if (cropPreviewBackup === null) cropPreviewBackup = imageSrc.value
+        if (imageSrc.value !== rebuiltSrc) {
+          imageSrc.value = rebuiltSrc
+          setSourceImage(rebuiltSrc)
+        }
+      }
+    })
+  }
 }
 
 const handleCropRatioChange = async () => {
   if (selectedImageId.value == null) return
 
-  // 备份当前 imageSrc，取消时恢复（只备份一次，避免重复点比例时覆盖备份）
+  // 备份当前 imageSrc，取消时恢复（只备份一次）
   if (cropPreviewBackup === null) {
     cropPreviewBackup = imageSrc.value
   }
@@ -428,11 +460,14 @@ const handleCropRatioChange = async () => {
   if (!originalSrc) return
 
   const { rotate, flipH, flipV } = currentCropState.value
+  // applyTransforms 有缓存，prewarmTransformCache 已提前填充，通常同步返回
   const rebuiltSrc = await applyTransforms(originalSrc, rotate, flipH, flipV)
 
-  // 只更新预览用的 imageSrc，不写 editedSrc
-  imageSrc.value = rebuiltSrc
-  setSourceImage(rebuiltSrc)
+  // 只在图片真正变化时才更新，避免重复触发处理链
+  if (imageSrc.value !== rebuiltSrc) {
+    imageSrc.value = rebuiltSrc
+    setSourceImage(rebuiltSrc)
+  }
 
   await nextTick()
   const previewRef = (imageDisplayRef.value as any)?.imagePreviewRef
@@ -441,9 +476,11 @@ const handleCropRatioChange = async () => {
   })
 }
 
-// 旋转（用 canvas 重绘，更新 editedSrc，保留原图）
+// 旋转（只更新内存预览，不写 IndexedDB）
 const handleCropRotate = (deg: number) => {
   if (!imageSrc.value) return
+  // 进入裁切模式备份（只备份一次）
+  if (cropPreviewBackup === null) cropPreviewBackup = imageSrc.value
   const img = new Image()
   img.onload = () => {
     const rad = (deg * Math.PI) / 180
@@ -455,16 +492,18 @@ const handleCropRotate = (deg: number) => {
     ctx.translate(sw / 2, sh / 2)
     ctx.rotate(rad)
     ctx.drawImage(img, -img.naturalWidth / 2, -img.naturalHeight / 2)
-    // 累计旋转角度
     currentCropState.value.rotate = ((currentCropState.value.rotate + deg) % 360 + 360) % 360
-    applyEditedSrc(c.toDataURL('image/png'))
+    imageSrc.value = c.toDataURL('image/png')
+    setSourceImage(imageSrc.value)
+    transformPending.value = true
   }
   img.src = imageSrc.value
 }
 
-// 翻转
+// 翻转（只更新内存预览，不写 IndexedDB）
 const handleCropFlip = (dir: 'h' | 'v') => {
   if (!imageSrc.value) return
+  if (cropPreviewBackup === null) cropPreviewBackup = imageSrc.value
   const img = new Image()
   img.onload = () => {
     const c = document.createElement('canvas')
@@ -473,9 +512,29 @@ const handleCropFlip = (dir: 'h' | 'v') => {
     if (dir === 'h') { ctx.translate(c.width, 0); ctx.scale(-1, 1); currentCropState.value.flipH = !currentCropState.value.flipH }
     else             { ctx.translate(0, c.height); ctx.scale(1, -1); currentCropState.value.flipV = !currentCropState.value.flipV }
     ctx.drawImage(img, 0, 0)
-    applyEditedSrc(c.toDataURL('image/png'))
+    imageSrc.value = c.toDataURL('image/png')
+    setSourceImage(imageSrc.value)
+    transformPending.value = true
   }
   img.src = imageSrc.value
+}
+
+// 确认旋转/翻转：一次性写入 IndexedDB
+const handleTransformConfirm = () => {
+  if (!imageSrc.value) return
+  transformPending.value = false
+  cropPreviewBackup = null
+  applyEditedSrc(imageSrc.value)
+}
+
+// 取消旋转/翻转：恢复到进入裁切前的图，回滚 currentCropState
+const handleTransformCancel = async () => {
+  transformPending.value = false
+  if (selectedImageId.value != null) {
+    const cropData = await loadCropData(selectedImageId.value)
+    currentCropState.value = cropData?.cropState ?? { ...DEFAULT_CROP_STATE }
+  }
+  restoreCropPreview()
 }
 
 // 裁切提交
@@ -551,6 +610,8 @@ const handleCropRestore = async () => {
 
   // 重置裁切状态
   currentCropState.value = { ...DEFAULT_CROP_STATE }
+  cropPreviewBackup = null
+  transformPending.value = false
   cropToolActive.value = false
 
   // 蒙版坐标基于裁切后图片，复原后失效，清除

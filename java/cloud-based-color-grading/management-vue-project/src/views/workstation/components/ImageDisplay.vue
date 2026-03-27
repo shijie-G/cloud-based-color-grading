@@ -12,11 +12,14 @@
       :cropActive="cropActive"
       :cropRatio="cropRatio"
       :cropInitialRect="cropInitialRect"
+      :transformPending="transformPending"
       @upload:image="handleImageUpload"
       @mask:commit="emit('mask:commit')"
       @mask:updateLayer="emit('mask:updateLayer', $event)"
       @crop:commit="emit('crop:commit', $event)"
       @crop:cancel="emit('crop:cancel')"
+      @transform:confirm="emit('transform:confirm')"
+      @transform:cancel="emit('transform:cancel')"
       ref="imagePreviewRef"
     />
     
@@ -64,6 +67,7 @@ interface ImageDisplayProps {
   cropActive: boolean
   cropRatio: number | null
   cropInitialRect: { x: number; y: number; w: number; h: number } | null
+  transformPending: boolean
 }
 
 interface ImageDisplayEvents {
@@ -77,6 +81,8 @@ interface ImageDisplayEvents {
   'mask:updateLayer':          [layer: import('../composables/useMaskState').MaskLayer]
   'crop:commit':               [rect: { x: number; y: number; w: number; h: number }]
   'crop:cancel':               []
+  'transform:confirm':         []
+  'transform:cancel':          []
 }
 
 // 使用 defineProps 和 defineEmits 定义接口

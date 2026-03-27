@@ -56,6 +56,13 @@
         <button class="crop-btn-apply" @click="cropToolRef?.doCommit()">应用</button>
       </div>
 
+      <!-- 旋转/翻转待确认操作栏 -->
+      <div v-else-if="transformPending && !!imageSrc" class="crop-toolbar">
+        <span class="crop-size">旋转 / 翻转</span>
+        <button class="crop-btn-cancel" @click="emit('transform:cancel')">取消</button>
+        <button class="crop-btn-apply" @click="emit('transform:confirm')">确认</button>
+      </div>
+
       <div class="scale-indicator" v-if="imageSrc && scale !== 1">
         {{ Math.round(scale * 100) }}%
         <button class="reset-btn" @click="resetTransform">复位</button>
@@ -95,13 +102,16 @@ interface ImagePreviewProps {
   cropActive: boolean
   cropRatio: number | null
   cropInitialRect: { x: number; y: number; w: number; h: number } | null
+  transformPending: boolean
 }
 interface ImagePreviewEvents {
-  'upload:image':     [file: File]
-  'mask:commit':      []
-  'mask:updateLayer': [layer: MaskLayer]
-  'crop:commit':      [rect: { x: number; y: number; w: number; h: number }]
-  'crop:cancel':      []
+  'upload:image':      [file: File]
+  'mask:commit':       []
+  'mask:updateLayer':  [layer: MaskLayer]
+  'crop:commit':       [rect: { x: number; y: number; w: number; h: number }]
+  'crop:cancel':       []
+  'transform:confirm': []
+  'transform:cancel':  []
 }
 
 const props = defineProps<ImagePreviewProps>()
@@ -182,7 +192,14 @@ const onUp = () => {
 // ── 蒙版画笔事件透传 ──────────────────────
 // （MaskCanvas 直接操作 internalCanvas，只需透传 commit）
 
-const onKey = (e: KeyboardEvent) => { if (e.key === 'Escape') resetTransform() }
+const onKey = (e: KeyboardEvent) => {
+  if (props.transformPending) {
+    if (e.key === 'Enter')  { e.preventDefault(); emit('transform:confirm') }
+    if (e.key === 'Escape') { e.preventDefault(); emit('transform:cancel') }
+    return
+  }
+  if (e.key === 'Escape') resetTransform()
+}
 onMounted(() => {
   window.addEventListener('keydown', onKey)
 })
