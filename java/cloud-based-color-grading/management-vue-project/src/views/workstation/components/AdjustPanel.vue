@@ -76,6 +76,18 @@
             <rect x="3" y="3" width="18" height="9" rx="3" fill="currentColor" fill-opacity="0.25"/>
           </svg>
         </div>
+        <div
+          class="rail-item"
+          :class="{ active: gridSettings.visible }"
+          title="网格线"
+          style="margin-top: auto; margin-bottom: 10px"
+          @click="gridSettings.visible = !gridSettings.visible"
+        >
+          <svg viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+            <rect x="3" y="3" width="18" height="18" rx="2" stroke="currentColor" stroke-width="1.5"/>
+            <path d="M3 9h18M3 15h18M9 3v18M15 3v18" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/>
+          </svg>
+        </div>
       </div>
     </div>
   </div>
@@ -85,6 +97,7 @@
 import type { AdjustmentValues } from '../component-interfaces'
 import type { HSLAdjustments } from '../composables/useHSLState'
 import type { MaskLayer, MaskType } from '../composables/useMaskState'
+import type { GridSettings } from '../composables/useGridState'
 import { ref, watch } from 'vue'
 import BasicAdjustPanel from './BasicAdjustPanel.vue'
 import MaskAdjustPanel from './MaskAdjustPanel.vue'
@@ -102,6 +115,7 @@ interface AdjustPanelProps {
   maskActiveLayerId: string
   maskActiveLayer: MaskLayer | null
   maskShowOverlay: boolean
+  gridSettings: GridSettings
 }
 
 interface AdjustPanelEvents {

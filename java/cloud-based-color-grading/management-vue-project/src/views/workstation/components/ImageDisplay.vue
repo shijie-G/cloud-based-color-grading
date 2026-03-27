@@ -13,6 +13,8 @@
       :cropRatio="cropRatio"
       :cropInitialRect="cropInitialRect"
       :transformPending="transformPending"
+      :gridSettings="gridSettings"
+      :applyGridPreset="applyGridPreset"
       @upload:image="handleImageUpload"
       @mask:commit="emit('mask:commit')"
       @mask:updateLayer="emit('mask:updateLayer', $event)"
@@ -68,6 +70,8 @@ interface ImageDisplayProps {
   cropRatio: number | null
   cropInitialRect: { x: number; y: number; w: number; h: number } | null
   transformPending: boolean
+  gridSettings: import('../composables/useGridState').GridSettings
+  applyGridPreset: (p: 'thirds' | 'ninths' | 'golden') => void
 }
 
 interface ImageDisplayEvents {

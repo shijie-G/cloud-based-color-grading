@@ -38,6 +38,34 @@
         @commit="emit('mask:commit')"
       />
 
+      <!-- 网格线控制悬浮面板（右上角，visible 时展开） -->
+      <div
+        v-if="imageReady && gridSettings.visible"
+        class="grid-float-panel"
+        :class="{ 'open-upward': gridOpenUpward }"
+        :style="gridPanelStyle"
+      >
+        <div class="grid-float-header" @mousedown="onGridHeaderMouseDown" @click="onGridHeaderClick">
+          <span class="grid-float-title">网格设置</span>
+          <svg class="grid-float-arrow" :class="{ collapsed: !gridExpanded }" viewBox="0 0 24 24" fill="none" width="12" height="12">
+            <path d="M6 9l6 6 6-6" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+          </svg>
+        </div>
+        <div v-if="gridExpanded" class="grid-float-content">
+          <GridPanel :settings="gridSettings" @preset="applyGridPreset" />
+        </div>
+      </div>
+
+      <!-- 网格线叠加层 -->
+      <GridOverlay
+        v-if="imageReady"
+        :settings="gridSettings"
+        :imageCanvas="previewCanvas"
+        :imgScale="scale"
+        :imgOffsetX="offsetX"
+        :imgOffsetY="offsetY"
+      />
+
       <!-- 裁切工具层 -->
       <CropTool
         ref="cropToolRef"
@@ -86,10 +114,13 @@
 </template>
 
 <script setup lang="ts">
-import { ref, watch, onMounted, onUnmounted } from 'vue'
+import { ref, computed, watch, onMounted, onUnmounted } from 'vue'
 import MaskCanvas from './MaskCanvas.vue'
 import CropTool from './CropTool.vue'
+import GridOverlay from './GridOverlay.vue'
+import GridPanel from './GridPanel.vue'
 import type { MaskLayer } from '../composables/useMaskState'
+import type { GridSettings } from '../composables/useGridState'
 
 interface ImagePreviewProps {
   imageSrc: string
@@ -103,6 +134,8 @@ interface ImagePreviewProps {
   cropRatio: number | null
   cropInitialRect: { x: number; y: number; w: number; h: number } | null
   transformPending: boolean
+  gridSettings: GridSettings
+  applyGridPreset: (p: 'thirds' | 'ninths' | 'golden') => void
 }
 interface ImagePreviewEvents {
   'upload:image':      [file: File]
@@ -120,6 +153,75 @@ const emit  = defineEmits<ImagePreviewEvents>()
 const previewCanvas  = ref<HTMLCanvasElement | null>(null)
 const wrapperRef     = ref<HTMLElement | null>(null)
 const cropToolRef    = ref<InstanceType<typeof CropTool> | null>(null)
+const gridExpanded   = ref(true)
+// 图片是否已绘制到 canvas（用于控制网格线渲染时机）
+const imageReady = ref(false)
+
+// 网格面板拖拽位置（相对 image-wrapper）
+const gridPanelX = ref<number | null>(null)  // null = 默认右上角
+const gridPanelY = ref<number | null>(null)
+const gridOpenUpward = ref(false)  // 是否向上展开
+
+const PANEL_CONTENT_HEIGHT = 280  // 展开内容的估算高度 px
+const HEADER_HEIGHT = 36
+
+const gridPanelStyle = computed(() => {
+  const base = gridPanelX.value === null
+    ? { top: '10px', right: '10px' }
+    : { top: `${gridPanelY.value}px`, left: `${gridPanelX.value}px`, right: 'auto' }
+  // 向上展开时整体上移，让 header 保持在原位，内容向上生长
+  if (gridOpenUpward.value && gridExpanded.value) {
+    return { ...base, transform: `translateY(calc(-100% + ${HEADER_HEIGHT}px))` }
+  }
+  return base
+})
+
+let dragStartX = 0, dragStartY = 0, dragStartPX = 0, dragStartPY = 0
+let isDragging = false
+
+const onGridHeaderMouseDown = (e: MouseEvent) => {
+  e.preventDefault()
+  const wrapper = wrapperRef.value
+  if (!wrapper) return
+  const wRect = wrapper.getBoundingClientRect()
+  const panelEl = (e.currentTarget as HTMLElement).parentElement!
+  const pRect = panelEl.getBoundingClientRect()
+  dragStartX = e.clientX
+  dragStartY = e.clientY
+  dragStartPX = pRect.left - wRect.left
+  dragStartPY = pRect.top  - wRect.top
+  isDragging = false
+
+  const onMove = (ev: MouseEvent) => {
+    const dx = ev.clientX - dragStartX
+    const dy = ev.clientY - dragStartY
+    if (!isDragging && Math.hypot(dx, dy) > 3) isDragging = true
+    if (!isDragging) return
+    const wR = wrapper.getBoundingClientRect()
+    const maxX = wR.width  - panelEl.offsetWidth
+    const maxY = wR.height - HEADER_HEIGHT
+    const newX = Math.max(0, Math.min(maxX, dragStartPX + dx))
+    const newY = Math.max(0, Math.min(maxY, dragStartPY + dy))
+    gridPanelX.value = newX
+    gridPanelY.value = newY
+    // 判断底部空间是否足够展开
+    const spaceBelow = wR.height - (newY + HEADER_HEIGHT)
+    gridOpenUpward.value = spaceBelow < PANEL_CONTENT_HEIGHT
+  }
+  const onUp = () => {
+    document.removeEventListener('mousemove', onMove)
+    document.removeEventListener('mouseup', onUp)
+    document.body.style.userSelect = ''
+  }
+  document.addEventListener('mousemove', onMove)
+  document.addEventListener('mouseup', onUp)
+  document.body.style.userSelect = 'none'
+}
+
+const onGridHeaderClick = () => {
+  if (isDragging) return  // 拖拽结束不触发折叠
+  gridExpanded.value = !gridExpanded.value
+}
 
 const drawSrc = (src: string) => {
   if (!src || !previewCanvas.value) return
@@ -129,11 +231,15 @@ const drawSrc = (src: string) => {
     canvas.width  = img.naturalWidth
     canvas.height = img.naturalHeight
     canvas.getContext('2d')!.drawImage(img, 0, 0)
+    imageReady.value = true
     // 绘制完成后通知外部（用于裁切模式下重置缩放）
     onDrawComplete?.()
   }
   img.src = src
 }
+
+// imageSrc 变化时重置 imageReady，等新图绘制完成再置 true
+watch(() => props.imageSrc, () => { imageReady.value = false })
 
 // 外部可注入的绘制完成回调（用一次后自动清除）
 let onDrawComplete: (() => void) | null = null
@@ -359,4 +465,51 @@ defineExpose({ previewCanvas, resetTransform, onceDrawComplete })
 .crop-btn-cancel:hover { background: rgba(255,255,255,0.14); color: #c4c9d4; }
 .crop-btn-apply { background: #5b6af0; color: #fff; }
 .crop-btn-apply:hover { background: #6b7af8; }
+
+/* 网格线悬浮面板 */
+.grid-float-panel {
+  position: absolute;
+  top: 10px;
+  right: 10px;
+  z-index: 40;
+  width: 220px;
+  background: rgba(20, 22, 26, 0.95);
+  border: 1px solid rgba(255,255,255,0.1);
+  border-radius: 10px;
+  backdrop-filter: blur(12px);
+  box-shadow: 0 8px 24px rgba(0,0,0,0.5);
+  overflow: hidden;
+  display: flex;
+  flex-direction: column;
+}
+
+/* 向上展开：内容在 header 上方，整体从 header 向上生长 */
+.grid-float-panel.open-upward {
+  flex-direction: column-reverse;
+}
+
+.grid-float-header {
+  display: flex; align-items: center; justify-content: space-between;
+  padding: 9px 12px;
+  cursor: grab;
+  user-select: none;
+  border-bottom: 1px solid rgba(255,255,255,0.06);
+  transition: background 0.15s;
+}
+.grid-float-header:hover { background: rgba(255,255,255,0.04); }
+.grid-float-header:active { cursor: grabbing; }
+
+.grid-float-title {
+  font-size: 11px; font-weight: 600;
+  color: #9ca3af; text-transform: uppercase; letter-spacing: 0.6px;
+}
+
+.grid-float-arrow {
+  color: #6b7280; transition: transform 0.2s;
+}
+.grid-float-arrow.collapsed { transform: rotate(-90deg); }
+
+.grid-float-content {
+  padding: 10px;
+}
 </style>

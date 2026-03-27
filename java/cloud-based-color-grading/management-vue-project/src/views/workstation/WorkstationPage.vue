@@ -21,6 +21,8 @@
         :cropRatio="cropRatio"
         :cropInitialRect="currentCropState.rect"
         :transformPending="transformPending"
+        :gridSettings="gridSettings"
+        :applyGridPreset="applyGridPreset"
         @action:selectImage="handleSelectImage"
         @action:uploadImage="handleImageUpload"
         @layout:resetLayout="resetLayout"
@@ -58,6 +60,7 @@
         :maskActiveLayerId="maskActiveLayerId"
         :maskActiveLayer="maskActiveLayer"
         :maskShowOverlay="!!maskShowOverlay"
+        :gridSettings="gridSettings"
         @update:adjustments="setAdjustments"
         @update:hslAdjustments="(v) => Object.assign(hslAdjustments, v)"
         @action:uploadImage="handleImageUpload"
@@ -102,6 +105,7 @@ import { useAdjustmentState } from './composables/useAdjustmentState'
 import { useHSLState } from './composables/useHSLState'
 import { useImageStorage } from './composables/useImageStorage'
 import { useMaskState } from './composables/useMaskState'
+import { useGridState } from './composables/useGridState'
 
 // 使用布局状态管理
 const {
@@ -168,6 +172,8 @@ const {
   loadFromSerializable: loadMaskFromSerializable,
   resetMask,
 } = useMaskState()
+
+const { settings: gridSettings, applyPreset: applyGridPreset } = useGridState()
 
 // 调色参数持久化
 const { saveAdjustments, loadAdjustments, saveImageToDB, saveCropData, loadCropData, loadOriginalSrc } = useImageStorage()
@@ -519,11 +525,13 @@ const handleCropFlip = (dir: 'h' | 'v') => {
   img.src = imageSrc.value
 }
 
-// 确认旋转/翻转：一次性写入 IndexedDB
+// 确认旋转/翻转：一次性写入 IndexedDB，清除旧裁切坐标（旋转后坐标失效）
 const handleTransformConfirm = () => {
   if (!imageSrc.value) return
   transformPending.value = false
   cropPreviewBackup = null
+  // 旋转/翻转改变了图片内容，旧的裁切坐标已失效，清除
+  currentCropState.value.rect = null
   applyEditedSrc(imageSrc.value)
 }
 
