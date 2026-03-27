@@ -11,7 +11,7 @@
         :images="uploadedImages"
         :selectedImageId="selectedImageId"
         :imageSrc="imageSrc"
-        :processedSrc="processedSrc"
+        :processedSrc="displayProcessedSrc"
         :showUploadTips="!imageSrc"
         :galleryHeight="galleryHeight"
         :maskActive="maskLayers.length > 0"
@@ -23,6 +23,7 @@
         :transformPending="transformPending"
         :gridSettings="gridSettings"
         :applyGridPreset="applyGridPreset"
+        :compareActive="compareActive"
         @action:selectImage="handleSelectImage"
         @action:uploadImage="handleImageUpload"
         @layout:resetLayout="resetLayout"
@@ -35,6 +36,7 @@
         @crop:cancel="() => { cropToolActive = false; restoreCropPreview() }"
         @transform:confirm="handleTransformConfirm"
         @transform:cancel="handleTransformCancel"
+        @action:toggleCompare="handleToggleCompare"
         ref="imageDisplayRef"
       />
 
@@ -89,7 +91,7 @@
 </template>
 
 <script setup lang="ts">
-import { ref, watch, nextTick } from 'vue';;
+import { ref, watch, nextTick, computed } from 'vue';;
 import type { ImageItem } from './component-interfaces'
 import type { CropState } from './types/cropTypes'
 import { DEFAULT_CROP_STATE } from './types/cropTypes'
@@ -353,6 +355,20 @@ const imageDisplayRef = ref(null)
 const adjSliderDragging = ref(false)
 // 当前激活的面板 tab
 const activePanelTab = ref<'basic' | 'crop' | 'mask'>('basic')
+
+// ── 对比模式 ──────────────────────────────────────────────────
+const compareActive = ref(false)
+
+const handleToggleCompare = () => {
+  if (!processedSrc.value && !compareActive.value) return
+  compareActive.value = !compareActive.value
+}
+
+// 切换图片时退出对比模式
+watch(selectedImageId, () => { compareActive.value = false })
+
+// 对比模式下传给 ImageDisplay 的 processedSrc：对比时传空字符串，让预览区显示 imageSrc
+const displayProcessedSrc = computed(() => compareActive.value ? '' : processedSrc.value)
 
 // ── 裁切状态 ──────────────────────────────────────────────────
 const cropRatio = ref<number | null>(null)

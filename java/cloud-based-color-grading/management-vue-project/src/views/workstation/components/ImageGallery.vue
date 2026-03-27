@@ -14,6 +14,14 @@
             <path d="M19 13h-6v6h-2v-6H5v-2h6V5h2v6h6v2z"/>
           </svg>
         </button>
+        <button class="add-image-btn" :class="{ active: compareActive }" @click="$emit('action:toggleCompare')" title="对比原图">
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+            <rect x="2" y="3" width="20" height="18" rx="2"/>
+            <path d="M12 3v18" stroke-linecap="round"/>
+            <path d="M7 8h3M7 12h3M7 16h3" stroke-linecap="round"/>
+            <path d="M14 8h3M14 12h3M14 16h3" stroke-linecap="round" stroke-dasharray="2 1"/>
+          </svg>
+        </button>
       </div>
       
       <!-- 隐藏的文件输入 -->
@@ -55,13 +63,14 @@ interface ImageGalleryProps {
   images: ImageItem[]
   selectedImageId: number | null
   galleryHeight: number
+  compareActive?: boolean
 }
 
-// 事件定义
 interface ImageGalleryEvents {
   'action:selectImage': [image: ImageItem]
   'action:addImage': [file: File]
   'layout:resetLayout': []
+  'action:toggleCompare': []
 }
 
 // 使用 defineProps 和 defineEmits 定义接口
@@ -216,6 +225,12 @@ const handleFileSelect = (event: Event) => {
 .add-image-btn:focus {
   outline: none;
   border-color: #555;
+}
+
+.add-image-btn.active {
+  background-color: rgba(91, 106, 240, 0.2);
+  border-color: rgba(91, 106, 240, 0.5);
+  color: #a5b0ff;
 }
 
 .gallery-content {

@@ -40,8 +40,10 @@
       :images="images"
       :selectedImageId="selectedImageId"
       :galleryHeight="galleryHeight"
+      :compareActive="compareActive"
       @action:selectImage="handleSelectImage"
       @action:addImage="handleImageUpload"
+      @action:toggleCompare="emit('action:toggleCompare')"
       @layout:resetLayout="handleResetLayout"
     />
   </div>
@@ -72,6 +74,7 @@ interface ImageDisplayProps {
   transformPending: boolean
   gridSettings: import('../composables/useGridState').GridSettings
   applyGridPreset: (p: 'thirds' | 'ninths' | 'golden') => void
+  compareActive?: boolean
 }
 
 interface ImageDisplayEvents {
@@ -87,6 +90,7 @@ interface ImageDisplayEvents {
   'crop:cancel':               []
   'transform:confirm':         []
   'transform:cancel':          []
+  'action:toggleCompare':      []
 }
 
 // 使用 defineProps 和 defineEmits 定义接口
