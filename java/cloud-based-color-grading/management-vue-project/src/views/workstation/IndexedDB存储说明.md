@@ -1,199 +1,378 @@
-# IndexedDB 图片存储实现说明
+# IndexedDB 存储说明
 
-## 📁 文件结构
+> 本文档描述 Workstation 工作台的 IndexedDB 持久化方案，涵盖数据库结构、字段说明、版本升级策略、各层 API 及完整使用流程。
 
-```
-management-vue-project/src/views/workstation/
-├── utils/
-│   └── imageDB.ts                    # IndexedDB底层封装
-├── composables/
-│   ├── useImageStorage.ts            # 存储管理composable
-│   └── useImageState.ts              # 图片状态管理（已集成存储）
-```
+---
 
-## 🗄️ 数据库结构
+## 目录
 
-### 数据库信息
-- **数据库名**: `WorkstationDB`
-- **版本**: `1`
-- **存储表**: `images`
+1. 数据库基本信息
+2. 数据表结构（当前 v5）
+3. 版本升级历史
+4. 底层封装：imageDB.ts
+5. 业务层封装：useImageStorage.ts
+6. 集成层：useImageState.ts
+7. 持久化数据分类与写入时机
+8. 页面刷新恢复流程
+9. 调试方法
+10. 浏览器兼容性与容量
+11. 注意事项
 
-### 数据表结构 (images)
+---
+
+## 1. 数据库基本信息
+
+| 项目 | 值 |
+|------|----|
+| 数据库名 | `WorkstationDB` |
+| 当前版本 | `5` |
+| Object Store | `images` |
+| 主键 | `id`（number，keyPath） |
+
+---
+
+## 2. 数据表结构（当前 v5）
+
 ```typescript
-{
-  id: number              // 主键，图片唯一标识
-  name: string            // 图片文件名
-  blob: Blob              // 原始图片二进制数据
-  src: string             // Base64格式的图片预览
-  uploadTime: Date        // 上传时间
-  lastModified: Date      // 最后修改时间
+interface ImageDBItem {
+  // ── 主键 ──────────────────────────────────────────
+  id: number                // Date.now() + Math.random()，唯一标识
+
+  // ── 原始图片（永不覆盖） ──────────────────────────
+  name: string              // 文件名，如 "photo.jpg"
+  blob: Blob                // 原始图片二进制（用于重新生成 File 对象）
+  src: string               // 原始图片 dataUrl（永不被裁切/编辑覆盖）
+
+  // ── 编辑后图片（可选，有则优先用于预览） ──────────
+  editedSrc?: string        // 裁切/旋转/翻转后的图片 dataUrl
+  cropStateJson?: string    // 非破坏性裁切参数 JSON（CropState）
+
+  // ── 调色参数（可选） ──────────────────────────────
+  adjustmentsJson?: string  // 调色参数 JSON（含基础调色 + HSL + 蒙版层）
+
+  // ── 辅助字段 ──────────────────────────────────────
+  thumbnail?: string        // 缩略图 dataUrl（最大 200px，JPEG 0.7 质量）
+  uploadTime: Date          // 首次上传时间（排序用）
+  lastModified: Date        // 最后修改时间
+  fileHash?: string         // 去重哈希：name_size_type
 }
 ```
 
 ### 索引
-- `uploadTime`: 按上传时间查询
-- `name`: 按文件名查询
 
-## 🔧 核心功能
+| 索引名 | 字段 | unique |
+|--------|------|--------|
+| `uploadTime` | uploadTime | false |
+| `name` | name | false |
+| `fileHash` | fileHash | false |
 
-### 1. imageDB.ts - 底层数据库操作
+---
 
-提供的方法：
-- `init()` - 初始化数据库连接
-- `saveImage(image)` - 保存图片
-- `getAllImages()` - 获取所有图片
-- `getImage(id)` - 根据ID获取图片
-- `deleteImage(id)` - 删除图片
-- `clearAll()` - 清空所有图片
-- `getCount()` - 获取图片数量
+## 3. 版本升级历史
 
-### 2. useImageStorage.ts - 存储管理层
+| 版本 | 变更内容 |
+|------|----------|
+| v1 | 初始版本：id / name / blob / src / uploadTime / lastModified |
+| v2 | 新增 `fileHash` 字段 + `fileHash` 索引（去重功能） |
+| v3 | 无结构变更（内部逻辑调整） |
+| v4 | 新增 `adjustmentsJson` 字段（调色参数持久化） |
+| v5 | 新增 `editedSrc` + `cropStateJson` 字段（非破坏性裁切） |
 
-提供的方法：
-- `saveImageToDB(image)` - 保存ImageItem到数据库
-- `loadImagesFromDB()` - 从数据库加载所有图片
-- `deleteImageFromDB(imageId)` - 删除指定图片
-- `clearAllImagesFromDB()` - 清空所有图片
-- `getStoredImageCount()` - 获取存储数量
+> v3 及以后新增的字段均为普通字段（非索引），旧记录读取时值为 `undefined`，自动兼容，无需数据迁移。
 
-### 3. useImageState.ts - 业务逻辑层（已集成）
+升级逻辑（`onupgradeneeded`）：
+- 若 Store 不存在 → 全量创建（含所有索引）
+- 若 `oldVersion < 2` → 补建 `fileHash` 索引
+- v3/v4/v5 字段为普通字段，无需 `onupgradeneeded` 处理
 
-新增功能：
-- ✅ 上传图片时自动保存到IndexedDB
-- ✅ 删除图片时同步删除IndexedDB记录
-- ✅ 清空图片时同步清空IndexedDB
-- ✅ 页面加载时自动从IndexedDB恢复图片
-- ✅ 新增 `isLoadingFromDB` 状态（可用于显示加载提示）
+---
 
-## 🚀 使用方式
+## 4. 底层封装：imageDB.ts
 
-### 自动持久化
-无需额外操作，图片会自动保存和恢复：
+路径：`utils/imageDB.ts`
 
-1. **上传图片** → 自动保存到IndexedDB
-2. **删除图片** → 自动从IndexedDB删除
-3. **刷新页面** → 自动从IndexedDB恢复
+导出单例 `imageDB`（`ImageDatabase` 类实例），所有方法均返回 `Promise`，内部懒初始化（首次调用时 `await this.init()`）。
 
-### 手动操作（可选）
+### 方法列表
 
-如果需要手动控制存储，可以直接使用 `useImageStorage`：
+| 方法 | 说明 |
+|------|------|
+| `init()` | 打开/升级数据库，建立连接 |
+| `saveImage(item)` | 写入或覆盖一条记录（`put`） |
+| `getAllImages()` | 读取全部记录，按 `uploadTime` 升序排序 |
+| `getImage(id)` | 按主键读取单条记录，不存在返回 `null` |
+| `deleteImage(id)` | 按主键删除记录 |
+| `clearAll()` | 清空整个 Store |
+| `getCount()` | 返回记录总数 |
+| `existsByHash(fileHash)` | 通过 `fileHash` 索引查重，返回 `boolean` |
+| `updateAdjustments(id, json)` | 只更新 `adjustmentsJson` 字段（先 get 再 put，不重写 blob） |
+| `getAdjustments(id)` | 读取 `adjustmentsJson`，不存在返回 `null` |
+| `updateCropData(id, editedSrc, cropStateJson)` | 只更新 `editedSrc` + `cropStateJson`（不覆盖原图） |
+| `getCropData(id)` | 读取 `{ editedSrc, cropStateJson }`，不存在返回 `null` |
+| `clearCropData(id)` | 删除 `editedSrc` 和 `cropStateJson` 字段（复原原图时调用） |
 
-```typescript
-import { useImageStorage } from './composables/useImageStorage'
+### 关键设计原则
 
-const { 
-  saveImageToDB, 
-  loadImagesFromDB, 
-  clearAllImagesFromDB 
-} = useImageStorage()
+- `blob` 和 `src`（原图）**永不被覆盖**，裁切/编辑只写 `editedSrc`
+- `updateAdjustments` / `updateCropData` 均采用 **先 get 再 put** 模式，只修改目标字段，避免覆盖其他字段
+- `existsByHash` 捕获索引不存在的异常（旧版本数据库），返回 `false` 而非抛出错误
 
-// 手动保存
-await saveImageToDB(imageItem)
+---
 
-// 手动加载
-const images = await loadImagesFromDB()
+## 5. 业务层封装：useImageStorage.ts
 
-// 手动清空
-await clearAllImagesFromDB()
+路径：`composables/useImageStorage.ts`
+
+对 `imageDB` 的业务语义封装，供 `useImageState` 和 `WorkstationPage` 调用。
+
+### 方法列表
+
+| 方法 | 说明 |
+|------|------|
+| `saveImageToDB(image)` | 保存 ImageItem（先读已有记录，保留 editedSrc/cropStateJson/adjustmentsJson，再写入） |
+| `loadImagesFromDB()` | 加载全部图片，`src` 优先使用 `editedSrc`（有裁切版本则展示裁切后图片） |
+| `deleteImageFromDB(id)` | 删除指定图片 |
+| `clearAllImagesFromDB()` | 清空所有图片 |
+| `getStoredImageCount()` | 获取存储数量 |
+| `generateFileHash(file)` | 生成去重哈希：`${name}_${size}_${type}` |
+| `checkFileExists(hash)` | 查重，重复返回 `true` |
+| `saveAdjustments(id, json)` | 保存调色参数 JSON |
+| `loadAdjustments(id)` | 读取调色参数 JSON，不存在返回 `null` |
+| `saveCropData(id, editedSrc, cropState)` | 保存裁切数据（editedSrc + CropState 序列化） |
+| `loadCropData(id)` | 读取裁切数据，返回 `{ editedSrc?, cropState? }` |
+| `loadOriginalSrc(id)` | 读取原始图片 src（永不被裁切覆盖的原图 dataUrl） |
+
+### saveImageToDB 的保留逻辑
+
+```
+1. imageDB.getImage(id)  → 读取已有记录
+2. 构建新 ImageDBItem：
+   - blob / src / name / thumbnail / fileHash  ← 来自新上传的 ImageItem
+   - editedSrc / cropStateJson / adjustmentsJson ← 保留已有记录的值（若存在）
+   - uploadTime ← 已有记录的值（首次上传时间不变）
+   - lastModified ← new Date()
+3. imageDB.saveImage(newItem)
 ```
 
-## 💾 存储容量
+这样即使重新调用 `saveImageToDB`，也不会丢失已保存的调色参数和裁切数据。
 
-### IndexedDB容量限制
-- **Chrome/Edge**: 可用磁盘空间的 60%
-- **Firefox**: 可用磁盘空间的 50%
-- **Safari**: 约 1GB（会提示用户）
+---
 
-### 实际可存储图片数量估算
-假设单张图片平均 2MB：
-- 可存储约 **500-1000张** 图片（取决于浏览器和磁盘空间）
+## 6. 集成层：useImageState.ts
 
-## 🔍 调试和监控
+路径：`composables/useImageState.ts`
 
-### 查看IndexedDB数据
-1. 打开浏览器开发者工具
-2. 进入 **Application** 标签（Chrome）或 **Storage** 标签（Firefox）
-3. 展开 **IndexedDB** → **WorkstationDB** → **images**
-4. 可以查看、编辑、删除存储的数据
+图片状态管理，`onMounted` 自动从 IndexedDB 恢复。
+
+### 上传流程
+
+```
+handleImageUpload(file)
+  ├─ generateFileHash(file)
+  ├─ checkFileExists(hash) → 重复则 alert 并 return
+  ├─ FileReader.readAsDataURL
+  ├─ generateThumbnail(src)  ← canvas 压缩到 200px，JPEG 0.7
+  ├─ 构建 ImageItem { id: Date.now()+random, name, src, originalSrc: src, thumbnail, originalFile, fileHash }
+  ├─ uploadedImages.value.push(imageData)
+  ├─ saveImageToDB(imageData)  ← 写 IndexedDB
+  └─ selectImage(imageData)   ← 更新 imageSrc + selectedImageId
+```
+
+### 页面恢复流程（onMounted）
+
+```
+loadImagesFromDB()
+  ├─ 返回 ImageItem[]（src = editedSrc ?? originalSrc）
+  ├─ uploadedImages.value = savedImages
+  └─ selectImage(savedImages[0])  ← 自动选中第一张
+```
+
+---
+
+## 7. 持久化数据分类与写入时机
+
+| 数据类型 | 字段 | 写入时机 | 是否覆盖原图 |
+|----------|------|----------|-------------|
+| 原始图片 Blob | `blob` | 上传时一次性写入 | — |
+| 原始图片 dataUrl | `src` | 上传时一次性写入 | 永不覆盖 |
+| 缩略图 | `thumbnail` | 上传时生成并写入 | — |
+| 去重哈希 | `fileHash` | 上传时写入 | — |
+| 裁切/旋转后图片 | `editedSrc` | 裁切提交 / 旋转翻转后 | 否（独立字段） |
+| 裁切状态参数 | `cropStateJson` | 裁切提交 / 旋转翻转后 | 否（独立字段） |
+| 调色参数（全量） | `adjustmentsJson` | 防抖 500ms 自动保存 | 否（独立字段） |
+
+### adjustmentsJson 的内容结构
+
+```json
+{
+  "adjustments": {
+    "brightness": 30,
+    "contrast": 0,
+    "saturation": 20,
+    "vibrance": 0,
+    "hue": 0,
+    "temperature": -15,
+    "clarity": 10
+  },
+  "hslAdjustments": {
+    "red":    { "hue": 0, "saturation": 0, "lightness": 0 },
+    "orange": { "hue": 0, "saturation": 0, "lightness": 0 },
+    "yellow": { "hue": 0, "saturation": 0, "lightness": 0 },
+    "green":  { "hue": 0, "saturation": 0, "lightness": 0 },
+    "cyan":   { "hue": 0, "saturation": 0, "lightness": 0 },
+    "blue":   { "hue": 0, "saturation": 0, "lightness": 0 },
+    "purple": { "hue": 0, "saturation": 0, "lightness": 0 }
+  },
+  "mask": [
+    {
+      "id": "mask-1",
+      "name": "线性 1",
+      "enabled": true,
+      "type": "linear",
+      "linear": { "x1": 0.2, "y1": 0.5, "x2": 0.8, "y2": 0.5, "feather": 0.1 },
+      "radial": { "cx": 0.5, "cy": 0.5, "rx": 0.25, "ry": 0.25, "angle": 0, "feather": 0.15, "invert": false },
+      "adjustments": { "brightness": 40, "contrast": 0, "saturation": 0, "vibrance": 0, "hue": 0, "temperature": 0, "clarity": 0 }
+    }
+  ]
+}
+```
+
+> 蒙版的 `canvas` 字段不序列化（canvas 不可 JSON 化），恢复时根据参数重新调用 `generateLayerMask` 重建。
+
+### cropStateJson 的内容结构
+
+```json
+{
+  "rotate": 90,
+  "flipH": false,
+  "flipV": false,
+  "rect": { "x": 100, "y": 50, "w": 800, "h": 600 }
+}
+```
+
+---
+
+## 8. 页面刷新恢复流程
+
+```
+浏览器刷新
+  │
+  ├─ useLayoutState.onMounted
+  │    └─ localStorage.getItem('workstation-layout-settings')
+  │         → 恢复面板宽度 + 全览高度
+  │
+  ├─ useImageState.onMounted
+  │    └─ loadImagesFromDB()
+  │         → uploadedImages = [...]
+  │         → selectImage(images[0])
+  │              → imageSrc = editedSrc ?? src
+  │              → selectedImageId = images[0].id
+  │
+  └─ WorkstationPage: watch(selectedImageId, { immediate: true })
+       ├─ loadCropData(id)
+       │    → currentCropState = cropData.cropState ?? DEFAULT_CROP_STATE
+       └─ applyStoredAdjustments(id)
+            ├─ loadAdjustments(id)  → JSON.parse
+            ├─ setAdjustments(data.adjustments)
+            ├─ Object.assign(hslAdjustments, data.hslAdjustments)
+            └─ 若有蒙版数据：
+                 new Image().onload → maskInitSize(w, h)
+                                    → loadFromSerializable(data.mask)
+                                    → setMaskLayers([...maskLayers])
+```
+
+---
+
+## 9. 调试方法
+
+### 浏览器开发者工具查看数据
+
+1. 打开 DevTools（F12）
+2. 进入 **Application**（Chrome/Edge）或 **Storage**（Firefox）标签
+3. 展开 **IndexedDB → WorkstationDB → images**
+4. 可直接查看每条记录的所有字段
+
+### 常用调试操作
+
+```javascript
+// 控制台直接操作（开发环境）
+
+// 查看所有图片记录
+const req = indexedDB.open('WorkstationDB')
+req.onsuccess = e => {
+  const db = e.target.result
+  const tx = db.transaction('images', 'readonly')
+  tx.objectStore('images').getAll().onsuccess = r => console.log(r.target.result)
+}
+
+// 清空数据库（重置测试）
+const req2 = indexedDB.open('WorkstationDB')
+req2.onsuccess = e => {
+  const db = e.target.result
+  db.transaction('images', 'readwrite').objectStore('images').clear()
+}
+```
 
 ### 控制台日志
-代码中已添加详细的日志输出：
-- ✅ 图片保存成功
-- ✅ 图片加载成功
-- ✅ 图片删除成功
-- ❌ 操作失败的错误信息
 
-## ⚠️ 注意事项
+代码中已有以下日志输出：
 
-### 1. 浏览器兼容性
-- ✅ Chrome 24+
-- ✅ Firefox 16+
-- ✅ Safari 10+
-- ✅ Edge 12+
+| 日志内容 | 触发位置 |
+|----------|----------|
+| `已恢复 N 张图片` | useImageState.onMounted |
+| `图片已从IndexedDB删除: ID xxx` | deleteImageFromDB |
+| `已清空IndexedDB中的所有图片` | clearAllImagesFromDB |
+| `图片已存在，跳过上传: xxx` | handleImageUpload 去重检查 |
+| `从IndexedDB加载了 N 张图片` | loadImagesFromDB |
 
-### 2. 隐私模式
-- 隐私/无痕模式下，IndexedDB数据会在关闭浏览器后清除
+---
 
-### 3. 跨域限制
-- IndexedDB数据按域名隔离
-- 不同域名无法访问彼此的数据
+## 10. 浏览器兼容性与容量
 
-### 4. 存储清理
-用户可以通过以下方式清除数据：
-- 浏览器设置 → 清除浏览数据 → 选择"网站数据"
-- 开发者工具 → Application → Clear storage
+### 兼容性
 
-## 🔮 未来扩展
+| 浏览器 | 最低版本 | 备注 |
+|--------|----------|------|
+| Chrome / Edge | 24+ | 完全支持 |
+| Firefox | 16+ | 完全支持 |
+| Safari | 10+ | 隐私模式下数据会话结束后清除 |
 
-### 可以添加的功能：
-1. **图片编辑历史** - 保存每张图片的调整历史
-2. **导出/导入** - 支持导出所有图片为ZIP
-3. **云端同步** - 集成后端API实现跨设备同步
-4. **自动清理** - 定期清理超过30天的旧图片
-5. **压缩优化** - 自动压缩大图片节省空间
-6. **标签分类** - 为图片添加标签和分类
+### 存储容量
 
-## 📊 性能优化建议
+| 浏览器 | 配额 |
+|--------|------|
+| Chrome / Edge | 可用磁盘空间的 60% |
+| Firefox | 可用磁盘空间的 50% |
+| Safari | 约 1GB（超出时提示用户） |
 
-### 已实现的优化：
-- ✅ 使用Blob存储原始文件（比Base64节省空间）
-- ✅ 异步操作不阻塞UI
-- ✅ 按上传时间排序
+单张图片平均 2~5MB（含原图 blob + dataUrl + 缩略图），实际可存储数百张图片。
 
-### 可以进一步优化：
-- 🔄 添加图片缩略图（减少内存占用）
-- 🔄 分页加载（图片很多时）
-- 🔄 懒加载（只加载可见图片）
+---
 
-## 🧪 测试建议
+## 11. 注意事项
 
-### 功能测试：
-1. 上传图片 → 刷新页面 → 验证图片是否恢复
-2. 上传多张图片 → 验证顺序是否正确
-3. 删除图片 → 刷新页面 → 验证是否真的删除
-4. 清空所有图片 → 刷新页面 → 验证是否清空
+### 原图保护
 
-### 边界测试：
-1. 上传超大图片（10MB+）
-2. 上传大量图片（100+张）
-3. 在隐私模式下测试
-4. 清除浏览器数据后测试
+`blob` 和 `src` 字段在上传后**永不被覆盖**。裁切/旋转/翻转的结果写入 `editedSrc`，复原原图时调用 `clearCropData` 删除 `editedSrc` 和 `cropStateJson` 字段，`src` 始终保持原始状态。
 
-## 📝 总结
+### 蒙版 canvas 不持久化
 
-✅ **已完成**：
-- IndexedDB底层封装
-- 存储管理composable
-- 自动保存和恢复功能
-- 完整的增删改查操作
+蒙版层的 `canvas`（`HTMLCanvasElement`）无法序列化为 JSON，持久化时只保存数学参数（`linear` / `radial` / `adjustments`）。恢复时根据参数重新调用 `generateLayerMask` 重建 canvas，效果完全一致。
 
-✅ **优势**：
-- 刷新后数据不丢失
-- 无需后端支持
-- 容量大（可存储数百张图片）
-- 性能好（异步操作）
+### 调色参数防抖保存
 
-🎯 **使用简单**：
-- 零配置，开箱即用
-- 自动持久化，无需手动操作
-- 完全透明，不影响现有功能
+调色参数变化后不立即写库，而是防抖 500ms 后写入，避免滑块拖动时频繁 I/O。`isLoadingAdjustments` 标志位在加载参数期间为 `true`，此时 watch 触发的 `scheduleSave` 会直接 return，防止加载时覆盖已有数据。
+
+### 隐私模式
+
+Safari 隐私模式下 IndexedDB 配额极小（约 20MB），Chrome/Firefox 隐私模式下数据在关闭浏览器后清除。
+
+### 跨域隔离
+
+IndexedDB 按域名（origin）隔离，不同域名无法访问彼此的数据库。
+
+### 清除数据
+
+用户可通过以下方式清除：
+- 浏览器设置 → 清除浏览数据 → 勾选"网站数据"
+- DevTools → Application → Clear storage → Clear site data
