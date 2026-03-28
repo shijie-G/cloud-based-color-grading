@@ -150,7 +150,6 @@ const {
   resetHSL,
   setSourceImage,
   setBasicAdjustments,
-  setMaskCanvas,
   setMaskLayers,
   updateMaskLayerAdj,
   exportProcessed,
@@ -161,9 +160,7 @@ const {
   layers: maskLayers,
   activeLayerId: maskActiveLayerId,
   activeLayer: maskActiveLayer,
-  compositeCanvas: maskCompositeCanvas,
   showOverlay: maskShowOverlay,
-  maskActive,
   addLayer: maskAddLayer,
   removeLayer: maskRemoveLayer,
   setActiveLayer: maskSetActiveLayer,
@@ -240,7 +237,7 @@ const handleRedo = () => {
 }
 
 // 调色参数持久化
-const { saveAdjustments, loadAdjustments, saveImageToDB, saveCropData, loadCropData, loadOriginalSrc } = useImageStorage()
+const { saveAdjustments, loadAdjustments, saveCropData, loadCropData, loadOriginalSrc } = useImageStorage()
 
 // 防抖保存 timer
 let saveTimer: ReturnType<typeof setTimeout> | null = null
