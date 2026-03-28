@@ -268,7 +268,7 @@ const handleDoubleClick = () => {
 const handleWheel = (e: WheelEvent) => {
   if (!props.imageSrc) return
   const delta = e.deltaY < 0 ? 0.1 : -0.1
-  scale.value = Math.min(4, Math.max(0.2, parseFloat((scale.value + delta).toFixed(1))))
+  scale.value = Math.min(8, Math.max(0.2, parseFloat((scale.value + delta).toFixed(1))))
 }
 
 // ── 拖拽平移（蒙版激活时禁用） ────────────
