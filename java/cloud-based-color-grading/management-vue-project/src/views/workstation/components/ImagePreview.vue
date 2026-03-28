@@ -267,8 +267,24 @@ const handleDoubleClick = () => {
 
 const handleWheel = (e: WheelEvent) => {
   if (!props.imageSrc) return
+
+  const oldScale = scale.value
   const delta = e.deltaY < 0 ? 0.1 : -0.1
-  scale.value = Math.min(8, Math.max(0.2, parseFloat((scale.value + delta).toFixed(1))))
+  const newScale = Math.min(8, Math.max(0.2, parseFloat((oldScale + delta).toFixed(1))))
+  if (newScale === oldScale) return
+
+  // 鼠标相对于 image-wrapper 的位置
+  const wrapper = wrapperRef.value
+  if (!wrapper) { scale.value = newScale; return }
+  const rect = wrapper.getBoundingClientRect()
+  const mouseX = e.clientX - rect.left - rect.width  / 2  // 相对于容器中心
+  const mouseY = e.clientY - rect.top  - rect.height / 2
+
+  // 缩放后调整偏移，使鼠标指向的点保持不动
+  // 公式：newOffset = mousePos - (mousePos - oldOffset) * (newScale / oldScale)
+  offsetX.value = mouseX - (mouseX - offsetX.value) * (newScale / oldScale)
+  offsetY.value = mouseY - (mouseY - offsetY.value) * (newScale / oldScale)
+  scale.value = newScale
 }
 
 // ── 拖拽平移（蒙版激活时禁用） ────────────
