@@ -307,69 +307,58 @@ class ImageDatabase {
   }
   // ── 历史栈持久化 ──────────────────────────────────────────────
 
+  // ── 历史栈持久化（整包存储，每张图片只有 1 条记录） ──────────
+
   /**
-   * 写入一条历史记录
-   * key = `${imageId}_${step}`，imageId 用于按图片隔离
+   * 覆盖写入整个历史包（base + diffs + cursor）
+   * key = `history_${imageId}`，永远只有 1 条记录
    */
-  async saveHistoryItem(imageId: number, step: number, snapshotJson: string): Promise<void> {
+  async saveHistoryPack(imageId: number, packJson: string): Promise<void> {
     if (!this.db) await this.init()
     return new Promise((resolve, reject) => {
       const tx = this.db!.transaction([HISTORY_STORE], 'readwrite')
-      const store = tx.objectStore(HISTORY_STORE)
-      store.put({ key: `${imageId}_${step}`, imageId, step, snapshotJson, savedAt: Date.now() })
+      tx.objectStore(HISTORY_STORE).put({
+        key: `history_${imageId}`,
+        imageId,
+        packJson,
+        savedAt: Date.now(),
+      })
       tx.oncomplete = () => resolve()
-      tx.onerror = () => reject(new Error('Failed to save history item'))
+      tx.onerror = () => reject(new Error('Failed to save history pack'))
     })
   }
 
-  /** 读取某张图片的全部历史记录，按 step 升序 */
-  async loadHistory(imageId: number): Promise<{ step: number; snapshotJson: string }[]> {
+  /** 读取整个历史包 */
+  async loadHistoryPack(imageId: number): Promise<string | null> {
     if (!this.db) await this.init()
     return new Promise((resolve, reject) => {
       const tx = this.db!.transaction([HISTORY_STORE], 'readonly')
-      const index = tx.objectStore(HISTORY_STORE).index('imageId')
-      const req = index.getAll(imageId)
-      req.onsuccess = () => {
-        const items = (req.result as { step: number; snapshotJson: string }[])
-        items.sort((a, b) => a.step - b.step)
-        resolve(items)
-      }
-      req.onerror = () => reject(new Error('Failed to load history'))
+      const req = tx.objectStore(HISTORY_STORE).get(`history_${imageId}`)
+      req.onsuccess = () => resolve(req.result?.packJson ?? null)
+      req.onerror = () => reject(new Error('Failed to load history pack'))
     })
   }
 
-  /** 删除某张图片从 fromStep 开始（含）的所有历史记录（用于 push 时丢弃分支） */
-  async deleteHistoryFrom(imageId: number, fromStep: number): Promise<void> {
-    if (!this.db) await this.init()
-    return new Promise((resolve, reject) => {
-      const tx = this.db!.transaction([HISTORY_STORE], 'readwrite')
-      const store = tx.objectStore(HISTORY_STORE)
-      const index = store.index('imageId')
-      const req = index.getAll(imageId)
-      req.onsuccess = () => {
-        const items = req.result as { key: string; step: number }[]
-        items.filter(i => i.step >= fromStep).forEach(i => store.delete(i.key))
-      }
-      tx.oncomplete = () => resolve()
-      tx.onerror = () => reject(new Error('Failed to delete history'))
-    })
-  }
-
-  /** 清除某张图片的全部历史记录 */
+  /** 清除某张图片的历史记录 */
   async clearHistory(imageId: number): Promise<void> {
     if (!this.db) await this.init()
     return new Promise((resolve, reject) => {
       const tx = this.db!.transaction([HISTORY_STORE], 'readwrite')
-      const store = tx.objectStore(HISTORY_STORE)
-      const index = store.index('imageId')
-      const req = index.getAll(imageId)
-      req.onsuccess = () => {
-        const items = req.result as { key: string }[]
-        items.forEach(i => store.delete(i.key))
-      }
+      tx.objectStore(HISTORY_STORE).delete(`history_${imageId}`)
       tx.oncomplete = () => resolve()
       tx.onerror = () => reject(new Error('Failed to clear history'))
     })
+  }
+
+  // 以下方法保留兼容旧调用，内部不再使用
+  async saveHistoryItem(imageId: number, step: number, data: string, type: 'base' | 'diff' = 'base'): Promise<void> {
+    // 已废弃，由 saveHistoryPack 替代
+  }
+  async loadHistory(imageId: number): Promise<{ step: number; type: 'base' | 'diff'; data: string }[]> {
+    return []
+  }
+  async deleteHistoryFrom(imageId: number, fromStep: number): Promise<void> {
+    // 已废弃，整包覆盖写入不需要按 step 删除
   }
 }
 
