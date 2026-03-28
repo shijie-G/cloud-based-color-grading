@@ -17,7 +17,7 @@
         v-show="!!imageSrc"
         :style="{
           transform: `translate(${offsetX}px, ${offsetY}px) scale(${scale})`,
-          cursor: cropActive ? 'default' : (scale > 1 ? (isPanning ? 'grabbing' : 'grab') : 'default'),
+          cursor: cropActive ? 'default' : (isPanning ? 'grabbing' : 'grab'),
         }"
         @dblclick="handleDoubleClick"
         @mousedown="handleMouseDown"
@@ -276,7 +276,7 @@ let px = 0, py = 0, pox = 0, poy = 0, moved = false
 const THRESHOLD = 4
 
 const handleMouseDown = (e: MouseEvent) => {
-  if (!props.imageSrc || e.button !== 0 || scale.value <= 1 || props.maskActive || props.cropActive) return
+  if (!props.imageSrc || e.button !== 0 || props.maskActive || props.cropActive) return
   e.preventDefault()
   px = e.clientX; py = e.clientY; pox = offsetX.value; poy = offsetY.value; moved = false
   document.addEventListener('mousemove', onMove)
@@ -352,6 +352,7 @@ defineExpose({ previewCanvas, resetTransform, onceDrawComplete })
 .image-preview-area {
   display: flex; align-items: center; justify-content: center;
   padding: 2vh 2vw; position: relative;
+  overflow: hidden;
   border: 2px dashed transparent; border-radius: 8px;
 }
 .image-preview-area:not(.has-image):hover { background: rgba(255,255,255,0.05); }
@@ -365,7 +366,7 @@ defineExpose({ previewCanvas, resetTransform, onceDrawComplete })
 .image-wrapper {
   position: relative; display: flex;
   align-items: center; justify-content: center;
-  width: 100%; height: 100%; overflow: hidden;
+  width: 100%; height: 100%; overflow: visible;
 }
 
 /* canvas 用 CSS 适应容器，内部像素不变 */
