@@ -4,8 +4,9 @@
  */
 
 const DB_NAME = 'WorkstationDB'
-const DB_VERSION = 5
+const DB_VERSION = 6
 const STORE_NAME = 'images'
+const HISTORY_STORE = 'history'
 
 export interface ImageDBItem {
   id: number
@@ -58,6 +59,11 @@ class ImageDatabase {
         }
         // v3→v4: adjustmentsJson 是普通字段，无需建索引，自动兼容旧记录（值为 undefined）
         // v4→v5: editedSrc / cropStateJson 是普通字段，自动兼容旧记录（值为 undefined）
+        // v5→v6: 新增 history store（撤销/重做历史栈持久化）
+        if (!db.objectStoreNames.contains(HISTORY_STORE)) {
+          const hs = db.createObjectStore(HISTORY_STORE, { keyPath: 'key' })
+          hs.createIndex('imageId', 'imageId', { unique: false })
+        }
       }
     })
   }
@@ -297,6 +303,72 @@ class ImageDatabase {
 
       request.onsuccess = () => resolve(request.result)
       request.onerror = () => reject(new Error('Failed to get count'))
+    })
+  }
+  // ── 历史栈持久化 ──────────────────────────────────────────────
+
+  /**
+   * 写入一条历史记录
+   * key = `${imageId}_${step}`，imageId 用于按图片隔离
+   */
+  async saveHistoryItem(imageId: number, step: number, snapshotJson: string): Promise<void> {
+    if (!this.db) await this.init()
+    return new Promise((resolve, reject) => {
+      const tx = this.db!.transaction([HISTORY_STORE], 'readwrite')
+      const store = tx.objectStore(HISTORY_STORE)
+      store.put({ key: `${imageId}_${step}`, imageId, step, snapshotJson, savedAt: Date.now() })
+      tx.oncomplete = () => resolve()
+      tx.onerror = () => reject(new Error('Failed to save history item'))
+    })
+  }
+
+  /** 读取某张图片的全部历史记录，按 step 升序 */
+  async loadHistory(imageId: number): Promise<{ step: number; snapshotJson: string }[]> {
+    if (!this.db) await this.init()
+    return new Promise((resolve, reject) => {
+      const tx = this.db!.transaction([HISTORY_STORE], 'readonly')
+      const index = tx.objectStore(HISTORY_STORE).index('imageId')
+      const req = index.getAll(imageId)
+      req.onsuccess = () => {
+        const items = (req.result as { step: number; snapshotJson: string }[])
+        items.sort((a, b) => a.step - b.step)
+        resolve(items)
+      }
+      req.onerror = () => reject(new Error('Failed to load history'))
+    })
+  }
+
+  /** 删除某张图片从 fromStep 开始（含）的所有历史记录（用于 push 时丢弃分支） */
+  async deleteHistoryFrom(imageId: number, fromStep: number): Promise<void> {
+    if (!this.db) await this.init()
+    return new Promise((resolve, reject) => {
+      const tx = this.db!.transaction([HISTORY_STORE], 'readwrite')
+      const store = tx.objectStore(HISTORY_STORE)
+      const index = store.index('imageId')
+      const req = index.getAll(imageId)
+      req.onsuccess = () => {
+        const items = req.result as { key: string; step: number }[]
+        items.filter(i => i.step >= fromStep).forEach(i => store.delete(i.key))
+      }
+      tx.oncomplete = () => resolve()
+      tx.onerror = () => reject(new Error('Failed to delete history'))
+    })
+  }
+
+  /** 清除某张图片的全部历史记录 */
+  async clearHistory(imageId: number): Promise<void> {
+    if (!this.db) await this.init()
+    return new Promise((resolve, reject) => {
+      const tx = this.db!.transaction([HISTORY_STORE], 'readwrite')
+      const store = tx.objectStore(HISTORY_STORE)
+      const index = store.index('imageId')
+      const req = index.getAll(imageId)
+      req.onsuccess = () => {
+        const items = req.result as { key: string }[]
+        items.forEach(i => store.delete(i.key))
+      }
+      tx.oncomplete = () => resolve()
+      tx.onerror = () => reject(new Error('Failed to clear history'))
     })
   }
 }

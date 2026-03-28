@@ -391,13 +391,16 @@ watch(selectedImageId, async (id) => {
   const cropData = await loadCropData(id)
   if (cropData?.cropState) currentCropState.value = cropData.cropState
   await applyStoredAdjustments(id)
-  // 图片切换后保存初始快照作为 #0，确保第一步操作也能撤销回初始状态
-  // 用 setTimeout 等蒙版异步恢复完成（img.onload）
-  setTimeout(() => {
-    history.clear()
-    pushHistory()
-    console.log('[History] initial snapshot saved for image', id)
-  }, 100)
+  // 切换图片：从 DB 恢复历史栈，若无历史则保存初始快照
+  await history.switchImage(id)
+  if (history.stack.value.length === 0) {
+    setTimeout(() => {
+      pushHistory()
+      console.log('[History] initial snapshot saved for image', id)
+    }, 100)
+  } else {
+    console.log('[History] restored history for image', id, 'steps:', history.stack.value.length)
+  }
 }, { immediate: true })
 
 // imageSrc 有值时（图片已加载到内存）立即后台预热变换缓存
