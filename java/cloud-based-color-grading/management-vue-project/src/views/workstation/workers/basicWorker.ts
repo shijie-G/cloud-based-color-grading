@@ -73,12 +73,13 @@ self.onmessage = (e: MessageEvent) => {
   // 1. 色温：暖色偏移 R+/B-，冷色偏移 R-/B+
   const tempShift = adj.temperature * 0.8  // 每单位偏移量
 
-  // 2. 亮度：-150~+150 → 像素偏移 -150~+150（直接加到 RGB）
-  const brightShift = adj.brightness
+  // 2. 亮度：-150~+150 → 像素偏移，乘以 0.6 让过渡更缓和
+  const brightShift = adj.brightness * 0.6
 
   // 3. 对比度：-100~+100 → 乘数，以 128 为中心
   //    factor = (259 * (contrast + 255)) / (255 * (259 - contrast))  PS 公式
-  const cVal = adj.contrast * 2.55  // 映射到 -255~+255
+  //    映射系数从 2.55 缩小到 1.2，让过渡更缓和
+  const cVal = adj.contrast * 0.7
   const contrastFactor = (259 * (cVal + 255)) / (255 * (259 - cVal))
 
   // 4. 清晰度：用轻微 S 曲线模拟局部对比度（简化版）
