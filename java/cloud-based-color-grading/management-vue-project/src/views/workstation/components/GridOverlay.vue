@@ -20,40 +20,37 @@ const props = defineProps<{
 }>()
 
 const overlayCanvas = ref<HTMLCanvasElement | null>(null)
-const canvasLeft = ref(0)
-const canvasTop  = ref(0)
-const canvasW    = ref(0)
-const canvasH    = ref(0)
 
-const updateRect = () => {
-  if (!props.imageCanvas) return
-  const rect   = props.imageCanvas.getBoundingClientRect()
-  const parent = props.imageCanvas.parentElement?.getBoundingClientRect()
-  if (!parent) return
-  canvasLeft.value = rect.left - parent.left
-  canvasTop.value  = rect.top  - parent.top
-  canvasW.value    = rect.width
-  canvasH.value    = rect.height
-}
-
-const overlayStyle = computed(() => ({
-  position: 'absolute' as const,
-  left:   `${canvasLeft.value}px`,
-  top:    `${canvasTop.value}px`,
-  width:  `${canvasW.value}px`,
-  height: `${canvasH.value}px`,
-  zIndex: 30,
-  pointerEvents: 'none' as const,
-  borderRadius: '4px',
-}))
+// overlay 直接复用 imageCanvas 的 CSS 尺寸（未缩放的原始尺寸）和 transform
+// 这样网格线和图片完全重叠，不受 scale/offset 影响
+const overlayStyle = computed(() => {
+  const c = props.imageCanvas
+  if (!c) return { display: 'none' }
+  // 取 canvas 的原始 CSS 渲染尺寸（不含 transform）
+  const w = c.offsetWidth  || c.clientWidth  || 0
+  const h = c.offsetHeight || c.clientHeight || 0
+  return {
+    position: 'absolute' as const,
+    width:  `${w}px`,
+    height: `${h}px`,
+    // 复用和 imageCanvas 完全相同的 transform
+    transform: `translate(${props.imgOffsetX}px, ${props.imgOffsetY}px) scale(${props.imgScale})`,
+    transformOrigin: 'center center',
+    zIndex: 5,
+    pointerEvents: 'none' as const,
+    borderRadius: '4px',
+  }
+})
 
 const draw = () => {
   const canvas = overlayCanvas.value
-  if (!canvas || canvasW.value <= 0 || canvasH.value <= 0) return
+  const c = props.imageCanvas
+  if (!canvas || !c) return
+  const w = c.offsetWidth  || c.clientWidth  || 0
+  const h = c.offsetHeight || c.clientHeight || 0
+  if (w <= 0 || h <= 0) return
 
   const dpr = Math.min(window.devicePixelRatio || 1, 2)
-  const w = Math.round(canvasW.value)
-  const h = Math.round(canvasH.value)
   if (canvas.width !== w * dpr || canvas.height !== h * dpr) {
     canvas.width  = w * dpr
     canvas.height = h * dpr
@@ -78,44 +75,25 @@ const draw = () => {
   }
 }
 
-const syncAndDraw = () => { updateRect(); nextTick(draw) }
+const redraw = () => nextTick(draw)
 
-// 图片缩放/平移时同步
-watch(() => [props.imgScale, props.imgOffsetX, props.imgOffsetY], syncAndDraw)
-
-// 网格参数变化时重绘
+watch(() => [props.imgScale, props.imgOffsetX, props.imgOffsetY], redraw)
 watch(() => ({ ...props.settings }), () => { if (props.settings.visible) nextTick(draw) }, { deep: true })
+watch(() => props.settings.visible, (v) => { if (v) nextTick(() => nextTick(redraw)) })
+watch(overlayCanvas, (c) => { if (c) redraw() })
 
-// visible 切换时同步位置再绘制
-watch(() => props.settings.visible, (v) => {
-  if (v) {
-    // v-if 变为 true 后 DOM 需要两个 tick 才挂载
-    nextTick(() => nextTick(syncAndDraw))
-  }
-})
-
-// overlayCanvas 挂载后立即绘制（v-if 首次渲染时触发）
-watch(overlayCanvas, (c) => {
-  if (c) syncAndDraw()
-})
-
-// canvas 引用变化时重新挂 ResizeObserver
 let ro: ResizeObserver | null = null
 watch(() => props.imageCanvas, (c) => {
   ro?.disconnect()
   if (!c) return
-  ro = new ResizeObserver(syncAndDraw)
+  ro = new ResizeObserver(redraw)
   ro.observe(c)
-  syncAndDraw()
+  redraw()
 }, { immediate: true })
 
-const onResize = () => syncAndDraw()
-
-onMounted(() => { window.addEventListener('resize', onResize) })
-onUnmounted(() => {
-  ro?.disconnect()
-  window.removeEventListener('resize', onResize)
-})
+const onResize = () => redraw()
+onMounted(() => window.addEventListener('resize', onResize))
+onUnmounted(() => { ro?.disconnect(); window.removeEventListener('resize', onResize) })
 </script>
 
 <style scoped>
