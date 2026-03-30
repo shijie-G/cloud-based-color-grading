@@ -18,6 +18,7 @@ export interface ImageRecord {
   id: number;           // 自增主键
   albumId: number;      // 所属相册 ID（外键）
   blob: Blob;           // 原始图片二进制数据
+  thumbnail?: string;   // 缩略图 DataURL（可选）
   filename: string;     // 原始文件名
   format: string;       // 文件格式（'jpeg' | 'png' | 'webp' | 'gif'）
   width: number;        // 图片宽度（px）
@@ -36,7 +37,8 @@ export interface ImageRecord {
  * 图片显示对象（包含 URL）
  */
 export interface ImageDisplay extends Omit<ImageRecord, 'blob'> {
-  url: string;          // Blob URL 用于显示
+  url: string;          // 原图 Blob URL 用于大图显示
+  thumbnailUrl: string; // 缩略图 URL 用于列表显示
 }
 
 /**

@@ -45,6 +45,7 @@
       @action:addImage="handleImageUpload"
       @action:toggleCompare="emit('action:toggleCompare')"
       @layout:resetLayout="handleResetLayout"
+      @album:change="emit('album:change', $event)"
     />
   </div>
 </template>
@@ -91,6 +92,7 @@ interface ImageDisplayEvents {
   'transform:confirm':         []
   'transform:cancel':          []
   'action:toggleCompare':      []
+  'album:change':              [albumId: number | null]
 }
 
 // 使用 defineProps 和 defineEmits 定义接口

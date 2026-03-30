@@ -1,60 +1,76 @@
 import type { AlbumRecord, ImageRecord } from '../types/gallery'
-
-const DB_NAME = 'GalleryDB'
-const DB_VERSION = 1
-const ALBUMS_STORE = 'albums'
-const IMAGES_STORE = 'images'
-
-let dbInstance: IDBDatabase | null = null
+import { imageDB, type ImageDBItem } from '@/views/workstation/utils/imageDB'
 
 /**
- * 初始化 IndexedDB
+ * Gallery 数据库适配器
+ * 将 Gallery 的 ImageRecord 映射到 WorkstationDB 的 ImageDBItem
  */
-function initDB(): Promise<IDBDatabase> {
-  return new Promise((resolve, reject) => {
-    if (dbInstance) {
-      resolve(dbInstance)
-      return
-    }
 
-    const request = indexedDB.open(DB_NAME, DB_VERSION)
-
-    request.onerror = () => reject(request.error)
-    request.onsuccess = () => {
-      dbInstance = request.result
-      resolve(dbInstance)
-    }
-
-    request.onupgradeneeded = (event) => {
-      const db = (event.target as IDBOpenDBRequest).result
-
-      // 创建相册对象仓库
-      if (!db.objectStoreNames.contains(ALBUMS_STORE)) {
-        const albumStore = db.createObjectStore(ALBUMS_STORE, {
-          keyPath: 'id',
-          autoIncrement: true
-        })
-        albumStore.createIndex('createdAt', 'createdAt', { unique: false })
-        albumStore.createIndex('sortOrder', 'sortOrder', { unique: false })
-      }
-
-      // 创建图片对象仓库
-      if (!db.objectStoreNames.contains(IMAGES_STORE)) {
-        const imageStore = db.createObjectStore(IMAGES_STORE, {
-          keyPath: 'id',
-          autoIncrement: true
-        })
-        imageStore.createIndex('albumId', 'albumId', { unique: false })
-        imageStore.createIndex('isFavorite', 'isFavorite', { unique: false })
-        imageStore.createIndex('isDeleted', 'isDeleted', { unique: false })
-        imageStore.createIndex('uploadedAt', 'uploadedAt', { unique: false })
-      }
-    }
-  })
+/**
+ * 从 Blob 中提取图片元数据
+ */
+async function extractImageMetadata(blob: Blob): Promise<{
+  width: number
+  height: number
+  format: string
+}> {
+  const img = await createImageBitmap(blob)
+  const format = blob.type.split('/')[1] || 'jpeg'
+  const result = {
+    width: img.width,
+    height: img.height,
+    format
+  }
+  img.close()
+  return result
 }
 
 /**
- * IndexedDB 操作封装
+ * 将 ImageDBItem 转换为 ImageRecord
+ */
+async function toImageRecord(item: ImageDBItem): Promise<ImageRecord> {
+  const metadata = await extractImageMetadata(item.blob)
+
+  return {
+    id: item.id,
+    albumId: item.albumId || 0,
+    filename: item.name,
+    blob: item.blob,
+    thumbnail: item.thumbnail,
+    format: metadata.format,
+    width: metadata.width,
+    height: metadata.height,
+    size: item.blob.size,
+    isFavorite: item.isFavorite || false,
+    favoritedAt: item.favoritedAt,
+    isDeleted: item.isDeleted || false,
+    deletedAt: item.deletedAt,
+    tags: item.tags || [],
+    sortOrder: item.sortOrder || 0,
+    uploadedAt: new Date(item.uploadTime).getTime()
+  }
+}
+
+/**
+ * 将 ImageRecord 转换为 ImageDBItem（用于更新操作）
+ */
+function imageRecordToDBItem(record: ImageRecord, existing: ImageDBItem): ImageDBItem {
+  return {
+    ...existing,
+    name: record.filename,
+    lastModified: new Date(),
+    albumId: record.albumId,
+    isFavorite: record.isFavorite,
+    favoritedAt: record.favoritedAt,
+    isDeleted: record.isDeleted,
+    deletedAt: record.deletedAt,
+    tags: record.tags ? [...record.tags] : [],  // 创建新数组，避免 Vue 响应式代理问题
+    sortOrder: record.sortOrder
+  }
+}
+
+/**
+ * IndexedDB 操作封装（适配到 WorkstationDB）
  */
 export function useGalleryDB() {
   // ==================== 相册操作 ====================
@@ -63,89 +79,35 @@ export function useGalleryDB() {
    * 获取所有相册
    */
   async function getAllAlbums(): Promise<AlbumRecord[]> {
-    const db = await initDB()
-    return new Promise((resolve, reject) => {
-      const transaction = db.transaction(ALBUMS_STORE, 'readonly')
-      const store = transaction.objectStore(ALBUMS_STORE)
-      const request = store.getAll()
-
-      request.onsuccess = () => resolve(request.result)
-      request.onerror = () => reject(request.error)
-    })
+    return await imageDB.getAllAlbums()
   }
 
   /**
    * 根据 ID 获取相册
    */
   async function getAlbumById(id: number): Promise<AlbumRecord | undefined> {
-    const db = await initDB()
-    return new Promise((resolve, reject) => {
-      const transaction = db.transaction(ALBUMS_STORE, 'readonly')
-      const store = transaction.objectStore(ALBUMS_STORE)
-      const request = store.get(id)
-
-      request.onsuccess = () => resolve(request.result)
-      request.onerror = () => reject(request.error)
-    })
+    return await imageDB.getAlbumById(id)
   }
 
   /**
    * 创建相册
    */
   async function createAlbum(album: Omit<AlbumRecord, 'id'>): Promise<number> {
-    const db = await initDB()
-    return new Promise((resolve, reject) => {
-      const transaction = db.transaction(ALBUMS_STORE, 'readwrite')
-      const store = transaction.objectStore(ALBUMS_STORE)
-      const request = store.add(album)
-
-      request.onsuccess = () => resolve(request.result as number)
-      request.onerror = () => reject(request.error)
-    })
+    return await imageDB.createAlbum(album)
   }
 
   /**
    * 更新相册
    */
   async function updateAlbum(album: AlbumRecord): Promise<void> {
-    const db = await initDB()
-    return new Promise((resolve, reject) => {
-      const transaction = db.transaction(ALBUMS_STORE, 'readwrite')
-      const store = transaction.objectStore(ALBUMS_STORE)
-      const request = store.put(album)
-
-      request.onsuccess = () => resolve()
-      request.onerror = () => reject(request.error)
-    })
+    return await imageDB.updateAlbum(album)
   }
 
   /**
    * 删除相册（同时删除相册内所有图片）
    */
   async function deleteAlbum(id: number): Promise<void> {
-    const db = await initDB()
-    return new Promise((resolve, reject) => {
-      const transaction = db.transaction([ALBUMS_STORE, IMAGES_STORE], 'readwrite')
-      const albumStore = transaction.objectStore(ALBUMS_STORE)
-      const imageStore = transaction.objectStore(IMAGES_STORE)
-      const index = imageStore.index('albumId')
-
-      // 删除相册内所有图片
-      const imageRequest = index.openCursor(IDBKeyRange.only(id))
-      imageRequest.onsuccess = (event) => {
-        const cursor = (event.target as IDBRequest).result
-        if (cursor) {
-          cursor.delete()
-          cursor.continue()
-        }
-      }
-
-      // 删除相册
-      albumStore.delete(id)
-
-      transaction.oncomplete = () => resolve()
-      transaction.onerror = () => reject(transaction.error)
-    })
+    return await imageDB.deleteAlbum(id)
   }
 
   // ==================== 图片操作 ====================
@@ -154,185 +116,98 @@ export function useGalleryDB() {
    * 获取相册内所有图片
    */
   async function getImagesByAlbum(albumId: number): Promise<ImageRecord[]> {
-    const db = await initDB()
-    return new Promise((resolve, reject) => {
-      const transaction = db.transaction(IMAGES_STORE, 'readonly')
-      const store = transaction.objectStore(IMAGES_STORE)
-      const index = store.index('albumId')
-      const request = index.getAll(IDBKeyRange.only(albumId))
-
-      request.onsuccess = () => resolve(request.result)
-      request.onerror = () => reject(request.error)
-    })
+    const items = await imageDB.getImagesByAlbum(albumId)
+    return Promise.all(items.map(toImageRecord))
   }
 
   /**
    * 根据 ID 获取图片
    */
   async function getImageById(id: number): Promise<ImageRecord | undefined> {
-    const db = await initDB()
-    return new Promise((resolve, reject) => {
-      const transaction = db.transaction(IMAGES_STORE, 'readonly')
-      const store = transaction.objectStore(IMAGES_STORE)
-      const request = store.get(id)
-
-      request.onsuccess = () => resolve(request.result)
-      request.onerror = () => reject(request.error)
-    })
+    const item = await imageDB.getImage(id)
+    return item ? await toImageRecord(item) : undefined
   }
 
   /**
-   * 添加图片
+   * 添加图片（已通过 uploadImageToDB 保存，这里只是占位）
    */
   async function addImage(image: Omit<ImageRecord, 'id'>): Promise<number> {
-    const db = await initDB()
-    return new Promise((resolve, reject) => {
-      const transaction = db.transaction(IMAGES_STORE, 'readwrite')
-      const store = transaction.objectStore(IMAGES_STORE)
-      const request = store.add(image)
-
-      request.onsuccess = () => resolve(request.result as number)
-      request.onerror = () => reject(request.error)
-    })
+    // 图片已通过 uploadImageToDB 保存到数据库，这里不需要再次保存
+    throw new Error('请使用 uploadImageToDB 上传图片')
   }
 
   /**
-   * 批量添加图片
+   * 批量添加图片（已通过 batchUploadImages 保存，这里只是占位）
    */
   async function addImages(images: Omit<ImageRecord, 'id'>[]): Promise<number[]> {
-    const db = await initDB()
-    return new Promise((resolve, reject) => {
-      const transaction = db.transaction(IMAGES_STORE, 'readwrite')
-      const store = transaction.objectStore(IMAGES_STORE)
-      const ids: number[] = []
-
-      let completed = 0
-      images.forEach((image) => {
-        const request = store.add(image)
-        request.onsuccess = () => {
-          ids.push(request.result as number)
-          completed++
-          if (completed === images.length) {
-            resolve(ids)
-          }
-        }
-      })
-
-      transaction.onerror = () => reject(transaction.error)
-    })
+    // 图片已通过 batchUploadImages 保存到数据库，这里不需要再次保存
+    throw new Error('请使用 batchUploadImages 上传图片')
   }
 
   /**
    * 更新图片
    */
   async function updateImage(image: ImageRecord): Promise<void> {
-    const db = await initDB()
-    return new Promise((resolve, reject) => {
-      const transaction = db.transaction(IMAGES_STORE, 'readwrite')
-      const store = transaction.objectStore(IMAGES_STORE)
-      const request = store.put(image)
+    try {
+      const item = await imageDB.getImage(image.id)
+      if (!item) {
+        throw new Error(`图片 ID ${image.id} 不存在`)
+      }
 
-      request.onsuccess = () => resolve()
-      request.onerror = () => reject(request.error)
-    })
+      const updated = imageRecordToDBItem(image, item)
+      await imageDB.saveImage(updated)
+    } catch (error) {
+      console.error('更新图片失败:', error, '图片数据:', image)
+      throw error
+    }
   }
 
   /**
    * 批量更新图片
    */
   async function updateImages(images: ImageRecord[]): Promise<void> {
-    const db = await initDB()
-    return new Promise((resolve, reject) => {
-      const transaction = db.transaction(IMAGES_STORE, 'readwrite')
-      const store = transaction.objectStore(IMAGES_STORE)
+    const items: ImageDBItem[] = []
 
-      let completed = 0
-      images.forEach((image) => {
-        const request = store.put(image)
-        request.onsuccess = () => {
-          completed++
-          if (completed === images.length) {
-            resolve()
-          }
-        }
-      })
+    for (const image of images) {
+      const item = await imageDB.getImage(image.id)
+      if (item) {
+        items.push(imageRecordToDBItem(image, item))
+      }
+    }
 
-      transaction.onerror = () => reject(transaction.error)
-    })
+    await imageDB.updateImages(items)
   }
 
   /**
    * 永久删除图片
    */
   async function deleteImage(id: number): Promise<void> {
-    const db = await initDB()
-    return new Promise((resolve, reject) => {
-      const transaction = db.transaction(IMAGES_STORE, 'readwrite')
-      const store = transaction.objectStore(IMAGES_STORE)
-      const request = store.delete(id)
-
-      request.onsuccess = () => resolve()
-      request.onerror = () => reject(request.error)
-    })
+    await imageDB.deleteImage(id)
   }
 
   /**
    * 批量永久删除图片
    */
   async function deleteImages(ids: number[]): Promise<void> {
-    const db = await initDB()
-    return new Promise((resolve, reject) => {
-      const transaction = db.transaction(IMAGES_STORE, 'readwrite')
-      const store = transaction.objectStore(IMAGES_STORE)
-
-      let completed = 0
-      ids.forEach((id) => {
-        const request = store.delete(id)
-        request.onsuccess = () => {
-          completed++
-          if (completed === ids.length) {
-            resolve()
-          }
-        }
-      })
-
-      transaction.onerror = () => reject(transaction.error)
-    })
+    for (const id of ids) {
+      await imageDB.deleteImage(id)
+    }
   }
 
   /**
    * 获取所有收藏图片
    */
   async function getFavoriteImages(): Promise<ImageRecord[]> {
-    const db = await initDB()
-    return new Promise((resolve, reject) => {
-      const transaction = db.transaction(IMAGES_STORE, 'readonly')
-      const store = transaction.objectStore(IMAGES_STORE)
-      const index = store.index('isFavorite')
-      const request = index.getAll(IDBKeyRange.only(true))
-
-      request.onsuccess = () => {
-        const results = request.result.filter((img: ImageRecord) => !img.isDeleted)
-        resolve(results)
-      }
-      request.onerror = () => reject(request.error)
-    })
+    const items = await imageDB.getFavoriteImages()
+    return Promise.all(items.map(toImageRecord))
   }
 
   /**
    * 获取回收站图片
    */
   async function getDeletedImages(): Promise<ImageRecord[]> {
-    const db = await initDB()
-    return new Promise((resolve, reject) => {
-      const transaction = db.transaction(IMAGES_STORE, 'readonly')
-      const store = transaction.objectStore(IMAGES_STORE)
-      const index = store.index('isDeleted')
-      const request = index.getAll(IDBKeyRange.only(true))
-
-      request.onsuccess = () => resolve(request.result)
-      request.onerror = () => reject(request.error)
-    })
+    const items = await imageDB.getDeletedImages()
+    return Promise.all(items.map(toImageRecord))
   }
 
   return {

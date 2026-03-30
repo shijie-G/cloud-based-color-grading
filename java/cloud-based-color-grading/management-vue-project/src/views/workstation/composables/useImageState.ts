@@ -1,6 +1,7 @@
 import { ref, onMounted, type Ref } from 'vue'
 import type { ImageItem } from '../component-interfaces'
 import { useImageStorage } from './useImageStorage'
+import { uploadImageToDB } from '../utils/imageUploadHelper'
 
 /**
  * 图片状态管理 Composable
@@ -37,85 +38,39 @@ export function useImageState(): UseImageStateReturn {
 
   // 使用存储管理
   const {
-    saveImageToDB,
     loadImagesFromDB,
     deleteImageFromDB,
     clearAllImagesFromDB,
-    generateFileHash,
-    checkFileExists
   } = useImageStorage()
 
-  // 生成缩略图（压缩到最大 200px，保持比例）
-  const generateThumbnail = (src: string): Promise<string> => {
-    return new Promise((resolve) => {
-      const img = new Image()
-      img.onload = () => {
-        const MAX = 200
-        const ratio = Math.min(MAX / img.width, MAX / img.height, 1)
-        const w = Math.round(img.width * ratio)
-        const h = Math.round(img.height * ratio)
-        const canvas = document.createElement('canvas')
-        canvas.width = w
-        canvas.height = h
-        const ctx = canvas.getContext('2d')!
-        ctx.drawImage(img, 0, 0, w, h)
-        resolve(canvas.toDataURL('image/jpeg', 0.7))
-      }
-      img.onerror = () => resolve(src) // 失败时降级用原图
-      img.src = src
-    })
-  }
-
-  // 处理图片上传
+  // 处理图片上传（使用统一的上传逻辑）
   const handleImageUpload = async (file: File): Promise<void> => {
-    if (file) {
-      // 生成文件哈希
-      const fileHash = generateFileHash(file)
-      
-      // 检查文件是否已存在
-      try {
-        const exists = await checkFileExists(fileHash)
-        if (exists) {
-          console.log(`图片已存在，跳过上传: ${file.name}`)
-          alert(`图片 "${file.name}" 已存在，无法重复添加`)
-          return
-        }
-      } catch (error) {
-        console.warn('检查文件是否存在时出错，继续上传:', error)
-      }
-      
-      const reader = new FileReader()
-      reader.onload = async (event: ProgressEvent<FileReader>) => {
-        const result = event.target?.result
-        if (typeof result === 'string') {
-          // 生成缩略图
-          const thumbnail = await generateThumbnail(result)
+    try {
+      // 使用统一的上传逻辑（包含缩略图生成、哈希检查等）
+      const result = await uploadImageToDB(file)
 
-          const imageData: ImageItem = {
-            id: Date.now() + Math.random(),
-            name: file.name,
-            src: result,
-            originalSrc: result,  // 缓存原始 dataUrl，永不覆盖
-            thumbnail,
-            originalFile: file,
-            fileHash: fileHash
-          }
-          
-          // 添加到已上传图片列表
-          uploadedImages.value.push(imageData)
-          
-          // 保存到IndexedDB
-          try {
-            await saveImageToDB(imageData)
-          } catch (error) {
-            console.error('保存图片到数据库失败:', error)
-          }
-          
-          // 设置为当前预览图片
-          selectImage(imageData)
-        }
+      const imageData: ImageItem = {
+        id: result.id,
+        name: result.name,
+        src: result.src,
+        originalSrc: result.src,
+        thumbnail: result.thumbnail,
+        originalFile: file,
+        fileHash: result.fileHash
       }
-      reader.readAsDataURL(file)
+
+      // 添加到已上传图片列表
+      uploadedImages.value.push(imageData)
+
+      // 设置为当前预览图片
+      selectImage(imageData)
+    } catch (error: any) {
+      console.error('上传图片失败:', error)
+      if (error.message.includes('已存在')) {
+        alert(error.message)
+      } else {
+        alert('上传图片失败')
+      }
     }
   }
 

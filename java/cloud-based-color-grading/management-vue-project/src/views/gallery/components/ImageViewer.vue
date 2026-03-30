@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { ref, computed } from 'vue'
+import { ref, watch } from 'vue'
 import type { ImageDisplay } from '../types/gallery'
 
 interface Props {
@@ -18,49 +18,109 @@ const emit = defineEmits<Emits>()
 
 const scale = ref(1)
 const rotation = ref(0)
-const translateX = ref(0)
-const translateY = ref(0)
-const isDragging = ref(false)
-const dragStart = ref({ x: 0, y: 0 })
+const offsetX = ref(0)
+const offsetY = ref(0)
+const isPanning = ref(false)
+const imageContainer = ref<HTMLElement | null>(null)
 
-const imageStyle = computed(() => ({
-  transform: `scale(${scale.value}) rotate(${rotation.value}deg) translate(${translateX.value}px, ${translateY.value}px)`
-}))
+// 重置变换
+const resetTransform = () => {
+  scale.value = 1
+  offsetX.value = 0
+  offsetY.value = 0
+}
 
+// 监听图片变化，重置变换
+watch(() => props.image?.id, () => {
+  resetTransform()
+  rotation.value = 0
+})
+
+// 移除 computed，直接在模板中使用内联样式以提升性能
+
+// 滚轮缩放（参考 ImagePreview 的实现）
 function handleWheel(event: WheelEvent) {
   event.preventDefault()
-  const delta = event.deltaY > 0 ? 0.9 : 1.1
-  scale.value = Math.max(0.1, Math.min(10, scale.value * delta))
+  if (!props.image) return
+
+  const oldScale = scale.value
+  const delta = event.deltaY < 0 ? 0.1 : -0.1
+  const newScale = Math.min(8, Math.max(0.2, parseFloat((oldScale + delta).toFixed(1))))
+  if (newScale === oldScale) return
+
+  // 鼠标相对于容器的位置
+  const container = imageContainer.value
+  if (!container) {
+    scale.value = newScale
+    return
+  }
+
+  const rect = container.getBoundingClientRect()
+  const mouseX = event.clientX - rect.left - rect.width / 2   // 相对于容器中心
+  const mouseY = event.clientY - rect.top - rect.height / 2
+
+  // 缩放后调整偏移，使鼠标指向的点保持不动
+  offsetX.value = mouseX - (mouseX - offsetX.value) * (newScale / oldScale)
+  offsetY.value = mouseY - (mouseY - offsetY.value) * (newScale / oldScale)
+  scale.value = newScale
 }
 
 function handleRotate() {
-  rotation.value = (rotation.value + 90) % 360
+  rotation.value = rotation.value + 90  // 持续累加，不重置
   emit('rotate')
 }
 
 function handleDoubleClick() {
-  scale.value = 1
-  rotation.value = 0
-  translateX.value = 0
-  translateY.value = 0
+  if (!props.image) return
+  if (scale.value !== 1 || offsetX.value !== 0 || offsetY.value !== 0) {
+    resetTransform()
+  } else {
+    scale.value = 1.5
+  }
 }
+
+// 拖拽平移（参考 ImagePreview 的实现）
+let px = 0, py = 0, pox = 0, poy = 0, moved = false
+const THRESHOLD = 4
 
 function handleMouseDown(event: MouseEvent) {
-  if (scale.value > 1) {
-    isDragging.value = true
-    dragStart.value = { x: event.clientX - translateX.value, y: event.clientY - translateY.value }
+  if (!props.image || event.button !== 0) return
+  event.preventDefault()
+
+  px = event.clientX
+  py = event.clientY
+  pox = offsetX.value
+  poy = offsetY.value
+  moved = false
+
+  document.addEventListener('mousemove', onMove)
+  document.addEventListener('mouseup', onUp)
+  document.body.style.userSelect = 'none'
+}
+
+const onMove = (event: MouseEvent) => {
+  const dx = event.clientX - px
+  const dy = event.clientY - py
+
+  if (!moved && Math.hypot(dx, dy) > THRESHOLD) {
+    moved = true
+    isPanning.value = true
+    document.body.style.cursor = 'grabbing'
+  }
+
+  if (moved) {
+    offsetX.value = pox + dx
+    offsetY.value = poy + dy
   }
 }
 
-function handleMouseMove(event: MouseEvent) {
-  if (isDragging.value) {
-    translateX.value = event.clientX - dragStart.value.x
-    translateY.value = event.clientY - dragStart.value.y
-  }
-}
-
-function handleMouseUp() {
-  isDragging.value = false
+const onUp = () => {
+  isPanning.value = false
+  moved = false
+  document.removeEventListener('mousemove', onMove)
+  document.removeEventListener('mouseup', onUp)
+  document.body.style.cursor = ''
+  document.body.style.userSelect = ''
 }
 
 function formatSize(bytes: number) {
@@ -73,13 +133,16 @@ function formatDimensions(width: number, height: number) {
 </script>
 
 <template>
-  <div class="image-viewer" @wheel="handleWheel" @mousemove="handleMouseMove" @mouseup="handleMouseUp" @mouseleave="handleMouseUp">
+  <div class="image-viewer" @wheel="handleWheel">
     <div v-if="image" class="viewer-content">
-      <div class="image-container">
+      <div class="image-container" ref="imageContainer">
         <img
           :src="image.url"
           :alt="image.filename"
-          :style="imageStyle"
+          :style="{
+            transform: `translate(${offsetX}px, ${offsetY}px) scale(${scale}) rotate(${rotation}deg)`,
+            cursor: isPanning ? 'grabbing' : (scale > 1 ? 'grab' : 'default')
+          }"
           @dblclick="handleDoubleClick"
           @mousedown="handleMouseDown"
         />
@@ -178,8 +241,9 @@ function formatDimensions(width: number, height: number) {
   max-width: 100%;
   max-height: 100%;
   object-fit: contain;
-  transition: transform 0.1s ease-out;
   user-select: none;
+  will-change: transform;
+  transform-origin: center center;
 }
 
 .action-bar {

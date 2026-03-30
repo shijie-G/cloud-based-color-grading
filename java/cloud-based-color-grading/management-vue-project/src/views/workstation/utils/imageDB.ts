@@ -4,9 +4,13 @@
  */
 
 const DB_NAME = 'WorkstationDB'
-const DB_VERSION = 6
+const DB_VERSION = 7  // 升级到 v7 添加 Gallery 支持
 const STORE_NAME = 'images'
 const HISTORY_STORE = 'history'
+const ALBUMS_STORE = 'albums'  // Gallery 相册表
+
+// 特殊相册 ID：非分配图片（从 Workstation 直接上传的图片）
+export const UNASSIGNED_ALBUM_ID = -1
 
 export interface ImageDBItem {
   id: number
@@ -20,6 +24,24 @@ export interface ImageDBItem {
   lastModified: Date
   fileHash?: string
   adjustmentsJson?: string
+
+  // ========== Gallery 扩展字段（可选） ==========
+  albumId?: number      // 所属相册 ID（Gallery 专用）
+  isFavorite?: boolean  // 是否收藏（Gallery 专用）
+  favoritedAt?: number  // 收藏时间戳
+  isDeleted?: boolean   // 是否在回收站（软删除，Gallery 专用）
+  deletedAt?: number    // 删除时间戳
+  tags?: string[]       // 标签数组（Gallery 专用）
+  sortOrder?: number    // 相册内排序权重（Gallery 专用）
+}
+
+// Gallery 相册接口
+export interface AlbumRecord {
+  id: number
+  name: string
+  createdAt: number
+  sortOrder: number
+  coverImageId?: number
 }
 
 class ImageDatabase {
@@ -46,23 +68,53 @@ class ImageDatabase {
         const oldVersion = event.oldVersion
         const transaction = (event.target as IDBOpenDBRequest).transaction!
 
+        // v1: 创建 images store
         if (!db.objectStoreNames.contains(STORE_NAME)) {
           const objectStore = db.createObjectStore(STORE_NAME, { keyPath: 'id' })
           objectStore.createIndex('uploadTime', 'uploadTime', { unique: false })
           objectStore.createIndex('name', 'name', { unique: false })
           objectStore.createIndex('fileHash', 'fileHash', { unique: false })
-        } else if (oldVersion < 2) {
+          // v7: 同时创建 Gallery 索引（新数据库直接包含）
+          objectStore.createIndex('albumId', 'albumId', { unique: false })
+          objectStore.createIndex('isFavorite', 'isFavorite', { unique: false })
+          objectStore.createIndex('isDeleted', 'isDeleted', { unique: false })
+        } else {
+          // 已存在 images store，逐步升级
           const objectStore = transaction.objectStore(STORE_NAME)
-          if (!objectStore.indexNames.contains('fileHash')) {
+
+          // v2: 添加 fileHash 索引
+          if (oldVersion < 2 && !objectStore.indexNames.contains('fileHash')) {
             objectStore.createIndex('fileHash', 'fileHash', { unique: false })
           }
+
+          // v7: 添加 Gallery 索引
+          if (oldVersion < 7) {
+            if (!objectStore.indexNames.contains('albumId')) {
+              objectStore.createIndex('albumId', 'albumId', { unique: false })
+            }
+            if (!objectStore.indexNames.contains('isFavorite')) {
+              objectStore.createIndex('isFavorite', 'isFavorite', { unique: false })
+            }
+            if (!objectStore.indexNames.contains('isDeleted')) {
+              objectStore.createIndex('isDeleted', 'isDeleted', { unique: false })
+            }
+          }
         }
+
         // v3→v4: adjustmentsJson 是普通字段，无需建索引，自动兼容旧记录（值为 undefined）
         // v4→v5: editedSrc / cropStateJson 是普通字段，自动兼容旧记录（值为 undefined）
+
         // v5→v6: 新增 history store（撤销/重做历史栈持久化）
         if (!db.objectStoreNames.contains(HISTORY_STORE)) {
           const hs = db.createObjectStore(HISTORY_STORE, { keyPath: 'key' })
           hs.createIndex('imageId', 'imageId', { unique: false })
+        }
+
+        // v7: 新增 albums store（Gallery 相册表）
+        if (!db.objectStoreNames.contains(ALBUMS_STORE)) {
+          const albumStore = db.createObjectStore(ALBUMS_STORE, { keyPath: 'id', autoIncrement: true })
+          albumStore.createIndex('createdAt', 'createdAt', { unique: false })
+          albumStore.createIndex('sortOrder', 'sortOrder', { unique: false })
         }
       }
     })
@@ -233,12 +285,27 @@ class ImageDatabase {
     if (!this.db) await this.init()
 
     return new Promise((resolve, reject) => {
-      const transaction = this.db!.transaction([STORE_NAME], 'readwrite')
-      const objectStore = transaction.objectStore(STORE_NAME)
-      const request = objectStore.delete(id)
+      const transaction = this.db!.transaction([STORE_NAME, HISTORY_STORE], 'readwrite')
+      const imageStore = transaction.objectStore(STORE_NAME)
+      const historyStore = transaction.objectStore(HISTORY_STORE)
 
-      request.onsuccess = () => resolve()
-      request.onerror = () => reject(new Error('Failed to delete image'))
+      // 删除图片
+      imageStore.delete(id)
+
+      // 删除该图片的所有 history 记录
+      const historyIndex = historyStore.index('imageId')
+      const historyRequest = historyIndex.openCursor(IDBKeyRange.only(id))
+
+      historyRequest.onsuccess = (event) => {
+        const cursor = (event.target as IDBRequest).result
+        if (cursor) {
+          cursor.delete()
+          cursor.continue()
+        }
+      }
+
+      transaction.oncomplete = () => resolve()
+      transaction.onerror = () => reject(new Error('Failed to delete image and history'))
     })
   }
 
@@ -359,6 +426,186 @@ class ImageDatabase {
   }
   async deleteHistoryFrom(imageId: number, fromStep: number): Promise<void> {
     // 已废弃，整包覆盖写入不需要按 step 删除
+  }
+
+  // ── Gallery 相册操作 ──────────────────────────────────────────────
+
+  /**
+   * 获取所有相册
+   */
+  async getAllAlbums(): Promise<AlbumRecord[]> {
+    if (!this.db) await this.init()
+
+    return new Promise((resolve, reject) => {
+      const transaction = this.db!.transaction([ALBUMS_STORE], 'readonly')
+      const objectStore = transaction.objectStore(ALBUMS_STORE)
+      const request = objectStore.getAll()
+
+      request.onsuccess = () => resolve(request.result)
+      request.onerror = () => reject(new Error('Failed to get albums'))
+    })
+  }
+
+  /**
+   * 根据 ID 获取相册
+   */
+  async getAlbumById(id: number): Promise<AlbumRecord | undefined> {
+    if (!this.db) await this.init()
+
+    return new Promise((resolve, reject) => {
+      const transaction = this.db!.transaction([ALBUMS_STORE], 'readonly')
+      const objectStore = transaction.objectStore(ALBUMS_STORE)
+      const request = objectStore.get(id)
+
+      request.onsuccess = () => resolve(request.result)
+      request.onerror = () => reject(new Error('Failed to get album'))
+    })
+  }
+
+  /**
+   * 创建相册
+   */
+  async createAlbum(album: Omit<AlbumRecord, 'id'>): Promise<number> {
+    if (!this.db) await this.init()
+
+    return new Promise((resolve, reject) => {
+      const transaction = this.db!.transaction([ALBUMS_STORE], 'readwrite')
+      const objectStore = transaction.objectStore(ALBUMS_STORE)
+      const request = objectStore.add(album)
+
+      request.onsuccess = () => resolve(request.result as number)
+      request.onerror = () => reject(new Error('Failed to create album'))
+    })
+  }
+
+  /**
+   * 更新相册
+   */
+  async updateAlbum(album: AlbumRecord): Promise<void> {
+    if (!this.db) await this.init()
+
+    return new Promise((resolve, reject) => {
+      const transaction = this.db!.transaction([ALBUMS_STORE], 'readwrite')
+      const objectStore = transaction.objectStore(ALBUMS_STORE)
+      const request = objectStore.put(album)
+
+      request.onsuccess = () => resolve()
+      request.onerror = () => reject(new Error('Failed to update album'))
+    })
+  }
+
+  /**
+   * 删除相册（同时删除相册内所有图片）
+   */
+  async deleteAlbum(id: number): Promise<void> {
+    if (!this.db) await this.init()
+
+    return new Promise((resolve, reject) => {
+      const transaction = this.db!.transaction([ALBUMS_STORE, STORE_NAME], 'readwrite')
+      const albumStore = transaction.objectStore(ALBUMS_STORE)
+      const imageStore = transaction.objectStore(STORE_NAME)
+      const index = imageStore.index('albumId')
+
+      // 删除相册内所有图片
+      const imageRequest = index.openCursor(IDBKeyRange.only(id))
+      imageRequest.onsuccess = (event) => {
+        const cursor = (event.target as IDBRequest).result
+        if (cursor) {
+          cursor.delete()
+          cursor.continue()
+        }
+      }
+
+      // 删除相册
+      albumStore.delete(id)
+
+      transaction.oncomplete = () => resolve()
+      transaction.onerror = () => reject(new Error('Failed to delete album'))
+    })
+  }
+
+  // ── Gallery 图片查询 ──────────────────────────────────────────────
+
+  /**
+   * 获取相册内所有图片（不包括已删除）
+   */
+  async getImagesByAlbum(albumId: number): Promise<ImageDBItem[]> {
+    if (!this.db) await this.init()
+
+    return new Promise((resolve, reject) => {
+      const transaction = this.db!.transaction([STORE_NAME], 'readonly')
+      const objectStore = transaction.objectStore(STORE_NAME)
+      const index = objectStore.index('albumId')
+      const request = index.getAll(IDBKeyRange.only(albumId))
+
+      request.onsuccess = () => {
+        const images = request.result.filter((img: ImageDBItem) => !img.isDeleted)
+        resolve(images)
+      }
+      request.onerror = () => reject(new Error('Failed to get images by album'))
+    })
+  }
+
+  /**
+   * 获取所有收藏图片（不包括已删除）
+   */
+  async getFavoriteImages(): Promise<ImageDBItem[]> {
+    if (!this.db) await this.init()
+
+    return new Promise((resolve, reject) => {
+      const transaction = this.db!.transaction([STORE_NAME], 'readonly')
+      const objectStore = transaction.objectStore(STORE_NAME)
+      const index = objectStore.index('isFavorite')
+      const request = index.getAll(IDBKeyRange.only(true))
+
+      request.onsuccess = () => {
+        const images = request.result.filter((img: ImageDBItem) => !img.isDeleted)
+        resolve(images)
+      }
+      request.onerror = () => reject(new Error('Failed to get favorite images'))
+    })
+  }
+
+  /**
+   * 获取回收站图片
+   */
+  async getDeletedImages(): Promise<ImageDBItem[]> {
+    if (!this.db) await this.init()
+
+    return new Promise((resolve, reject) => {
+      const transaction = this.db!.transaction([STORE_NAME], 'readonly')
+      const objectStore = transaction.objectStore(STORE_NAME)
+      const index = objectStore.index('isDeleted')
+      const request = index.getAll(IDBKeyRange.only(true))
+
+      request.onsuccess = () => resolve(request.result)
+      request.onerror = () => reject(new Error('Failed to get deleted images'))
+    })
+  }
+
+  /**
+   * 批量更新图片
+   */
+  async updateImages(images: ImageDBItem[]): Promise<void> {
+    if (!this.db) await this.init()
+
+    return new Promise((resolve, reject) => {
+      const transaction = this.db!.transaction([STORE_NAME], 'readwrite')
+      const objectStore = transaction.objectStore(STORE_NAME)
+
+      let completed = 0
+      images.forEach((image) => {
+        const request = objectStore.put(image)
+        request.onsuccess = () => {
+          completed++
+          if (completed === images.length) {
+            resolve()
+          }
+        }
+      })
+
+      transaction.onerror = () => reject(new Error('Failed to update images'))
+    })
   }
 }
 

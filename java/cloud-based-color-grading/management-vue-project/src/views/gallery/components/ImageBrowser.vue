@@ -109,13 +109,13 @@ onUnmounted(() => {
 }
 
 .thumbnail-section {
-  width: 14%;
+  width: 12%;
   height: 100%;
   border-right: 1px solid rgba(255, 255, 255, 0.05);
 }
 
 .viewer-section {
-  width: 86%;
+  width: 88%;
   height: 100%;
 }
 </style>

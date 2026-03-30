@@ -37,6 +37,7 @@
         @transform:confirm="handleTransformConfirm"
         @transform:cancel="handleTransformCancel"
         @action:toggleCompare="handleToggleCompare"
+        @album:change="handleAlbumChange"
         ref="imageDisplayRef"
       />
 
@@ -762,6 +763,50 @@ const handleSelectImage = async (image: ImageItem) => {
   if (image.originalSrc) {
     const { rotate, flipH, flipV } = currentCropState.value
     applyTransforms(image.originalSrc, rotate, flipH, flipV)
+  }
+}
+
+// 处理相册切换
+const handleAlbumChange = async (albumId: number | null) => {
+  try {
+    if (albumId === null) {
+      // 显示所有图片
+      const allImagesFromDB = await imageDB.getAllImages()
+      uploadedImages.value = allImagesFromDB
+        .filter(item => !item.isDeleted)
+        .map(item => ({
+          id: item.id,
+          name: item.name,
+          src: item.editedSrc || item.src,
+          originalSrc: item.src,
+          thumbnail: item.thumbnail,
+          originalFile: new File([item.blob], item.name, { type: item.blob.type }),
+          fileHash: item.fileHash,
+        }))
+    } else {
+      // 显示指定相册的图片
+      const albumImages = await imageDB.getImagesByAlbum(albumId)
+      uploadedImages.value = albumImages.map(item => ({
+        id: item.id,
+        name: item.name,
+        src: item.editedSrc || item.src,
+        originalSrc: item.src,
+        thumbnail: item.thumbnail,
+        originalFile: new File([item.blob], item.name, { type: item.blob.type }),
+        fileHash: item.fileHash,
+      }))
+    }
+
+    // 如果有图片，自动选择第一张
+    if (uploadedImages.value.length > 0) {
+      await handleSelectImage(uploadedImages.value[0])
+    } else {
+      // 没有图片时清空预览
+      imageSrc.value = ''
+      selectedImageId.value = null
+    }
+  } catch (error) {
+    console.error('切换相册失败:', error)
   }
 }
 

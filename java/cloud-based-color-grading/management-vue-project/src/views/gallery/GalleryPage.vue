@@ -6,6 +6,7 @@ import { useSelection } from './composables/useSelection'
 import AlbumList from './components/AlbumList.vue'
 import ImageBrowser from './components/ImageBrowser.vue'
 import type { ViewMode } from './types/gallery'
+import { imageDB, UNASSIGNED_ALBUM_ID } from '@/views/workstation/utils/imageDB'
 
 // 状态管理
 const albumState = useAlbumState()
@@ -20,13 +21,60 @@ const isDragging = ref(false)
 const uploadProgress = ref({ current: 0, total: 0 })
 const isUploading = ref(false)
 
+// 非分配图片数量
+const unassignedCount = ref(0)
+
+// 相册封面 URL Map
+const albumCovers = ref<Map<number, string>>(new Map())
+
 // 计算属性
 const showBrowser = computed(() => viewMode.value === 'browser' && albumState.currentAlbumId.value !== null)
+
+// 加载非分配图片数量
+async function loadUnassignedCount() {
+  try {
+    const images = await imageDB.getImagesByAlbum(UNASSIGNED_ALBUM_ID)
+    unassignedCount.value = images.filter(img => !img.isDeleted).length
+  } catch (error) {
+    console.error('加载非分配图片数量失败:', error)
+  }
+}
+
+// 加载所有相册的封面
+async function loadAlbumCovers() {
+  try {
+    const covers = new Map<number, string>()
+
+    for (const album of albumState.albums.value) {
+      const images = await imageDB.getImagesByAlbum(album.id)
+      const validImages = images.filter(img => !img.isDeleted)
+
+      if (validImages.length > 0) {
+        // 使用第一张图片的缩略图作为封面
+        const firstImage = validImages[0]
+        if (firstImage.thumbnail) {
+          covers.set(album.id, firstImage.thumbnail)
+        }
+      }
+    }
+
+    albumCovers.value = covers
+  } catch (error) {
+    console.error('加载相册封面失败:', error)
+  }
+}
+
+// 获取相册封面 URL
+function getAlbumCover(albumId: number): string | undefined {
+  return albumCovers.value.get(albumId)
+}
 
 // 初始化
 onMounted(async () => {
   try {
     await albumState.loadAlbums()
+    await loadUnassignedCount()
+    await loadAlbumCovers()
   } catch (error) {
     console.error('初始化失败:', error)
   }
@@ -92,6 +140,9 @@ async function handleAlbumUpload(albumId: number, files: File[]) {
 
     uploadProgress.value = { current: files.length, total: files.length }
 
+    // 重新加载封面
+    await loadAlbumCovers()
+
     // 显示成功提示
     setTimeout(() => {
       isUploading.value = false
@@ -127,13 +178,19 @@ async function handleToggleFavorite(id: number) {
 }
 
 async function handleDeleteImage(id: number) {
-  if (!confirm('确定将此图片移至回收站？')) return
+  if (!confirm('确定永久删除此图片？删除后无法恢复。')) return
 
   try {
-    await imageState.moveToTrash(id)
+    // 物理删除图片（包括 history 记录）
+    await imageState.permanentDelete(id)
+
+    // 重新加载当前相册
     if (albumState.currentAlbumId.value) {
       await imageState.loadImagesByAlbum(albumState.currentAlbumId.value)
     }
+
+    // 重新加载封面（如果删除的是第一张图片）
+    await loadAlbumCovers()
   } catch (error) {
     console.error('删除图片失败:', error)
     alert('删除图片失败')
@@ -152,13 +209,20 @@ async function handleBatchFavorite(ids: number[]) {
 }
 
 async function handleBatchDelete(ids: number[]) {
-  if (!confirm(`确定将选中的 ${ids.length} 张图片移至回收站？`)) return
+  if (!confirm(`确定永久删除选中的 ${ids.length} 张图片？删除后无法恢复。`)) return
 
   try {
-    await imageState.batchMoveToTrash(ids)
+    // 物理删除图片（包括 history 记录）
+    await imageState.batchPermanentDelete(ids)
+
+    // 重新加载当前相册
     if (albumState.currentAlbumId.value) {
       await imageState.loadImagesByAlbum(albumState.currentAlbumId.value)
     }
+
+    // 重新加载封面
+    await loadAlbumCovers()
+
     selection.clearSelection()
   } catch (error) {
     console.error('批量删除失败:', error)
@@ -248,6 +312,8 @@ async function handleDrop(event: DragEvent) {
       <AlbumList
         v-if="viewMode === 'albums'"
         :month-groups="albumState.monthGroups.value"
+        :unassigned-count="unassignedCount"
+        :album-covers="albumCovers"
         @select="handleSelectAlbum"
         @rename="handleRenameAlbum"
         @delete="handleDeleteAlbum"

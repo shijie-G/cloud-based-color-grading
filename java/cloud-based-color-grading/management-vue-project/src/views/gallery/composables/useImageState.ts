@@ -1,6 +1,7 @@
 import { ref, computed } from 'vue'
 import type { ImageRecord, ImageDisplay, SortMode, QuickFilterMode } from '../types/gallery'
 import { useGalleryDB } from './useGalleryDB'
+import { batchUploadImages } from '@/views/workstation/utils/imageUploadHelper'
 
 const images = ref<ImageRecord[]>([])
 const currentImageId = ref<number | null>(null)
@@ -25,10 +26,17 @@ export function useImageState() {
    * 图片显示列表（转换为 URL）
    */
   const imageDisplays = computed<ImageDisplay[]>(() => {
-    return images.value.map(img => ({
-      ...img,
-      url: URL.createObjectURL(img.blob)
-    }))
+    return images.value.map(img => {
+      const url = URL.createObjectURL(img.blob)
+      // 如果有缩略图 DataURL，直接使用；否则使用原图 URL
+      const thumbnailUrl = img.thumbnail || url
+
+      return {
+        ...img,
+        url,
+        thumbnailUrl
+      }
+    })
   })
 
   /**
@@ -112,7 +120,7 @@ export function useImageState() {
   }
 
   /**
-   * 上传图片
+   * 上传图片（使用统一的上传逻辑）
    */
   async function uploadImages(albumId: number, files: File[]): Promise<number[]> {
     const supportedFormats = ['image/jpeg', 'image/png', 'image/webp', 'image/gif']
@@ -125,33 +133,10 @@ export function useImageState() {
     const skipped = files.length - validFiles.length
 
     try {
-      const imageRecords = await Promise.all(
-        validFiles.map(async (file) => {
-          const blob = new Blob([await file.arrayBuffer()], { type: file.type })
-          const img = await createImageBitmap(blob)
+      // 使用统一的上传逻辑（包含缩略图生成、哈希检查等）
+      const ids = await batchUploadImages(validFiles, albumId)
 
-          const format = file.type.split('/')[1]
-          const record: Omit<ImageRecord, 'id'> = {
-            albumId,
-            blob,
-            filename: file.name,
-            format,
-            width: img.width,
-            height: img.height,
-            size: file.size,
-            uploadedAt: Date.now(),
-            isFavorite: false,
-            isDeleted: false,
-            tags: [],
-            sortOrder: 0
-          }
-
-          img.close()
-          return record
-        })
-      )
-
-      const ids = await db.addImages(imageRecords)
+      // 重新加载相册图片
       await loadImagesByAlbum(albumId)
 
       if (skipped > 0) {
@@ -205,11 +190,18 @@ export function useImageState() {
   async function moveToTrash(imageId: number) {
     try {
       const image = images.value.find(img => img.id === imageId)
-      if (!image) throw new Error('图片不存在')
+      if (!image) {
+        throw new Error(`图片 ID ${imageId} 不存在于当前列表中`)
+      }
+
+      console.log('准备移至回收站:', imageId, image)
 
       image.isDeleted = true
       image.deletedAt = Date.now()
+
       await db.updateImage(image)
+
+      console.log('成功移至回收站:', imageId)
     } catch (error) {
       console.error('移至回收站失败:', error)
       throw error
