@@ -11,6 +11,14 @@ const routes: RouteRecordRaw[] = [
     }
   },
   {
+    path: '/gallery',
+    name: 'Gallery',
+    component: () => import('../views/gallery/GalleryPage.vue'),
+    meta: {
+      requiresAuth: true
+    }
+  },
+  {
     path: '/',
     redirect: '/workstation'
   }

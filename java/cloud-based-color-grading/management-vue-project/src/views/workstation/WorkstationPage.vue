@@ -1,7 +1,7 @@
 <template>
   <div class="editor-container">
     <!-- 顶部导航栏 -->
-    <TopNavbar />
+    <!-- <TopNavbar /> -->
     
     <!-- 主要内容区域 -->
     <div class="main-content">
