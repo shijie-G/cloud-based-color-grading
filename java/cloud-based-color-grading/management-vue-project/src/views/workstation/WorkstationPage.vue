@@ -790,8 +790,9 @@ const handleSaveImage = async (format: 'png' | 'jpeg' = 'png') => {
 const onKeyDown = (e: KeyboardEvent) => {
   const ctrl = e.ctrlKey || e.metaKey
   if (!ctrl) return
-  if (e.key === 'z' && !e.shiftKey) { e.preventDefault(); handleUndo() }
-  if ((e.key === 'z' && e.shiftKey) || e.key === 'y') { e.preventDefault(); handleRedo() }
+  const key = e.key.toLowerCase()
+  if (key === 'z' && !e.shiftKey) { e.preventDefault(); handleUndo() }
+  if ((key === 'z' && e.shiftKey) || key === 'y') { e.preventDefault(); handleRedo() }
 }
 
 onMounted(() => window.addEventListener('keydown', onKeyDown))
