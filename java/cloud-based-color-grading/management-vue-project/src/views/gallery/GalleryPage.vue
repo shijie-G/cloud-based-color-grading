@@ -21,6 +21,20 @@ const isDragging = ref(false)
 const uploadProgress = ref({ current: 0, total: 0 })
 const isUploading = ref(false)
 
+// 通知消息
+const notification = ref<{ show: boolean; message: string; type: 'success' | 'error' }>({
+  show: false,
+  message: '',
+  type: 'success'
+})
+
+function showNotification(message: string, type: 'success' | 'error' = 'success') {
+  notification.value = { show: true, message, type }
+  setTimeout(() => {
+    notification.value.show = false
+  }, 3000)
+}
+
 // 非分配图片数量
 const unassignedCount = ref(0)
 
@@ -128,7 +142,7 @@ async function handleAlbumUpload(albumId: number, files: File[]) {
   if (files.length === 0) return
 
   if (files.length > 50) {
-    alert('单次最多上传 50 张图片')
+    showNotification('单次最多上传 50 张图片', 'error')
     return
   }
 
@@ -136,7 +150,7 @@ async function handleAlbumUpload(albumId: number, files: File[]) {
     isUploading.value = true
     uploadProgress.value = { current: 0, total: files.length }
 
-    await imageState.uploadImages(albumId, files)
+    const result = await imageState.uploadImages(albumId, files)
 
     uploadProgress.value = { current: files.length, total: files.length }
 
@@ -146,11 +160,25 @@ async function handleAlbumUpload(albumId: number, files: File[]) {
     // 显示成功提示
     setTimeout(() => {
       isUploading.value = false
-      alert(`成功上传 ${files.length} 张图片到相册`)
+
+      // 根据上传结果显示不同的提示
+      const { successIds, failedCount, duplicateCount } = result
+      if (successIds.length > 0 && failedCount === 0 && duplicateCount === 0) {
+        showNotification(`成功上传 ${successIds.length} 张图片到相册`, 'success')
+      } else if (successIds.length > 0) {
+        let message = `成功上传 ${successIds.length} 张图片`
+        if (duplicateCount > 0) message += `，${duplicateCount} 张重复`
+        if (failedCount > 0) message += `，${failedCount} 张失败`
+        showNotification(message, 'success')
+      } else if (duplicateCount > 0) {
+        showNotification(`${duplicateCount} 张图片已存在`, 'error')
+      } else {
+        showNotification('上传失败', 'error')
+      }
     }, 500)
   } catch (error: any) {
     console.error('上传失败:', error)
-    alert(error.message || '上传失败')
+    showNotification(error.message || '上传失败', 'error')
     isUploading.value = false
   }
 }
@@ -249,7 +277,10 @@ async function handleBatchMove(ids: number[]) {
 // 拖拽上传
 function handleDragEnter(event: DragEvent) {
   event.preventDefault()
-  isDragging.value = true
+  // 只有在浏览相册时才允许拖拽
+  if (viewMode.value === 'browser' && albumState.currentAlbumId.value !== null) {
+    isDragging.value = true
+  }
 }
 
 function handleDragLeave(event: DragEvent) {
@@ -267,8 +298,8 @@ async function handleDrop(event: DragEvent) {
   event.preventDefault()
   isDragging.value = false
 
-  if (!albumState.currentAlbumId.value) {
-    alert('请先选择相册')
+  // 只有在浏览相册时才允许上传
+  if (viewMode.value !== 'browser' || !albumState.currentAlbumId.value) {
     return
   }
 
@@ -276,7 +307,7 @@ async function handleDrop(event: DragEvent) {
   if (files.length === 0) return
 
   if (files.length > 50) {
-    alert('单次最多上传 50 张图片')
+    showNotification('单次最多上传 50 张图片', 'error')
     return
   }
 
@@ -284,15 +315,37 @@ async function handleDrop(event: DragEvent) {
     isUploading.value = true
     uploadProgress.value = { current: 0, total: files.length }
 
-    await imageState.uploadImages(albumState.currentAlbumId.value, files)
+    const result = await imageState.uploadImages(albumState.currentAlbumId.value, files)
 
     uploadProgress.value = { current: files.length, total: files.length }
+
+    // 重新加载当前相册
+    await imageState.loadImagesByAlbum(albumState.currentAlbumId.value)
+
+    // 重新加载封面
+    await loadAlbumCovers()
+
     setTimeout(() => {
       isUploading.value = false
-    }, 1000)
+
+      // 根据上传结果显示不同的提示
+      const { successIds, failedCount, duplicateCount } = result
+      if (successIds.length > 0 && failedCount === 0 && duplicateCount === 0) {
+        showNotification(`成功上传 ${successIds.length} 张图片`, 'success')
+      } else if (successIds.length > 0) {
+        let message = `成功上传 ${successIds.length} 张图片`
+        if (duplicateCount > 0) message += `，${duplicateCount} 张重复`
+        if (failedCount > 0) message += `，${failedCount} 张失败`
+        showNotification(message, 'success')
+      } else if (duplicateCount > 0) {
+        showNotification(`${duplicateCount} 张图片已存在`, 'error')
+      } else {
+        showNotification('上传失败', 'error')
+      }
+    }, 500)
   } catch (error: any) {
     console.error('上传失败:', error)
-    alert(error.message || '上传失败')
+    showNotification(error.message || '上传失败', 'error')
     isUploading.value = false
   }
 }
@@ -357,6 +410,19 @@ async function handleDrop(event: DragEvent) {
           <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
         </svg>
         <span>上传中 {{ uploadProgress.current }} / {{ uploadProgress.total }}</span>
+      </div>
+    </div>
+
+    <!-- 通知消息 -->
+    <div v-if="notification.show" class="notification" :class="notification.type">
+      <div class="notification-content">
+        <svg v-if="notification.type === 'success'" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor">
+          <path fill-rule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z" clip-rule="evenodd" />
+        </svg>
+        <svg v-else xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor">
+          <path fill-rule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zM8.707 7.293a1 1 0 00-1.414 1.414L8.586 10l-1.293 1.293a1 1 0 101.414 1.414L10 11.414l1.293 1.293a1 1 0 001.414-1.414L11.414 10l1.293-1.293a1 1 0 00-1.414-1.414L10 8.586 8.707 7.293z" clip-rule="evenodd" />
+        </svg>
+        <span>{{ notification.message }}</span>
       </div>
     </div>
   </div>
@@ -442,6 +508,60 @@ async function handleDrop(event: DragEvent) {
   }
   to {
     transform: rotate(360deg);
+  }
+}
+
+.notification {
+  position: fixed;
+  top: 2rem;
+  right: 2rem;
+  min-width: 300px;
+  background: #1c1e22;
+  border-radius: 8px;
+  padding: 1rem 1.5rem;
+  box-shadow: 0 4px 16px rgba(0, 0, 0, 0.4);
+  z-index: 1001;
+  animation: slideIn 0.3s ease;
+}
+
+.notification.success {
+  border: 1px solid rgba(34, 197, 94, 0.5);
+}
+
+.notification.error {
+  border: 1px solid rgba(239, 68, 68, 0.5);
+}
+
+.notification-content {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+  color: #e2e4e9;
+  font-size: 0.95rem;
+}
+
+.notification.success .notification-content svg {
+  width: 24px;
+  height: 24px;
+  color: #22c55e;
+  flex-shrink: 0;
+}
+
+.notification.error .notification-content svg {
+  width: 24px;
+  height: 24px;
+  color: #ef4444;
+  flex-shrink: 0;
+}
+
+@keyframes slideIn {
+  from {
+    transform: translateX(100%);
+    opacity: 0;
+  }
+  to {
+    transform: translateX(0);
+    opacity: 1;
   }
 }
 </style>

@@ -123,7 +123,7 @@ export function useImageState() {
   /**
    * 上传图片（使用统一的上传逻辑）
    */
-  async function uploadImages(albumId: number, files: File[]): Promise<number[]> {
+  async function uploadImages(albumId: number, files: File[]): Promise<{ successIds: number[]; failedCount: number; duplicateCount: number }> {
     const supportedFormats = ['image/jpeg', 'image/png', 'image/webp', 'image/gif']
     const validFiles = files.filter(f => supportedFormats.includes(f.type))
 
@@ -135,7 +135,7 @@ export function useImageState() {
 
     try {
       // 使用统一的上传逻辑（包含缩略图生成、哈希检查等）
-      const ids = await batchUploadImages(validFiles, albumId)
+      const result = await batchUploadImages(validFiles, albumId)
 
       // 重新加载相册图片
       await loadImagesByAlbum(albumId)
@@ -144,7 +144,7 @@ export function useImageState() {
         console.warn(`${skipped} 个文件格式不支持，已跳过`)
       }
 
-      return ids
+      return result
     } catch (error) {
       console.error('上传图片失败:', error)
       throw error

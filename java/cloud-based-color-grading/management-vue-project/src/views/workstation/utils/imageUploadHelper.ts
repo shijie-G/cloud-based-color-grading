@@ -128,26 +128,33 @@ export async function uploadImageToDB(
  * @param files 要上传的文件数组
  * @param albumId 可选的相册 ID（Gallery 专用）
  * @param onProgress 进度回调
- * @returns 返回成功上传的图片 ID 数组
+ * @returns 返回上传结果统计
  */
 export async function batchUploadImages(
   files: File[],
   albumId?: number,
   onProgress?: (current: number, total: number) => void
-): Promise<number[]> {
-  const ids: number[] = []
+): Promise<{ successIds: number[]; failedCount: number; duplicateCount: number }> {
+  const successIds: number[] = []
+  let failedCount = 0
+  let duplicateCount = 0
   const total = files.length
 
   for (let i = 0; i < files.length; i++) {
     try {
       const result = await uploadImageToDB(files[i], albumId)
-      ids.push(result.id)
+      successIds.push(result.id)
       onProgress?.(i + 1, total)
-    } catch (error) {
+    } catch (error: any) {
       console.error(`上传 ${files[i].name} 失败:`, error)
+      if (error.message && error.message.includes('已存在')) {
+        duplicateCount++
+      } else {
+        failedCount++
+      }
       // 继续上传其他文件
     }
   }
 
-  return ids
+  return { successIds, failedCount, duplicateCount }
 }
