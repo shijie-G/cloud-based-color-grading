@@ -15,7 +15,12 @@
             <span>全部图片</span>
             <span class="album-count">{{ totalImageCount }}</span>
           </div>
-          <div class="album-option" :class="{ active: currentAlbumId === UNASSIGNED_ALBUM_ID }" @click="selectAlbum(UNASSIGNED_ALBUM_ID)">
+          <div
+            v-if="getAlbumImageCount(UNASSIGNED_ALBUM_ID) > 0"
+            class="album-option"
+            :class="{ active: currentAlbumId === UNASSIGNED_ALBUM_ID }"
+            @click="selectAlbum(UNASSIGNED_ALBUM_ID)"
+          >
             <span>非分配图片</span>
             <span class="album-count">{{ getAlbumImageCount(UNASSIGNED_ALBUM_ID) }}</span>
           </div>
@@ -89,9 +94,10 @@
 </template>
 
 <script setup lang="ts">
-import { computed, ref, onMounted, onUnmounted } from 'vue'
+import { computed, ref, onMounted, onUnmounted, watch } from 'vue'
 import type { ImageItem } from '../component-interfaces'
 import { imageDB, type AlbumRecord, UNASSIGNED_ALBUM_ID } from '../utils/imageDB'
+import { useGalleryStore } from '@/stores/galleryStore'
 
 // ImageGallery 组件 - 图片全览区
 interface ImageGalleryProps {
@@ -122,6 +128,9 @@ const currentAlbumId = ref<number | null>(null)
 const showAlbumSelector = ref(false)
 const allImages = ref<ImageItem[]>([])
 const albumImageCounts = ref<Map<number, number>>(new Map())
+
+// 获取全局 Gallery Store
+const galleryStore = useGalleryStore()
 
 // 当前相册名称
 const currentAlbumName = computed(() => {
@@ -184,6 +193,8 @@ function toggleAlbumSelector() {
 function selectAlbum(albumId: number | null) {
   currentAlbumId.value = albumId
   showAlbumSelector.value = false
+  // 同步到全局 store，供上传时使用
+  galleryStore.setCurrentAlbumId(albumId)
   emit('album:change', albumId)
 }
 
@@ -256,6 +267,11 @@ const handleFileSelect = (event: Event) => {
 onMounted(() => {
   loadAlbums()
   document.addEventListener('click', handleClickOutside)
+})
+
+// 监听图片列表变化，重新加载相册数据以更新图片数量
+watch(() => props.images.length, () => {
+  loadAlbums()
 })
 
 // 组件卸载时移除事件监听

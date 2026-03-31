@@ -2,6 +2,7 @@ import { ref, onMounted, type Ref } from 'vue'
 import type { ImageItem } from '../component-interfaces'
 import { useImageStorage } from './useImageStorage'
 import { uploadImageToDB } from '../utils/imageUploadHelper'
+import { useGalleryStore } from '@/stores/galleryStore'
 
 /**
  * 图片状态管理 Composable
@@ -43,11 +44,18 @@ export function useImageState(): UseImageStateReturn {
     clearAllImagesFromDB,
   } = useImageStorage()
 
+  // 获取全局 Gallery Store
+  const galleryStore = useGalleryStore()
+
   // 处理图片上传（使用统一的上传逻辑）
   const handleImageUpload = async (file: File): Promise<void> => {
     try {
+      // 检查是否在 ImageGallery 中选中了相册
+      const currentAlbumId = galleryStore.currentAlbumId
+
       // 使用统一的上传逻辑（包含缩略图生成、哈希检查等）
-      const result = await uploadImageToDB(file)
+      // 如果有选中的相册，则分配到该相册；否则分配到"非分配图片"
+      const result = await uploadImageToDB(file, currentAlbumId ?? undefined)
 
       const imageData: ImageItem = {
         id: result.id,
