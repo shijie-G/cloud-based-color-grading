@@ -20,8 +20,16 @@ const emit = defineEmits<Emits>()
 const isEditing = ref(false)
 const editName = ref('')
 const isDragging = ref(false)
+const showMenu = ref(false)
 
-function startEdit() {
+function toggleMenu(event: MouseEvent) {
+  event.stopPropagation()
+  showMenu.value = !showMenu.value
+}
+
+function startEdit(event: MouseEvent) {
+  event.stopPropagation()
+  showMenu.value = false
   isEditing.value = true
   editName.value = props.album.name
 }
@@ -36,6 +44,12 @@ function confirmEdit() {
 function cancelEdit() {
   isEditing.value = false
   editName.value = ''
+}
+
+function handleDelete(event: MouseEvent) {
+  event.stopPropagation()
+  showMenu.value = false
+  emit('delete')
 }
 
 function formatDate(timestamp: number) {
@@ -92,6 +106,29 @@ function handleCardClick(event: MouseEvent) {
     @dragover="handleDragOver"
     @drop="handleDrop"
   >
+    <!-- 操作按钮 -->
+    <div class="album-actions">
+      <button class="action-menu-btn" @click="toggleMenu" title="操作">
+        <span class="dots">···</span>
+      </button>
+
+      <!-- 下拉菜单 -->
+      <div v-if="showMenu" class="action-menu" @click.stop>
+        <button class="menu-item" @click="startEdit">
+          <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" />
+          </svg>
+          重命名
+        </button>
+        <button class="menu-item delete" @click="handleDelete">
+          <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
+          </svg>
+          删除相册
+        </button>
+      </div>
+    </div>
+
     <div class="album-cover">
       <img v-if="coverUrl" :src="coverUrl" alt="封面" />
       <div v-else class="empty-cover">
@@ -107,7 +144,7 @@ function handleCardClick(event: MouseEvent) {
       </div>
     </div>
     <div class="album-info">
-      <div v-if="!isEditing" class="album-title" @dblclick.stop="startEdit">
+      <div v-if="!isEditing" class="album-title">
         {{ album.name }}
       </div>
       <input
@@ -129,10 +166,11 @@ function handleCardClick(event: MouseEvent) {
 .album-card {
   background: #1c1e22;
   border-radius: 8px;
-  overflow: hidden;
+  overflow: visible;
   border: 1px solid rgba(255, 255, 255, 0.05);
   transition: all 0.2s ease;
   cursor: pointer;
+  position: relative;
 }
 
 .album-card:hover {
@@ -146,6 +184,90 @@ function handleCardClick(event: MouseEvent) {
   transform: scale(1.02);
 }
 
+.album-actions {
+  position: absolute;
+  top: 0.75rem;
+  right: 0.75rem;
+  z-index: 20;
+}
+
+.action-menu-btn {
+  width: 32px;
+  height: 32px;
+  background: rgba(255, 255, 255, 0.15);
+  backdrop-filter: blur(12px);
+  border: 1px solid rgba(255, 255, 255, 0.3);
+  border-radius: 6px;
+  color: #ffffff;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: all 0.2s ease;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.3);
+}
+
+.action-menu-btn:hover {
+  background: rgba(91, 106, 240, 0.9);
+  border-color: #5b6af0;
+  transform: scale(1.1);
+  box-shadow: 0 4px 12px rgba(91, 106, 240, 0.4);
+}
+
+.action-menu-btn .dots {
+  font-size: 20px;
+  font-weight: bold;
+  line-height: 1;
+  letter-spacing: 2px;
+  user-select: none;
+}
+
+.action-menu {
+  position: absolute;
+  top: calc(100% + 6px);
+  right: 0;
+  min-width: 150px;
+  background: #2a2d35;
+  border: 1px solid rgba(255, 255, 255, 0.15);
+  border-radius: 8px;
+  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.5);
+  overflow: hidden;
+  z-index: 30;
+}
+
+.menu-item {
+  width: 100%;
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+  padding: 0.75rem 1rem;
+  background: none;
+  border: none;
+  color: #e2e4e9;
+  font-size: 0.9rem;
+  cursor: pointer;
+  transition: background 0.2s ease;
+  text-align: left;
+}
+
+.menu-item:hover {
+  background: rgba(91, 106, 240, 0.15);
+}
+
+.menu-item.delete {
+  color: #ef4444;
+}
+
+.menu-item.delete:hover {
+  background: rgba(239, 68, 68, 0.15);
+}
+
+.menu-item svg {
+  width: 18px;
+  height: 18px;
+  flex-shrink: 0;
+}
+
 .album-cover {
   width: 100%;
   height: 180px;
@@ -155,6 +277,7 @@ function handleCardClick(event: MouseEvent) {
   justify-content: center;
   overflow: hidden;
   position: relative;
+  border-radius: 8px 8px 0 0;
 }
 
 .album-cover img {
@@ -209,7 +332,6 @@ function handleCardClick(event: MouseEvent) {
   font-weight: 500;
   color: #e2e4e9;
   margin-bottom: 0.5rem;
-  cursor: text;
 }
 
 .album-title-input {
