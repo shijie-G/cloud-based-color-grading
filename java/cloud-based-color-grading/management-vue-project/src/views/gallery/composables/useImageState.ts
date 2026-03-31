@@ -27,7 +27,8 @@ export function useImageState() {
    */
   const imageDisplays = computed<ImageDisplay[]>(() => {
     return images.value.map(img => {
-      const url = URL.createObjectURL(img.blob)
+      // 优先使用编辑后的图片（editedSrc），如果没有则使用原始 blob
+      const url = img.editedSrc || URL.createObjectURL(img.blob)
       // 如果有缩略图 DataURL，直接使用；否则使用原图 URL
       const thumbnailUrl = img.thumbnail || url
 

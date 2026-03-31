@@ -242,8 +242,9 @@ class ImageDatabase {
 
   /**
    * 仅更新某条记录的 adjustmentsJson 字段（不重写 blob，性能更好）
+   * 可选同时更新 editedSrc 用于 Gallery 预览
    */
-  async updateAdjustments(id: number, adjustmentsJson: string): Promise<void> {
+  async updateAdjustments(id: number, adjustmentsJson: string, editedSrc?: string): Promise<void> {
     if (!this.db) await this.init()
 
     return new Promise((resolve, reject) => {
@@ -254,6 +255,9 @@ class ImageDatabase {
         const record = getReq.result
         if (!record) { resolve(); return }
         record.adjustmentsJson = adjustmentsJson
+        if (editedSrc !== undefined) {
+          record.editedSrc = editedSrc
+        }
         record.lastModified = new Date()
         const putReq = objectStore.put(record)
         putReq.onsuccess = () => resolve()

@@ -37,6 +37,7 @@ async function toImageRecord(item: ImageDBItem): Promise<ImageRecord> {
     filename: item.name,
     blob: item.blob,
     thumbnail: item.thumbnail,
+    editedSrc: item.editedSrc,  // 传递编辑后的图片
     format: metadata.format,
     width: metadata.width,
     height: metadata.height,

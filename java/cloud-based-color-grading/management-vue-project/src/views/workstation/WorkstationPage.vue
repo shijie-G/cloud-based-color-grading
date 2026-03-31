@@ -259,7 +259,8 @@ const scheduleSave = () => {
   if (!selectedImageId.value || isLoadingAdjustments) return
   if (saveTimer) clearTimeout(saveTimer)
   saveTimer = setTimeout(() => {
-    saveAdjustments(selectedImageId.value!, serializeAdjustments())
+    // 同时保存调色参数和处理后的图片预览（用于 Gallery 显示）
+    saveAdjustments(selectedImageId.value!, serializeAdjustments(), processedSrc.value)
   }, 500)
 }
 

@@ -19,6 +19,7 @@ export interface ImageRecord {
   albumId: number;      // 所属相册 ID（外键）
   blob: Blob;           // 原始图片二进制数据
   thumbnail?: string;   // 缩略图 DataURL（可选）
+  editedSrc?: string;   // 编辑后的图片 DataURL（调色/裁切后，可选）
   filename: string;     // 原始文件名
   format: string;       // 文件格式（'jpeg' | 'png' | 'webp' | 'gif'）
   width: number;        // 图片宽度（px）
