@@ -33,6 +33,12 @@ const offsetX = ref(0)
 const offsetY = ref(0)
 const isPanningCanvas = ref(false)
 
+const resetTransform = () => {
+  scale.value = 1
+  offsetX.value = 0
+  offsetY.value = 0
+}
+
 // 绘制底图到 canvas
 function drawBaseImage() {
   console.log('drawBaseImage 调用:', { baseImageUrl: props.baseImageUrl, canvasRef: canvasRef.value })
@@ -179,13 +185,6 @@ function cancelTextEdit() {
   editingText.value = ''
 }
 
-// 重置画布变换
-function resetTransform() {
-  scale.value = 1
-  offsetX.value = 0
-  offsetY.value = 0
-}
-
 // 画布双击事件
 function handleCanvasDoubleClick() {
   if (scale.value !== 1 || offsetX.value !== 0 || offsetY.value !== 0) {
@@ -310,9 +309,7 @@ onUnmounted(() => {
         v-show="!!baseImageUrl"
         :style="{
           transform: `translate(${offsetX}px, ${offsetY}px) scale(${scale})`,
-          cursor: isPanningCanvas ? 'grabbing' : 'grab',
-          marginLeft: `-${config.width / 2}px`,
-          marginTop: `-${config.height / 2}px`
+          cursor: isPanningCanvas ? 'grabbing' : 'grab'
         }"
         @click="handleCanvasClick"
         @dblclick="handleCanvasDoubleClick"
@@ -325,13 +322,17 @@ onUnmounted(() => {
         class="layer-container"
         v-show="!!baseImageUrl"
         :style="{
-          transform: `translate(${offsetX}px, ${offsetY}px) scale(${scale})`,
-          width: `${config.width}px`,
-          height: `${config.height}px`,
-          marginLeft: `-${config.width / 2}px`,
-          marginTop: `-${config.height / 2}px`
+          transform: `translate(${offsetX}px, ${offsetY}px) scale(${scale})`
         }"
       >
+        <!-- 图层内部容器，尺寸与 canvas 一致 -->
+        <div
+          class="layer-inner"
+          :style="{
+            width: `${config.width}px`,
+            height: `${config.height}px`
+          }"
+        >
         <!-- 渲染所有图层 -->
         <div
           v-for="layer in layers"
@@ -398,6 +399,7 @@ onUnmounted(() => {
           <div class="corner-handle bottom-right"></div>
         </div>
         </div>
+        </div>
       </div>
     </div>
 
@@ -432,9 +434,9 @@ onUnmounted(() => {
 }
 
 .image-wrapper canvas {
-  position: absolute;
-  top: 50%;
-  left: 50%;
+  max-width: 100%;
+  max-height: 100%;
+  object-fit: contain;
   border: 1px solid rgba(255, 255, 255, 0.1);
   border-radius: 4px;
   transform-origin: center center;
@@ -446,10 +448,20 @@ onUnmounted(() => {
 
 .layer-container {
   position: absolute;
-  top: 50%;
-  left: 50%;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
   transform-origin: center center;
   will-change: transform;
+  pointer-events: none;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.layer-inner {
+  position: relative;
   pointer-events: none;
 }
 

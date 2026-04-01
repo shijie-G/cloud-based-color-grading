@@ -139,7 +139,7 @@ function handleClear() {
 
 <template>
   <div class="personalize-page">
-    <!-- 顶部工具栏 -->
+    <!-- 顶部工具栏
     <div class="toolbar">
       <div class="toolbar-left">
         <h2>个性化设计</h2>
@@ -161,7 +161,7 @@ function handleClear() {
           <span>导出</span>
         </button>
       </div>
-    </div>
+    </div> -->
 
     <!-- 主工作区 -->
     <div class="workspace">
