@@ -67,11 +67,11 @@ function handleResizerMouseMove(e: MouseEvent) {
     // 素材库：向右拖增加宽度，最小260px
     assetPanelWidth.value = Math.max(260, Math.min(500, startWidth + delta))
   } else if (currentResizer === 'property') {
-    // 属性面板：向左拖增加宽度
-    propertyPanelWidth.value = Math.max(200, Math.min(500, startWidth - delta))
+    // 属性面板：向左拖增加宽度，最小260px
+    propertyPanelWidth.value = Math.max(260, Math.min(500, startWidth - delta))
   } else if (currentResizer === 'layer') {
-    // 图层面板：向左拖增加宽度
-    layerPanelWidth.value = Math.max(200, Math.min(500, startWidth - delta))
+    // 图层面板：向左拖增加宽度，最小260px
+    layerPanelWidth.value = Math.max(260, Math.min(500, startWidth - delta))
   }
 }
 
@@ -326,6 +326,7 @@ function handleClear() {
           @toggle-lock="layerManager.toggleLayerLock"
           @move-up="layerManager.moveLayerUp"
           @move-down="layerManager.moveLayerDown"
+          @reorder="layerManager.reorderLayers"
         />
       </div>
     </div>

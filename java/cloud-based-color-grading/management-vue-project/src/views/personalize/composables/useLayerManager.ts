@@ -156,6 +156,20 @@ export function useLayerManager() {
     layerIdCounter = 0
   }
 
+  /**
+   * 重新排序图层（拖拽）
+   */
+  function reorderLayers(fromIndex: number, toIndex: number) {
+    const sortedLayersList = [...layers.value].sort((a, b) => b.zIndex - a.zIndex)
+    const [movedLayer] = sortedLayersList.splice(fromIndex, 1)
+    sortedLayersList.splice(toIndex, 0, movedLayer)
+
+    // 重新分配 zIndex
+    sortedLayersList.forEach((layer, index) => {
+      layer.zIndex = sortedLayersList.length - index
+    })
+  }
+
   return {
     layers,
     selectedLayerId,
@@ -170,6 +184,7 @@ export function useLayerManager() {
     toggleLayerVisibility,
     toggleLayerLock,
     duplicateLayer,
-    clearLayers
+    clearLayers,
+    reorderLayers
   }
 }

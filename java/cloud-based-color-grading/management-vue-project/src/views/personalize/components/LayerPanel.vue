@@ -1,4 +1,5 @@
 <script setup lang="ts">
+import { ref } from 'vue'
 import type { Layer } from '../types'
 
 interface Props {
@@ -14,13 +15,64 @@ interface Emits {
   (e: 'toggleLock', id: string): void
   (e: 'moveUp', id: string): void
   (e: 'moveDown', id: string): void
+  (e: 'reorder', fromIndex: number, toIndex: number): void
 }
 
 const props = defineProps<Props>()
 const emit = defineEmits<Emits>()
 
+const draggedLayerId = ref<string | null>(null)
+const dragOverLayerId = ref<string | null>(null)
+
 function getLayerIcon(type: string) {
   return type // 返回类型字符串，用于CSS类名
+}
+
+function handleDragStart(layer: Layer, e: DragEvent) {
+  if (layer.locked) {
+    e.preventDefault()
+    return
+  }
+  draggedLayerId.value = layer.id
+  if (e.dataTransfer) {
+    e.dataTransfer.effectAllowed = 'move'
+    e.dataTransfer.setData('text/plain', layer.id)
+  }
+}
+
+function handleDragOver(layer: Layer, e: DragEvent) {
+  if (!draggedLayerId.value || layer.id === draggedLayerId.value) return
+  e.preventDefault()
+  if (e.dataTransfer) {
+    e.dataTransfer.dropEffect = 'move'
+  }
+  dragOverLayerId.value = layer.id
+}
+
+function handleDragLeave(layer: Layer) {
+  if (dragOverLayerId.value === layer.id) {
+    dragOverLayerId.value = null
+  }
+}
+
+function handleDrop(layer: Layer, e: DragEvent) {
+  e.preventDefault()
+  if (!draggedLayerId.value || layer.id === draggedLayerId.value) return
+
+  const fromIndex = props.layers.findIndex(l => l.id === draggedLayerId.value)
+  const toIndex = props.layers.findIndex(l => l.id === layer.id)
+
+  if (fromIndex !== -1 && toIndex !== -1) {
+    emit('reorder', fromIndex, toIndex)
+  }
+
+  draggedLayerId.value = null
+  dragOverLayerId.value = null
+}
+
+function handleDragEnd() {
+  draggedLayerId.value = null
+  dragOverLayerId.value = null
 }
 </script>
 
@@ -34,8 +86,21 @@ function getLayerIcon(type: string) {
       <div
         v-for="layer in layers"
         :key="layer.id"
-        :class="['layer-item', { selected: layer.id === selectedLayerId }]"
+        :class="[
+          'layer-item',
+          {
+            selected: layer.id === selectedLayerId,
+            dragging: layer.id === draggedLayerId,
+            'drag-over': layer.id === dragOverLayerId
+          }
+        ]"
+        :draggable="!layer.locked"
         @click="emit('select', layer.id)"
+        @dragstart="handleDragStart(layer, $event)"
+        @dragover="handleDragOver(layer, $event)"
+        @dragleave="handleDragLeave(layer)"
+        @drop="handleDrop(layer, $event)"
+        @dragend="handleDragEnd"
       >
         <div class="layer-info">
           <div :class="['layer-icon', layer.type]">
@@ -121,7 +186,7 @@ function getLayerIcon(type: string) {
 
 <style scoped>
 .layer-panel {
-  min-width: 200px;
+  min-width: 260px;
   max-width: 500px;
   background: #1c1e22;
   display: flex;
@@ -156,6 +221,32 @@ function getLayerIcon(type: string) {
   border-radius: 6px;
   cursor: pointer;
   transition: all 0.2s ease;
+  user-select: none;
+}
+
+.layer-item[draggable="true"] {
+  cursor: move;
+}
+
+.layer-item.dragging {
+  opacity: 0.5;
+  transform: scale(0.98);
+}
+
+.layer-item.drag-over::before {
+  content: '';
+  position: absolute;
+  top: -2px;
+  left: 0;
+  right: 0;
+  height: 3px;
+  background: #5b6af0;
+  border-radius: 2px;
+  box-shadow: 0 0 8px rgba(91, 106, 240, 0.6);
+}
+
+.layer-item {
+  position: relative;
 }
 
 .layer-item:hover {

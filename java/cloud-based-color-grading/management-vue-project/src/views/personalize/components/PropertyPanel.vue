@@ -254,7 +254,7 @@ function handleUpdate(key: keyof Layer, value: any) {
 
 <style scoped>
 .property-panel {
-  min-width: 200px;
+  min-width: 260px;
   max-width: 500px;
   background: #1c1e22;
   display: flex;
