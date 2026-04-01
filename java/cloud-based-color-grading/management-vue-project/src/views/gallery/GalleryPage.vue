@@ -1,26 +1,16 @@
 <script setup lang="ts">
-import { ref, computed, onMounted } from 'vue'
+import { ref, onMounted } from 'vue'
+import { useRouter } from 'vue-router'
 import { useAlbumState } from './composables/useAlbumState'
 import { useImageState } from './composables/useImageState'
-import { useSelection } from './composables/useSelection'
 import AlbumList from './components/AlbumList.vue'
-import ImageBrowser from './components/ImageBrowser.vue'
-import AlbumSelector from './components/AlbumSelector.vue'
-import type { ViewMode } from './types/gallery'
 import { imageDB, UNASSIGNED_ALBUM_ID } from '@/views/workstation/utils/imageDB'
+
+const router = useRouter()
 
 // 状态管理
 const albumState = useAlbumState()
 const imageState = useImageState()
-const selection = useSelection()
-
-// 视图模式
-const viewMode = ref<ViewMode>('albums')
-
-// 拖拽上传
-const isDragging = ref(false)
-const uploadProgress = ref({ current: 0, total: 0 })
-const isUploading = ref(false)
 
 // 通知消息
 const notification = ref<{ show: boolean; message: string; type: 'success' | 'error' }>({
@@ -42,12 +32,9 @@ const unassignedCount = ref(0)
 // 相册封面 URL Map
 const albumCovers = ref<Map<number, string>>(new Map())
 
-// 相册选择器
-const showAlbumSelector = ref(false)
-const moveImageIds = ref<number[]>([])
-
-// 计算属性
-const showBrowser = computed(() => viewMode.value === 'browser' && albumState.currentAlbumId.value !== null)
+// 上传状态
+const uploadProgress = ref({ current: 0, total: 0 })
+const isUploading = ref(false)
 
 // 加载非分配图片数量
 async function loadUnassignedCount() {
@@ -117,15 +104,8 @@ async function handleCreateAlbum() {
 }
 
 async function handleSelectAlbum(albumId: number) {
-  try {
-    albumState.setCurrentAlbum(albumId)
-    await imageState.loadImagesByAlbum(albumId)
-    viewMode.value = 'browser'
-    selection.clearSelection()
-  } catch (error) {
-    console.error('加载相册失败:', error)
-    alert('加载相册失败')
-  }
+  // 导航到相册详情页
+  router.push(`/album/${albumId}`)
 }
 
 async function handleRenameAlbum(albumId: number, newName: string) {
@@ -192,258 +172,13 @@ async function handleAlbumUpload(albumId: number, files: File[]) {
     isUploading.value = false
   }
 }
-
-// 图片选择
-function handleImageSelect(id: number, event: MouseEvent) {
-  if (event.ctrlKey || event.metaKey) {
-    selection.toggleSelect(id)
-  } else if (event.shiftKey) {
-    const allIds = imageState.filteredImages.value.map(img => img.id)
-    selection.rangeSelect(id, allIds)
-  } else {
-    selection.clearSelection()
-    imageState.setCurrentImage(id)
-  }
-}
-
-// 图片操作
-async function handleToggleFavorite(id: number) {
-  try {
-    await imageState.toggleFavorite(id)
-  } catch (error) {
-    console.error('切换收藏失败:', error)
-  }
-}
-
-async function handleDeleteImage(id: number) {
-  if (!confirm('确定永久删除此图片？删除后无法恢复。')) return
-
-  try {
-    // 物理删除图片（包括 history 记录）
-    await imageState.permanentDelete(id)
-
-    // 重新加载当前相册
-    if (albumState.currentAlbumId.value) {
-      await imageState.loadImagesByAlbum(albumState.currentAlbumId.value)
-    }
-
-    // 重新加载封面（如果删除的是第一张图片）
-    await loadAlbumCovers()
-  } catch (error) {
-    console.error('删除图片失败:', error)
-    alert('删除图片失败')
-  }
-}
-
-// 设置相册封面
-async function handleSetCover(id: number) {
-  if (!confirm('确定将此图片设为相册封面吗？')) return
-
-  try {
-    const currentAlbumId = albumState.currentAlbumId.value
-    if (!currentAlbumId) {
-      showNotification('无法设置封面：未选择相册', 'error')
-      return
-    }
-
-    // 获取当前相册
-    const album = albumState.albums.value.find(a => a.id === currentAlbumId)
-    if (!album) {
-      showNotification('相册不存在', 'error')
-      return
-    }
-
-    // 更新相册封面
-    album.coverImageId = id
-    await albumState.updateAlbum(album)
-
-    // 重新加载封面
-    await loadAlbumCovers()
-
-    showNotification('已设为相册封面', 'success')
-  } catch (error: any) {
-    console.error('设置封面失败:', error)
-    showNotification(error.message || '设置封面失败', 'error')
-  }
-}
-
-// 转移图片到其他相册
-async function handleMoveImage(id: number) {
-  moveImageIds.value = [id]
-  showAlbumSelector.value = true
-}
-
-// 批量转移
-async function handleBatchMove(ids: number[]) {
-  moveImageIds.value = ids
-  showAlbumSelector.value = true
-}
-
-// 选择目标相册
-async function handleAlbumSelect(targetAlbumId: number) {
-  try {
-    const count = moveImageIds.value.length
-    const targetAlbum = albumState.albums.value.find(a => a.id === targetAlbumId)
-
-    // 确认操作
-    if (!confirm(`确定要将 ${count} 张图片转移到「${targetAlbum?.name || '目标相册'}」吗？`)) {
-      return
-    }
-
-    await imageState.moveToAlbum(moveImageIds.value, targetAlbumId)
-
-    // 重新加载当前相册
-    if (albumState.currentAlbumId.value) {
-      await imageState.loadImagesByAlbum(albumState.currentAlbumId.value)
-    }
-
-    // 重新加载封面
-    await loadAlbumCovers()
-
-    // 关闭选择器
-    showAlbumSelector.value = false
-    moveImageIds.value = []
-
-    // 清除选择
-    selection.clearSelection()
-
-    // 显示成功提示
-    showNotification(`已转移 ${count} 张图片到 ${targetAlbum?.name || '目标相册'}`, 'success')
-  } catch (error: any) {
-    console.error('转移图片失败:', error)
-    showNotification(error.message || '转移失败', 'error')
-  }
-}
-
-// 取消选择相册
-function handleAlbumSelectorCancel() {
-  showAlbumSelector.value = false
-  moveImageIds.value = []
-}
-
-// 批量操作
-async function handleBatchFavorite(ids: number[]) {
-  try {
-    await imageState.batchFavorite(ids)
-    selection.clearSelection()
-  } catch (error) {
-    console.error('批量收藏失败:', error)
-    alert('批量收藏失败')
-  }
-}
-
-async function handleBatchDelete(ids: number[]) {
-  if (!confirm(`确定永久删除选中的 ${ids.length} 张图片？删除后无法恢复。`)) return
-
-  try {
-    // 物理删除图片（包括 history 记录）
-    await imageState.batchPermanentDelete(ids)
-
-    // 重新加载当前相册
-    if (albumState.currentAlbumId.value) {
-      await imageState.loadImagesByAlbum(albumState.currentAlbumId.value)
-    }
-
-    // 重新加载封面
-    await loadAlbumCovers()
-
-    selection.clearSelection()
-  } catch (error) {
-    console.error('批量删除失败:', error)
-    alert('批量删除失败')
-  }
-}
-
-// 拖拽上传
-function handleDragEnter(event: DragEvent) {
-  event.preventDefault()
-  // 只有在浏览相册时才允许拖拽
-  if (viewMode.value === 'browser' && albumState.currentAlbumId.value !== null) {
-    isDragging.value = true
-  }
-}
-
-function handleDragLeave(event: DragEvent) {
-  event.preventDefault()
-  if (event.target === event.currentTarget) {
-    isDragging.value = false
-  }
-}
-
-function handleDragOver(event: DragEvent) {
-  event.preventDefault()
-}
-
-async function handleDrop(event: DragEvent) {
-  event.preventDefault()
-  isDragging.value = false
-
-  // 只有在浏览相册时才允许上传
-  if (viewMode.value !== 'browser' || !albumState.currentAlbumId.value) {
-    return
-  }
-
-  const files = Array.from(event.dataTransfer?.files || [])
-  if (files.length === 0) return
-
-  if (files.length > 50) {
-    showNotification('单次最多上传 50 张图片', 'error')
-    return
-  }
-
-  try {
-    isUploading.value = true
-    uploadProgress.value = { current: 0, total: files.length }
-
-    const result = await imageState.uploadImages(albumState.currentAlbumId.value, files)
-
-    uploadProgress.value = { current: files.length, total: files.length }
-
-    // 重新加载当前相册
-    await imageState.loadImagesByAlbum(albumState.currentAlbumId.value)
-
-    // 重新加载封面
-    await loadAlbumCovers()
-
-    setTimeout(() => {
-      isUploading.value = false
-
-      // 根据上传结果显示不同的提示
-      const { successIds, failedCount, duplicateCount } = result
-      if (successIds.length > 0 && failedCount === 0 && duplicateCount === 0) {
-        showNotification(`成功上传 ${successIds.length} 张图片`, 'success')
-      } else if (successIds.length > 0) {
-        let message = `成功上传 ${successIds.length} 张图片`
-        if (duplicateCount > 0) message += `，${duplicateCount} 张重复`
-        if (failedCount > 0) message += `，${failedCount} 张失败`
-        showNotification(message, 'success')
-      } else if (duplicateCount > 0) {
-        showNotification(`${duplicateCount} 张图片已存在`, 'error')
-      } else {
-        showNotification('上传失败', 'error')
-      }
-    }, 500)
-  } catch (error: any) {
-    console.error('上传失败:', error)
-    showNotification(error.message || '上传失败', 'error')
-    isUploading.value = false
-  }
-}
 </script>
 
 <template>
-  <div
-    class="gallery-page"
-    @dragenter="handleDragEnter"
-    @dragleave="handleDragLeave"
-    @dragover="handleDragOver"
-    @drop="handleDrop"
-  >
-    <!-- 主内容区 -->
+  <div class="gallery-page">
+    <!-- 相册列表视图 -->
     <div class="gallery-content">
-      <!-- 相册列表视图 -->
       <AlbumList
-        v-if="viewMode === 'albums'"
         :month-groups="albumState.monthGroups.value"
         :unassigned-count="unassignedCount"
         :album-covers="albumCovers"
@@ -453,35 +188,6 @@ async function handleDrop(event: DragEvent) {
         @create="handleCreateAlbum"
         @upload="handleAlbumUpload"
       />
-
-      <!-- 图片浏览视图 -->
-      <ImageBrowser
-        v-else-if="showBrowser"
-        :images="imageState.filteredImages.value"
-        :current-id="imageState.currentImageId.value"
-        :selected-ids="selection.selectedArray.value"
-        :quick-filter="imageState.quickFilter.value"
-        @select="handleImageSelect"
-        @favorite="handleToggleFavorite"
-        @delete="handleDeleteImage"
-        @move="handleMoveImage"
-        @set-cover="handleSetCover"
-        @batch-favorite="handleBatchFavorite"
-        @batch-delete="handleBatchDelete"
-        @batch-move="handleBatchMove"
-        @clear-selection="selection.clearSelection"
-        @filter-change="(mode) => imageState.setQuickFilter(mode as any)"
-      />
-    </div>
-
-    <!-- 拖拽上传遮罩 -->
-    <div v-if="isDragging" class="drag-overlay">
-      <div class="drag-content">
-        <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M7 16a4 4 0 01-.88-7.903A5 5 0 1115.9 6L16 6a5 5 0 011 9.9M15 13l-3-3m0 0l-3 3m3-3v12" />
-        </svg>
-        <p>拖放图片到此处上传</p>
-      </div>
     </div>
 
     <!-- 上传进度 -->
@@ -507,15 +213,6 @@ async function handleDrop(event: DragEvent) {
         <span>{{ notification.message }}</span>
       </div>
     </div>
-
-    <!-- 相册选择器 -->
-    <AlbumSelector
-      v-if="showAlbumSelector"
-      :albums="albumState.albums.value"
-      :current-album-id="albumState.currentAlbumId.value"
-      @select="handleAlbumSelect"
-      @cancel="handleAlbumSelectorCancel"
-    />
   </div>
 </template>
 
@@ -533,38 +230,6 @@ async function handleDrop(event: DragEvent) {
 .gallery-content {
   flex: 1;
   overflow: hidden;
-}
-
-.drag-overlay {
-  position: fixed;
-  top: 0;
-  left: 0;
-  right: 0;
-  bottom: 0;
-  background: rgba(22, 24, 28, 0.95);
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  z-index: 1000;
-  pointer-events: none;
-}
-
-.drag-content {
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  gap: 1rem;
-  color: #5b6af0;
-}
-
-.drag-content svg {
-  width: 80px;
-  height: 80px;
-}
-
-.drag-content p {
-  font-size: 1.25rem;
-  font-weight: 500;
 }
 
 .upload-progress {
@@ -656,4 +321,3 @@ async function handleDrop(event: DragEvent) {
   }
 }
 </style>
-

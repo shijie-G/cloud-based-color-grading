@@ -19,6 +19,14 @@ const routes: RouteRecordRaw[] = [
     }
   },
   {
+    path: '/album/:id',
+    name: 'AlbumDetail',
+    component: () => import('../views/album/AlbumDetailPage.vue'),
+    meta: {
+      requiresAuth: true
+    }
+  },
+  {
     path: '/',
     redirect: '/workstation'
   }
