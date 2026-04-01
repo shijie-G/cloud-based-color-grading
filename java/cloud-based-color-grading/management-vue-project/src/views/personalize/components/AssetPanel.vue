@@ -1,6 +1,10 @@
 <script setup lang="ts">
 import { ref, computed } from 'vue'
 
+interface Props {
+  disabled?: boolean
+}
+
 interface Emits {
   (e: 'addImageFromGallery'): void
   (e: 'addText'): void
@@ -8,6 +12,9 @@ interface Emits {
   (e: 'addSticker', sticker: { id: string; name: string; url: string; category: string }): void
 }
 
+const props = withDefaults(defineProps<Props>(), {
+  disabled: false
+})
 const emit = defineEmits<Emits>()
 
 // 贴纸数据
@@ -18,6 +25,8 @@ const stickerCategories = ref([
 ])
 
 const selectedStickerCategory = ref('all')
+const isStickerExpanded = ref(false)
+const expandedCategories = ref<Set<string>>(new Set())
 
 const stickers = ref([
   // 表情类
@@ -41,6 +50,21 @@ const filteredStickers = computed(() => {
   }
   return stickers.value.filter(s => s.category === selectedStickerCategory.value)
 })
+
+function toggleCategory(categoryId: string) {
+  if (expandedCategories.value.has(categoryId)) {
+    expandedCategories.value.delete(categoryId)
+  } else {
+    expandedCategories.value.add(categoryId)
+  }
+}
+
+function getCategoryStickers(categoryId: string) {
+  if (categoryId === 'all') {
+    return stickers.value
+  }
+  return stickers.value.filter(s => s.category === categoryId)
+}
 
 function handleStickerClick(sticker: typeof stickers.value[0]) {
   emit('addSticker', sticker)
@@ -68,7 +92,7 @@ function handleStickerClick(sticker: typeof stickers.value[0]) {
       <!-- 文字 -->
       <div class="asset-section">
         <div class="section-title">文字</div>
-        <button class="asset-btn" @click="emit('addText')">
+        <button class="asset-btn" @click="emit('addText')" :disabled="props.disabled">
           <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor">
             <path fill-rule="evenodd" d="M12.316 3.051a1 1 0 01.633 1.265l-4 12a1 1 0 11-1.898-.632l4-12a1 1 0 011.265-.633zM5.707 6.293a1 1 0 010 1.414L3.414 10l2.293 2.293a1 1 0 11-1.414 1.414l-3-3a1 1 0 010-1.414l3-3a1 1 0 011.414 0zm8.586 0a1 1 0 011.414 0l3 3a1 1 0 010 1.414l-3 3a1 1 0 11-1.414-1.414L16.586 10l-2.293-2.293a1 1 0 010-1.414z" clip-rule="evenodd" />
           </svg>
@@ -80,49 +104,49 @@ function handleStickerClick(sticker: typeof stickers.value[0]) {
       <div class="asset-section">
         <div class="section-title">形状</div>
         <div class="shape-grid">
-          <button class="shape-btn" @click="emit('addShape', 'rectangle')" title="矩形">
+          <button class="shape-btn" @click="emit('addShape', 'rectangle')" title="矩形" :disabled="props.disabled">
             <svg viewBox="0 0 40 40" fill="none" xmlns="http://www.w3.org/2000/svg">
               <rect x="8" y="12" width="24" height="16" rx="2" stroke="currentColor" stroke-width="2" fill="none"/>
             </svg>
             <span>矩形</span>
           </button>
-          <button class="shape-btn" @click="emit('addShape', 'circle')" title="圆形">
+          <button class="shape-btn" @click="emit('addShape', 'circle')" title="圆形" :disabled="props.disabled">
             <svg viewBox="0 0 40 40" fill="none" xmlns="http://www.w3.org/2000/svg">
               <circle cx="20" cy="20" r="10" stroke="currentColor" stroke-width="2" fill="none"/>
             </svg>
             <span>圆形</span>
           </button>
-          <button class="shape-btn" @click="emit('addShape', 'triangle')" title="三角形">
+          <button class="shape-btn" @click="emit('addShape', 'triangle')" title="三角形" :disabled="props.disabled">
             <svg viewBox="0 0 40 40" fill="none" xmlns="http://www.w3.org/2000/svg">
               <path d="M20 8 L32 30 L8 30 Z" stroke="currentColor" stroke-width="2" fill="none"/>
             </svg>
             <span>三角形</span>
           </button>
-          <button class="shape-btn" @click="emit('addShape', 'star')" title="星形">
+          <button class="shape-btn" @click="emit('addShape', 'star')" title="星形" :disabled="props.disabled">
             <svg viewBox="0 0 40 40" fill="none" xmlns="http://www.w3.org/2000/svg">
               <path d="M20 6 L23 16 L33 16 L25 22 L28 32 L20 26 L12 32 L15 22 L7 16 L17 16 Z" stroke="currentColor" stroke-width="2" fill="none"/>
             </svg>
             <span>星形</span>
           </button>
-          <button class="shape-btn" @click="emit('addShape', 'heart')" title="心形">
+          <button class="shape-btn" @click="emit('addShape', 'heart')" title="心形" :disabled="props.disabled">
             <svg viewBox="0 0 40 40" fill="none" xmlns="http://www.w3.org/2000/svg">
               <path d="M20 32 C20 32 6 24 6 14 C6 8 10 6 14 8 C17 9 19 12 20 14 C21 12 23 9 26 8 C30 6 34 8 34 14 C34 24 20 32 20 32 Z" stroke="currentColor" stroke-width="2" fill="none"/>
             </svg>
             <span>心形</span>
           </button>
-          <button class="shape-btn" @click="emit('addShape', 'arrow')" title="箭头">
+          <button class="shape-btn" @click="emit('addShape', 'arrow')" title="箭头" :disabled="props.disabled">
             <svg viewBox="0 0 40 40" fill="none" xmlns="http://www.w3.org/2000/svg">
               <path d="M8 20 L24 20 M24 20 L18 14 M24 20 L18 26" stroke="currentColor" stroke-width="2" fill="none" stroke-linecap="round" stroke-linejoin="round"/>
             </svg>
             <span>箭头</span>
           </button>
-          <button class="shape-btn" @click="emit('addShape', 'pentagon')" title="五边形">
+          <button class="shape-btn" @click="emit('addShape', 'pentagon')" title="五边形" :disabled="props.disabled">
             <svg viewBox="0 0 40 40" fill="none" xmlns="http://www.w3.org/2000/svg">
               <path d="M20 8 L32 16 L28 30 L12 30 L8 16 Z" stroke="currentColor" stroke-width="2" fill="none"/>
             </svg>
             <span>五边形</span>
           </button>
-          <button class="shape-btn" @click="emit('addShape', 'hexagon')" title="六边形">
+          <button class="shape-btn" @click="emit('addShape', 'hexagon')" title="六边形" :disabled="props.disabled">
             <svg viewBox="0 0 40 40" fill="none" xmlns="http://www.w3.org/2000/svg">
               <path d="M14 10 L26 10 L32 20 L26 30 L14 30 L8 20 Z" stroke="currentColor" stroke-width="2" fill="none"/>
             </svg>
@@ -135,28 +159,43 @@ function handleStickerClick(sticker: typeof stickers.value[0]) {
       <div class="asset-section">
         <div class="section-title">贴纸</div>
 
-        <!-- 分类标签 -->
-        <div class="sticker-categories">
-          <button
+        <!-- 分类折叠列表 -->
+        <div class="category-list">
+          <div
             v-for="cat in stickerCategories"
             :key="cat.id"
-            :class="['category-tag', { active: selectedStickerCategory === cat.id }]"
-            @click="selectedStickerCategory = cat.id"
+            class="category-item"
           >
-            {{ cat.name }}
-          </button>
-        </div>
+            <!-- 分类标题 -->
+            <div
+              :class="['category-header', { disabled: props.disabled }]"
+              @click="!props.disabled && toggleCategory(cat.id)"
+            >
+              <span>{{ cat.name }}</span>
+              <svg
+                xmlns="http://www.w3.org/2000/svg"
+                viewBox="0 0 20 20"
+                fill="currentColor"
+                :class="['collapse-icon', { expanded: expandedCategories.has(cat.id) }]"
+              >
+                <path fill-rule="evenodd" d="M5.293 7.293a1 1 0 011.414 0L10 10.586l3.293-3.293a1 1 0 111.414 1.414l-4 4a1 1 0 01-1.414 0l-4-4a1 1 0 010-1.414z" clip-rule="evenodd" />
+              </svg>
+            </div>
 
-        <!-- 贴纸网格 -->
-        <div class="sticker-grid">
-          <div
-            v-for="sticker in filteredStickers"
-            :key="sticker.id"
-            class="sticker-item"
-            @click="handleStickerClick(sticker)"
-            :title="sticker.name"
-          >
-            <img :src="sticker.url" :alt="sticker.name" />
+            <!-- 分类内容 -->
+            <div v-show="expandedCategories.has(cat.id)" class="category-content">
+              <div class="sticker-grid">
+                <div
+                  v-for="sticker in getCategoryStickers(cat.id)"
+                  :key="sticker.id"
+                  :class="['sticker-item', { disabled: props.disabled }]"
+                  @click="!props.disabled && handleStickerClick(sticker)"
+                  :title="sticker.name"
+                >
+                  <img :src="sticker.url" :alt="sticker.name" />
+                </div>
+              </div>
+            </div>
           </div>
         </div>
       </div>
@@ -189,6 +228,12 @@ function handleStickerClick(sticker: typeof stickers.value[0]) {
   flex: 1;
   overflow-y: auto;
   padding: 1rem;
+  scrollbar-width: none; /* Firefox */
+  -ms-overflow-style: none; /* IE and Edge */
+}
+
+.asset-content::-webkit-scrollbar {
+  display: none; /* Chrome, Safari, Opera */
 }
 
 .asset-section {
@@ -202,6 +247,73 @@ function handleStickerClick(sticker: typeof stickers.value[0]) {
   text-transform: uppercase;
   letter-spacing: 0.05em;
   margin-bottom: 0.75rem;
+}
+
+.category-list {
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+}
+
+.category-item {
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  border-radius: 8px;
+  overflow: hidden;
+  background: #24272d;
+}
+
+.category-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 0.75rem;
+  cursor: pointer;
+  user-select: none;
+  transition: all 0.2s;
+  font-size: 0.875rem;
+  font-weight: 500;
+  color: #e2e4e9;
+}
+
+.category-header:hover:not(.disabled) {
+  background: rgba(255, 255, 255, 0.05);
+}
+
+.category-header.disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+.category-header span {
+  flex: 1;
+}
+
+.collapse-icon {
+  width: 16px;
+  height: 16px;
+  transition: transform 0.2s;
+  flex-shrink: 0;
+}
+
+.collapse-icon.expanded {
+  transform: rotate(180deg);
+}
+
+.category-content {
+  padding: 0.75rem;
+  border-top: 1px solid rgba(255, 255, 255, 0.05);
+  animation: slideDown 0.2s ease-out;
+}
+
+@keyframes slideDown {
+  from {
+    opacity: 0;
+    transform: translateY(-10px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
 }
 
 .asset-btn {
@@ -232,6 +344,12 @@ function handleStickerClick(sticker: typeof stickers.value[0]) {
   border-color: #5b6af0;
   color: #5b6af0;
   transform: translateY(-1px);
+}
+
+.asset-btn:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+  pointer-events: none;
 }
 
 .shape-grid {
@@ -273,34 +391,10 @@ function handleStickerClick(sticker: typeof stickers.value[0]) {
   transform: translateY(-1px);
 }
 
-.sticker-categories {
-  display: flex;
-  gap: 0.5rem;
-  margin-bottom: 0.75rem;
-  flex-wrap: wrap;
-}
-
-.category-tag {
-  padding: 0.25rem 0.625rem;
-  border: 1px solid rgba(255, 255, 255, 0.1);
-  background: #24272d;
-  color: #9ca3af;
-  border-radius: 12px;
-  cursor: pointer;
-  font-size: 0.75rem;
-  font-weight: 500;
-  transition: all 0.2s;
-}
-
-.category-tag:hover {
-  background: #2a2d35;
-  border-color: rgba(255, 255, 255, 0.2);
-}
-
-.category-tag.active {
-  background: #5b6af0;
-  border-color: #5b6af0;
-  color: white;
+.shape-btn:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+  pointer-events: none;
 }
 
 .sticker-grid {
@@ -333,6 +427,12 @@ function handleStickerClick(sticker: typeof stickers.value[0]) {
   width: 70%;
   height: 70%;
   object-fit: contain;
+  pointer-events: none;
+}
+
+.sticker-item.disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
   pointer-events: none;
 }
 </style>

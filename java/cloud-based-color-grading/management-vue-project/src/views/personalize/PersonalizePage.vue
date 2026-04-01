@@ -213,6 +213,7 @@ function handleClear() {
     <div class="workspace">
       <!-- 素材库面板 -->
       <AssetPanel
+        :disabled="!baseImageUrl"
         @add-image-from-gallery="handleAddImageFromGallery"
         @add-text="handleAddText"
         @add-shape="handleAddShape"
