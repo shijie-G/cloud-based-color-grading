@@ -33,6 +33,41 @@ function handleAddImageFromGallery() {
   showImageSelector.value = true
 }
 
+// 选择贴纸
+function handleStickerSelect(sticker: { id: string; name: string; url: string; category: string }) {
+  // 加载贴纸图片获取尺寸
+  const img = new Image()
+  img.onload = () => {
+    const maxSize = Math.min(canvasConfig.value.width, canvasConfig.value.height) * 0.3
+    let finalWidth = img.naturalWidth
+    let finalHeight = img.naturalHeight
+
+    // 等比例缩放
+    if (finalWidth > maxSize || finalHeight > maxSize) {
+      const ratio = Math.min(maxSize / finalWidth, maxSize / finalHeight)
+      finalWidth = finalWidth * ratio
+      finalHeight = finalHeight * ratio
+    }
+
+    layerManager.addLayer({
+      name: sticker.name,
+      type: 'image',
+      visible: true,
+      locked: false,
+      opacity: 1,
+      x: (canvasConfig.value.width - finalWidth) / 2,
+      y: (canvasConfig.value.height - finalHeight) / 2,
+      width: finalWidth,
+      height: finalHeight,
+      rotation: 0,
+      imageUrl: sticker.url,
+      strokeColor: '#000000',
+      strokeWidth: 0
+    })
+  }
+  img.src = sticker.url
+}
+
 // 从相册选择图片
 function handleImageSelect(imageUrl: string, width: number, height: number) {
   console.log('选择图片:', imageUrl, width, height)
@@ -94,9 +129,20 @@ function handleAddText() {
 }
 
 // 添加形状图层
-function handleAddShape(shapeType: 'rectangle' | 'circle') {
+function handleAddShape(shapeType: 'rectangle' | 'circle' | 'triangle' | 'star' | 'heart' | 'arrow' | 'pentagon' | 'hexagon') {
+  const shapeNames: Record<string, string> = {
+    rectangle: '矩形',
+    circle: '圆形',
+    triangle: '三角形',
+    star: '星形',
+    heart: '心形',
+    arrow: '箭头',
+    pentagon: '五边形',
+    hexagon: '六边形'
+  }
+
   layerManager.addLayer({
-    name: shapeType === 'rectangle' ? '矩形' : '圆形',
+    name: shapeNames[shapeType] || '形状',
     type: 'shape',
     visible: true,
     locked: false,
@@ -170,6 +216,7 @@ function handleClear() {
         @add-image-from-gallery="handleAddImageFromGallery"
         @add-text="handleAddText"
         @add-shape="handleAddShape"
+        @add-sticker="handleStickerSelect"
       />
 
       <!-- 画布区域 -->

@@ -1,6 +1,7 @@
 <script setup lang="ts">
 import { ref, onMounted, watch, nextTick, onUnmounted } from 'vue'
 import type { Layer, CanvasConfig } from '../types'
+import TransformControls from './TransformControls.vue'
 
 interface Props {
   layers: Layer[]
@@ -183,6 +184,16 @@ function finishTextEdit() {
 function cancelTextEdit() {
   editingTextLayerId.value = null
   editingText.value = ''
+}
+
+// 处理图层缩放
+function handleLayerResize(layerId: string, data: { width: number; height: number }) {
+  emit('updateLayer', layerId, data)
+}
+
+// 处理图层旋转
+function handleLayerRotate(layerId: string, rotation: number) {
+  emit('updateLayer', layerId, { rotation })
 }
 
 // 画布双击事件
@@ -390,13 +401,17 @@ onUnmounted(() => {
           }"
         ></div>
 
-        <!-- 选中边框 -->
+        <!-- 选中边框和变换控制 -->
         <div v-if="layer.id === selectedLayerId && editingTextLayerId !== layer.id" class="selection-border">
-          <!-- 四个角的控制点 -->
-          <div class="corner-handle top-left"></div>
-          <div class="corner-handle top-right"></div>
-          <div class="corner-handle bottom-left"></div>
-          <div class="corner-handle bottom-right"></div>
+          <TransformControls
+            :x="layer.x"
+            :y="layer.y"
+            :width="layer.width"
+            :height="layer.height"
+            :rotation="layer.rotation"
+            @resize="handleLayerResize(layer.id, $event)"
+            @rotate="handleLayerRotate(layer.id, $event)"
+          />
         </div>
         </div>
         </div>
@@ -508,6 +523,7 @@ onUnmounted(() => {
 .layer-shape {
   width: 100%;
   height: 100%;
+  position: relative;
 }
 
 .layer-shape.circle {
@@ -517,9 +533,53 @@ onUnmounted(() => {
 .layer-shape.triangle {
   width: 0;
   height: 0;
-  border-left: 50px solid transparent;
-  border-right: 50px solid transparent;
-  border-bottom: 100px solid currentColor;
+  border-left: 50% solid transparent;
+  border-right: 50% solid transparent;
+  border-bottom: 100% solid currentColor;
+  background: transparent !important;
+}
+
+.layer-shape.star {
+  clip-path: polygon(50% 0%, 61% 35%, 98% 35%, 68% 57%, 79% 91%, 50% 70%, 21% 91%, 32% 57%, 2% 35%, 39% 35%);
+}
+
+.layer-shape.heart {
+  position: relative;
+}
+
+.layer-shape.heart::before,
+.layer-shape.heart::after {
+  content: "";
+  position: absolute;
+  top: 0;
+  width: 52%;
+  height: 80%;
+  border-radius: 50% 50% 0 0;
+  background: currentColor;
+}
+
+.layer-shape.heart::before {
+  left: 0;
+  transform: rotate(-45deg);
+  transform-origin: 100% 100%;
+}
+
+.layer-shape.heart::after {
+  right: 0;
+  transform: rotate(45deg);
+  transform-origin: 0 100%;
+}
+
+.layer-shape.arrow {
+  clip-path: polygon(40% 0%, 40% 20%, 100% 20%, 100% 80%, 40% 80%, 40% 100%, 0% 50%);
+}
+
+.layer-shape.pentagon {
+  clip-path: polygon(50% 0%, 100% 38%, 82% 100%, 18% 100%, 0% 38%);
+}
+
+.layer-shape.hexagon {
+  clip-path: polygon(25% 0%, 75% 0%, 100% 50%, 75% 100%, 25% 100%, 0% 50%);
 }
 
 .selection-border {
@@ -531,36 +591,6 @@ onUnmounted(() => {
   border: 2px solid #5b6af0;
   pointer-events: none;
   box-shadow: 0 0 0 1px rgba(255, 255, 255, 0.5);
-}
-
-.corner-handle {
-  position: absolute;
-  width: 8px;
-  height: 8px;
-  background: white;
-  border: 2px solid #5b6af0;
-  border-radius: 50%;
-  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.3);
-}
-
-.corner-handle.top-left {
-  top: -4px;
-  left: -4px;
-}
-
-.corner-handle.top-right {
-  top: -4px;
-  right: -4px;
-}
-
-.corner-handle.bottom-left {
-  bottom: -4px;
-  left: -4px;
-}
-
-.corner-handle.bottom-right {
-  bottom: -4px;
-  right: -4px;
 }
 
 .scale-indicator {

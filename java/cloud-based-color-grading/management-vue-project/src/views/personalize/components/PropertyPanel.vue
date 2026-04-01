@@ -135,6 +135,32 @@ function handleUpdate(key: keyof Layer, value: any) {
         </div>
 
         <div class="property-item">
+          <label>字体</label>
+          <select
+            :value="layer!.fontFamily"
+            @change="handleUpdate('fontFamily', ($event.target as HTMLSelectElement).value)"
+          >
+            <option value="Arial">Arial</option>
+            <option value="'Times New Roman'">Times New Roman</option>
+            <option value="'Courier New'">Courier New</option>
+            <option value="Georgia">Georgia</option>
+            <option value="Verdana">Verdana</option>
+            <option value="'Comic Sans MS'">Comic Sans MS</option>
+            <option value="'Trebuchet MS'">Trebuchet MS</option>
+            <option value="Impact">Impact</option>
+            <option value="'Lucida Console'">Lucida Console</option>
+            <option value="Tahoma">Tahoma</option>
+            <option value="'Palatino Linotype'">Palatino Linotype</option>
+            <option value="'Microsoft YaHei', 微软雅黑">微软雅黑</option>
+            <option value="'SimSun', 宋体">宋体</option>
+            <option value="'SimHei', 黑体">黑体</option>
+            <option value="'KaiTi', 楷体">楷体</option>
+            <option value="'FangSong', 仿宋">仿宋</option>
+            <option value="'PingFang SC', 'Hiragino Sans GB'">苹方</option>
+          </select>
+        </div>
+
+        <div class="property-item">
           <label>字号</label>
           <input
             type="number"
@@ -302,6 +328,7 @@ function handleUpdate(key: keyof Layer, value: any) {
 
 .property-item input[type="text"],
 .property-item input[type="number"],
+.property-item select,
 .property-item textarea {
   width: 100%;
   padding: 0.5rem;
@@ -314,9 +341,24 @@ function handleUpdate(key: keyof Layer, value: any) {
 }
 
 .property-item input:focus,
+.property-item select:focus,
 .property-item textarea:focus {
   outline: none;
   border-color: #5b6af0;
+}
+
+.property-item select {
+  cursor: pointer;
+  appearance: none;
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='12' viewBox='0 0 12 12'%3E%3Cpath fill='%239ca3af' d='M6 9L1 4h10z'/%3E%3C/svg%3E");
+  background-repeat: no-repeat;
+  background-position: right 0.5rem center;
+  padding-right: 2rem;
+}
+
+.property-item select option {
+  background: #24272d;
+  color: #e2e4e9;
 }
 
 .property-item textarea {

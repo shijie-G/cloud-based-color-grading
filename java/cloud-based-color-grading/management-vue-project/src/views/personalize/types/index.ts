@@ -30,7 +30,7 @@ export interface Layer {
   fontFamily?: string
   color?: string
   // 形状图层特有属性
-  shapeType?: 'rectangle' | 'circle' | 'triangle'
+  shapeType?: 'rectangle' | 'circle' | 'triangle' | 'star' | 'heart' | 'arrow' | 'pentagon' | 'hexagon'
   fillColor?: string
   strokeColor?: string
   strokeWidth?: number
