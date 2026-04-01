@@ -28,6 +28,62 @@ const canvasConfig = ref<CanvasConfig>({
 const showImageSelector = ref(false)
 const baseImageUrl = ref<string>('')  // 底图URL
 
+// 面板宽度
+const assetPanelWidth = ref(260)
+const propertyPanelWidth = ref(280)
+const layerPanelWidth = ref(280)
+
+// 拖拽调整宽度
+let isDraggingResizer = false
+let currentResizer = ''
+let startX = 0
+let startWidth = 0
+
+function handleResizerMouseDown(resizer: string, e: MouseEvent) {
+  isDraggingResizer = true
+  currentResizer = resizer
+  startX = e.clientX
+
+  if (resizer === 'asset') {
+    startWidth = assetPanelWidth.value
+  } else if (resizer === 'property') {
+    startWidth = propertyPanelWidth.value
+  } else if (resizer === 'layer') {
+    startWidth = layerPanelWidth.value
+  }
+
+  document.addEventListener('mousemove', handleResizerMouseMove)
+  document.addEventListener('mouseup', handleResizerMouseUp)
+  document.body.style.cursor = 'col-resize'
+  document.body.style.userSelect = 'none'
+}
+
+function handleResizerMouseMove(e: MouseEvent) {
+  if (!isDraggingResizer) return
+
+  const delta = e.clientX - startX
+
+  if (currentResizer === 'asset') {
+    // 素材库：向右拖增加宽度，最小260px
+    assetPanelWidth.value = Math.max(260, Math.min(500, startWidth + delta))
+  } else if (currentResizer === 'property') {
+    // 属性面板：向左拖增加宽度
+    propertyPanelWidth.value = Math.max(200, Math.min(500, startWidth - delta))
+  } else if (currentResizer === 'layer') {
+    // 图层面板：向左拖增加宽度
+    layerPanelWidth.value = Math.max(200, Math.min(500, startWidth - delta))
+  }
+}
+
+function handleResizerMouseUp() {
+  isDraggingResizer = false
+  currentResizer = ''
+  document.removeEventListener('mousemove', handleResizerMouseMove)
+  document.removeEventListener('mouseup', handleResizerMouseUp)
+  document.body.style.cursor = ''
+  document.body.style.userSelect = ''
+}
+
 // 打开图片选择器
 function handleAddImageFromGallery() {
   showImageSelector.value = true
@@ -214,11 +270,15 @@ function handleClear() {
       <!-- 素材库面板 -->
       <AssetPanel
         :disabled="!baseImageUrl"
+        :style="{ width: `${assetPanelWidth}px` }"
         @add-image-from-gallery="handleAddImageFromGallery"
         @add-text="handleAddText"
         @add-shape="handleAddShape"
         @add-sticker="handleStickerSelect"
       />
+
+      <!-- 素材库分隔条 -->
+      <div class="resizer" @mousedown="handleResizerMouseDown('asset', $event)"></div>
 
       <!-- 画布区域 -->
       <CanvasArea
@@ -241,14 +301,22 @@ function handleClear() {
 
       <!-- 右侧面板组 -->
       <div class="right-panels">
+        <!-- 画布和属性之间的分隔条 -->
+        <div class="resizer" @mousedown="handleResizerMouseDown('property', $event)"></div>
+
         <!-- 属性面板 -->
         <PropertyPanel
+          :style="{ width: `${propertyPanelWidth}px` }"
           :layer="selectedLayer"
           @update="handleUpdateProperty"
         />
 
+        <!-- 属性和图层之间的分隔条 -->
+        <div class="resizer" @mousedown="handleResizerMouseDown('layer', $event)"></div>
+
         <!-- 图层管理面板 -->
         <LayerPanel
+          :style="{ width: `${layerPanelWidth}px` }"
           :layers="sortedLayers"
           :selected-layer-id="selectedLayerId"
           @select="layerManager.selectLayer"
@@ -361,7 +429,28 @@ function handleClear() {
 
 .right-panels {
   display: flex;
-  border-left: 1px solid rgba(255, 255, 255, 0.05);
+}
+
+.resizer {
+  width: 4px;
+  background: rgba(255, 255, 255, 0.05);
+  cursor: col-resize;
+  position: relative;
+  flex-shrink: 0;
+  transition: background 0.2s;
+}
+
+.resizer:hover {
+  background: rgba(91, 106, 240, 0.5);
+}
+
+.resizer::before {
+  content: '';
+  position: absolute;
+  top: 0;
+  bottom: 0;
+  left: -2px;
+  right: -2px;
 }
 
 .canvas-empty-state {

@@ -205,7 +205,8 @@ function handleStickerClick(sticker: typeof stickers.value[0]) {
 
 <style scoped>
 .asset-panel {
-  width: 260px;
+  min-width: 200px;
+  max-width: 500px;
   background: #1c1e22;
   border-right: 1px solid rgba(255, 255, 255, 0.05);
   display: flex;

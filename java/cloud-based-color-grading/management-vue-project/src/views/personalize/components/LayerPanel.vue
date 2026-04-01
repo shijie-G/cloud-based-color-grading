@@ -121,9 +121,9 @@ function getLayerIcon(type: string) {
 
 <style scoped>
 .layer-panel {
-  width: 280px;
+  min-width: 200px;
+  max-width: 500px;
   background: #1c1e22;
-  border-left: 1px solid rgba(255, 255, 255, 0.05);
   display: flex;
   flex-direction: column;
 }
