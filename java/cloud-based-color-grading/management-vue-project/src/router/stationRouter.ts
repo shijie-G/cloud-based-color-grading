@@ -11,6 +11,14 @@ const routes: RouteRecordRaw[] = [
     }
   },
   {
+    path: '/personalize',
+    name: 'Personalize',
+    component: () => import('../views/personalize/PersonalizePage.vue'),
+    meta: {
+      requiresAuth: true
+    }
+  },
+  {
     path: '/gallery',
     name: 'Gallery',
     component: () => import('../views/gallery/GalleryPage.vue'),

@@ -8,11 +8,16 @@ const route = useRoute()
 // 导航菜单项
 const navItems = [
   { name: '工作站', path: '/workstation' },
+  { name: '个性化', path: '/personalize' },
   { name: '图库', path: '/gallery' }
 ]
 
 // 判断当前激活的菜单
 const isActive = (path: string) => {
+  // 如果是图库路径，也匹配 /album 路由
+  if (path === '/gallery') {
+    return route.path === '/gallery' || route.path.startsWith('/album')
+  }
   return route.path === path
 }
 
@@ -31,7 +36,7 @@ const navigateTo = (path: string) => {
           <path d="M12 2L2 7l10 5 10-5-10-5z" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
           <path d="M2 17l10 5 10-5M2 12l10 5 10-5" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
         </svg>
-        <span class="logo-text">调色管理系统</span>
+        <span class="logo-text">云调色</span>
       </div>
 
       <!-- 导航菜单 -->
@@ -47,6 +52,11 @@ const navigateTo = (path: string) => {
             <circle cx="12" cy="12" r="4" stroke="currentColor" stroke-width="1.5"/>
             <path d="M12 2v3M12 19v3M2 12h3M19 12h3" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/>
             <path d="M5.636 5.636l2.121 2.121M16.243 16.243l2.121 2.121M5.636 18.364l2.121-2.121M16.243 7.757l2.121-2.121" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/>
+          </svg>
+          <!-- 个性化图标 -->
+          <svg v-else-if="item.path === '/personalize'" class="menu-icon" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+            <path d="M12 2L2 7l10 5 10-5-10-5z" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/>
+            <path d="M2 17l10 5 10-5M2 12l10 5 10-5" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/>
           </svg>
           <!-- 图库图标 -->
           <svg v-else-if="item.path === '/gallery'" class="menu-icon" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
