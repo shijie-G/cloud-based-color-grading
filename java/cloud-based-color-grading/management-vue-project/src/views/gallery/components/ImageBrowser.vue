@@ -17,6 +17,7 @@ interface Emits {
   (e: 'select', id: number, event: MouseEvent): void
   (e: 'favorite', id: number): void
   (e: 'delete', id: number): void
+  (e: 'move', id: number): void
   (e: 'batchFavorite', ids: number[]): void
   (e: 'batchDelete', ids: number[]): void
   (e: 'batchMove', ids: number[]): void
@@ -87,6 +88,7 @@ onUnmounted(() => {
           :image="currentImage"
           @favorite="currentId && emit('favorite', currentId)"
           @delete="currentId && emit('delete', currentId)"
+          @move="currentId && emit('move', currentId)"
         />
       </div>
     </div>

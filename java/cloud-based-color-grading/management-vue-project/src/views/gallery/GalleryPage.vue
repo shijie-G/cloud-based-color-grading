@@ -5,6 +5,7 @@ import { useImageState } from './composables/useImageState'
 import { useSelection } from './composables/useSelection'
 import AlbumList from './components/AlbumList.vue'
 import ImageBrowser from './components/ImageBrowser.vue'
+import AlbumSelector from './components/AlbumSelector.vue'
 import type { ViewMode } from './types/gallery'
 import { imageDB, UNASSIGNED_ALBUM_ID } from '@/views/workstation/utils/imageDB'
 
@@ -41,6 +42,10 @@ const unassignedCount = ref(0)
 // 相册封面 URL Map
 const albumCovers = ref<Map<number, string>>(new Map())
 
+// 相册选择器
+const showAlbumSelector = ref(false)
+const moveImageIds = ref<number[]>([])
+
 // 计算属性
 const showBrowser = computed(() => viewMode.value === 'browser' && albumState.currentAlbumId.value !== null)
 
@@ -76,11 +81,6 @@ async function loadAlbumCovers() {
   } catch (error) {
     console.error('加载相册封面失败:', error)
   }
-}
-
-// 获取相册封面 URL
-function getAlbumCover(albumId: number): string | undefined {
-  return albumCovers.value.get(albumId)
 }
 
 // 初始化
@@ -225,6 +225,60 @@ async function handleDeleteImage(id: number) {
   }
 }
 
+// 转移图片到其他相册
+async function handleMoveImage(id: number) {
+  moveImageIds.value = [id]
+  showAlbumSelector.value = true
+}
+
+// 批量转移
+async function handleBatchMove(ids: number[]) {
+  moveImageIds.value = ids
+  showAlbumSelector.value = true
+}
+
+// 选择目标相册
+async function handleAlbumSelect(targetAlbumId: number) {
+  try {
+    const count = moveImageIds.value.length
+    const targetAlbum = albumState.albums.value.find(a => a.id === targetAlbumId)
+
+    // 确认操作
+    if (!confirm(`确定要将 ${count} 张图片转移到「${targetAlbum?.name || '目标相册'}」吗？`)) {
+      return
+    }
+
+    await imageState.moveToAlbum(moveImageIds.value, targetAlbumId)
+
+    // 重新加载当前相册
+    if (albumState.currentAlbumId.value) {
+      await imageState.loadImagesByAlbum(albumState.currentAlbumId.value)
+    }
+
+    // 重新加载封面
+    await loadAlbumCovers()
+
+    // 关闭选择器
+    showAlbumSelector.value = false
+    moveImageIds.value = []
+
+    // 清除选择
+    selection.clearSelection()
+
+    // 显示成功提示
+    showNotification(`已转移 ${count} 张图片到 ${targetAlbum?.name || '目标相册'}`, 'success')
+  } catch (error: any) {
+    console.error('转移图片失败:', error)
+    showNotification(error.message || '转移失败', 'error')
+  }
+}
+
+// 取消选择相册
+function handleAlbumSelectorCancel() {
+  showAlbumSelector.value = false
+  moveImageIds.value = []
+}
+
 // 批量操作
 async function handleBatchFavorite(ids: number[]) {
   try {
@@ -255,22 +309,6 @@ async function handleBatchDelete(ids: number[]) {
   } catch (error) {
     console.error('批量删除失败:', error)
     alert('批量删除失败')
-  }
-}
-
-async function handleBatchMove(ids: number[]) {
-  const targetId = prompt('请输入目标相册 ID:')
-  if (!targetId) return
-
-  try {
-    await imageState.batchMoveToAlbum(ids, parseInt(targetId))
-    if (albumState.currentAlbumId.value) {
-      await imageState.loadImagesByAlbum(albumState.currentAlbumId.value)
-    }
-    selection.clearSelection()
-  } catch (error) {
-    console.error('批量移动失败:', error)
-    alert('批量移动失败')
   }
 }
 
@@ -384,6 +422,7 @@ async function handleDrop(event: DragEvent) {
         @select="handleImageSelect"
         @favorite="handleToggleFavorite"
         @delete="handleDeleteImage"
+        @move="handleMoveImage"
         @batch-favorite="handleBatchFavorite"
         @batch-delete="handleBatchDelete"
         @batch-move="handleBatchMove"
@@ -425,6 +464,15 @@ async function handleDrop(event: DragEvent) {
         <span>{{ notification.message }}</span>
       </div>
     </div>
+
+    <!-- 相册选择器 -->
+    <AlbumSelector
+      v-if="showAlbumSelector"
+      :albums="albumState.albums.value"
+      :current-album-id="albumState.currentAlbumId.value"
+      @select="handleAlbumSelect"
+      @cancel="handleAlbumSelectorCancel"
+    />
   </div>
 </template>
 

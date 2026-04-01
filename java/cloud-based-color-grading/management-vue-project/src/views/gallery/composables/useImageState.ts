@@ -270,6 +270,25 @@ export function useImageState() {
   }
 
   /**
+   * 转移图片到其他相册
+   */
+  async function moveToAlbum(imageIds: number[], targetAlbumId: number) {
+    try {
+      const toUpdate = images.value.filter(img => imageIds.includes(img.id))
+      toUpdate.forEach(img => {
+        img.albumId = targetAlbumId
+      })
+      await db.updateImages(toUpdate)
+
+      // 从当前列表中移除已转移的图片
+      images.value = images.value.filter(img => !imageIds.includes(img.id))
+    } catch (error) {
+      console.error('转移图片失败:', error)
+      throw error
+    }
+  }
+
+  /**
    * 添加标签
    */
   async function addTag(imageId: number, tag: string) {
@@ -359,6 +378,7 @@ export function useImageState() {
     restoreFromTrash,
     permanentDelete,
     batchPermanentDelete,
+    moveToAlbum,
     addTag,
     removeTag,
     batchMoveToAlbum,
