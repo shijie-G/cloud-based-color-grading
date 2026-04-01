@@ -69,10 +69,20 @@ async function loadAlbumCovers() {
       const validImages = images.filter(img => !img.isDeleted)
 
       if (validImages.length > 0) {
-        // 使用第一张图片的缩略图作为封面
-        const firstImage = validImages[0]
-        if (firstImage.thumbnail) {
-          covers.set(album.id, firstImage.thumbnail)
+        let coverImage = null
+
+        // 如果设置了封面图片 ID，优先使用指定的封面
+        if (album.coverImageId) {
+          coverImage = validImages.find(img => img.id === album.coverImageId)
+        }
+
+        // 如果没有找到指定的封面，使用第一张图片
+        if (!coverImage) {
+          coverImage = validImages[0]
+        }
+
+        if (coverImage && coverImage.thumbnail) {
+          covers.set(album.id, coverImage.thumbnail)
         }
       }
     }
@@ -222,6 +232,38 @@ async function handleDeleteImage(id: number) {
   } catch (error) {
     console.error('删除图片失败:', error)
     alert('删除图片失败')
+  }
+}
+
+// 设置相册封面
+async function handleSetCover(id: number) {
+  if (!confirm('确定将此图片设为相册封面吗？')) return
+
+  try {
+    const currentAlbumId = albumState.currentAlbumId.value
+    if (!currentAlbumId) {
+      showNotification('无法设置封面：未选择相册', 'error')
+      return
+    }
+
+    // 获取当前相册
+    const album = albumState.albums.value.find(a => a.id === currentAlbumId)
+    if (!album) {
+      showNotification('相册不存在', 'error')
+      return
+    }
+
+    // 更新相册封面
+    album.coverImageId = id
+    await albumState.updateAlbum(album)
+
+    // 重新加载封面
+    await loadAlbumCovers()
+
+    showNotification('已设为相册封面', 'success')
+  } catch (error: any) {
+    console.error('设置封面失败:', error)
+    showNotification(error.message || '设置封面失败', 'error')
   }
 }
 
@@ -423,6 +465,7 @@ async function handleDrop(event: DragEvent) {
         @favorite="handleToggleFavorite"
         @delete="handleDeleteImage"
         @move="handleMoveImage"
+        @set-cover="handleSetCover"
         @batch-favorite="handleBatchFavorite"
         @batch-delete="handleBatchDelete"
         @batch-move="handleBatchMove"

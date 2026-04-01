@@ -56,17 +56,26 @@ async function toImageRecord(item: ImageDBItem): Promise<ImageRecord> {
  * 将 ImageRecord 转换为 ImageDBItem（用于更新操作）
  */
 function imageRecordToDBItem(record: ImageRecord, existing: ImageDBItem): ImageDBItem {
+  // 创建纯对象，避免 Vue 响应式代理问题
   return {
-    ...existing,
+    id: existing.id,
     name: record.filename,
+    blob: existing.blob,  // 保持原有的 blob
+    src: existing.src,    // 保持原有的 src
+    editedSrc: existing.editedSrc,  // 保持原有的 editedSrc
+    cropStateJson: existing.cropStateJson,
+    thumbnail: existing.thumbnail,
+    uploadTime: existing.uploadTime,
     lastModified: new Date(),
-    albumId: record.albumId,
-    isFavorite: record.isFavorite,
-    favoritedAt: record.favoritedAt,
-    isDeleted: record.isDeleted,
-    deletedAt: record.deletedAt,
-    tags: record.tags ? [...record.tags] : [],  // 创建新数组，避免 Vue 响应式代理问题
-    sortOrder: record.sortOrder
+    fileHash: existing.fileHash,
+    adjustmentsJson: existing.adjustmentsJson,
+    albumId: Number(record.albumId),  // 确保是纯数字
+    isFavorite: Boolean(record.isFavorite),  // 确保是纯布尔值
+    favoritedAt: record.favoritedAt ? Number(record.favoritedAt) : undefined,
+    isDeleted: Boolean(record.isDeleted),
+    deletedAt: record.deletedAt ? Number(record.deletedAt) : undefined,
+    tags: record.tags ? Array.from(record.tags) : [],  // 创建新数组
+    sortOrder: Number(record.sortOrder)
   }
 }
 

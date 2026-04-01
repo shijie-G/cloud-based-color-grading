@@ -18,6 +18,7 @@ interface Emits {
   (e: 'favorite', id: number): void
   (e: 'delete', id: number): void
   (e: 'move', id: number): void
+  (e: 'setCover', id: number): void
   (e: 'batchFavorite', ids: number[]): void
   (e: 'batchDelete', ids: number[]): void
   (e: 'batchMove', ids: number[]): void
@@ -89,6 +90,7 @@ onUnmounted(() => {
           @favorite="currentId && emit('favorite', currentId)"
           @delete="currentId && emit('delete', currentId)"
           @move="currentId && emit('move', currentId)"
+          @set-cover="currentId && emit('setCover', currentId)"
         />
       </div>
     </div>
