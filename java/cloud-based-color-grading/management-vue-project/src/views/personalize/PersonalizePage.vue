@@ -128,42 +128,15 @@ function handleStickerSelect(sticker: { id: string; name: string; url: string; c
 function handleImageSelect(imageUrl: string, width: number, height: number) {
   console.log('选择图片:', imageUrl, width, height)
 
-  // 如果还没有底图，设置为底图
-  if (!baseImageUrl.value) {
-    // 直接使用图片的实际尺寸，不做任何限制
-    // imageUrl 是调色区处理好的 editedSrc 或原图 src
-    canvasConfig.value.width = width
-    canvasConfig.value.height = height
-    baseImageUrl.value = imageUrl
-    console.log('设置底图:', baseImageUrl.value, canvasConfig.value)
-  } else {
-    // 后续图片作为普通图层添加，等比例缩放
-    const maxSize = Math.min(canvasConfig.value.width, canvasConfig.value.height) * 0.5
-    let finalWidth = width
-    let finalHeight = height
+  // 切换画布：清空所有图层，设置新的底图
+  layerManager.clearLayers()
 
-    if (width > maxSize || height > maxSize) {
-      const ratio = Math.min(maxSize / width, maxSize / height)
-      finalWidth = width * ratio
-      finalHeight = height * ratio
-    }
-
-    layerManager.addLayer({
-      name: '图片图层',
-      type: 'image',
-      visible: true,
-      locked: false,
-      opacity: 1,
-      x: (canvasConfig.value.width - finalWidth) / 2,
-      y: (canvasConfig.value.height - finalHeight) / 2,
-      width: finalWidth,
-      height: finalHeight,
-      rotation: 0,
-      imageUrl,
-      strokeColor: '#000000',
-      strokeWidth: 0
-    })
-  }
+  // 直接使用图片的实际尺寸，不做任何限制
+  // imageUrl 是调色区处理好的 editedSrc 或原图 src
+  canvasConfig.value.width = width
+  canvasConfig.value.height = height
+  baseImageUrl.value = imageUrl
+  console.log('切换画布底图:', baseImageUrl.value, canvasConfig.value)
 }
 
 // 添加文字图层
