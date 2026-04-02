@@ -283,6 +283,29 @@ class ImageDatabase {
   }
 
   /**
+   * 仅更新缩略图（用于保存调色后的缩略图）
+   */
+  async updateThumbnail(id: number, thumbnail: string): Promise<void> {
+    if (!this.db) await this.init()
+
+    return new Promise((resolve, reject) => {
+      const transaction = this.db!.transaction([STORE_NAME], 'readwrite')
+      const objectStore = transaction.objectStore(STORE_NAME)
+      const getReq = objectStore.get(id)
+      getReq.onsuccess = () => {
+        const record = getReq.result
+        if (!record) { resolve(); return }
+        record.thumbnail = thumbnail
+        record.lastModified = new Date()
+        const putReq = objectStore.put(record)
+        putReq.onsuccess = () => resolve()
+        putReq.onerror  = () => reject(new Error('Failed to update thumbnail'))
+      }
+      getReq.onerror = () => reject(new Error('Failed to get record for thumbnail update'))
+    })
+  }
+
+  /**
    * 删除图片
    */
   async deleteImage(id: number): Promise<void> {

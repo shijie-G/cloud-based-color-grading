@@ -258,10 +258,10 @@ const serializeAdjustments = () => {
 const scheduleSave = () => {
   if (!selectedImageId.value || isLoadingAdjustments) return
   if (saveTimer) clearTimeout(saveTimer)
-  saveTimer = setTimeout(() => {
-    // 只保存调色参数，不保存 processedSrc 到 editedSrc
-    // editedSrc 应该只用于裁切/旋转/翻转后的图片
-    saveAdjustments(selectedImageId.value!, serializeAdjustments())
+  saveTimer = setTimeout(async () => {
+    // 保存调色参数，同时保存调色后的图片到 editedSrc（供 Gallery 显示）
+    const processedImage = displayProcessedSrc.value || ''
+    await saveAdjustments(selectedImageId.value!, serializeAdjustments(), processedImage)
   }, 500)
 }
 

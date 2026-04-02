@@ -144,12 +144,12 @@ export function useImageStorage(): UseImageStorageReturn {
 
   /**
    * 保存调色参数到 IndexedDB（JSON 格式）
-   * 注意：不保存 editedSrc，editedSrc 只用于裁切/旋转/翻转
+   * 同时可选保存 editedSrc（调色后的完整图片，供 Gallery 显示）
    */
-  const saveAdjustments = async (imageId: number, adjustmentsJson: string): Promise<void> => {
+  const saveAdjustments = async (imageId: number, adjustmentsJson: string, editedSrc?: string): Promise<void> => {
     try {
-      // 只更新 adjustmentsJson，不更新 editedSrc
-      await imageDB.updateAdjustments(imageId, adjustmentsJson)
+      // 更新 adjustmentsJson 和可选的 editedSrc
+      await imageDB.updateAdjustments(imageId, adjustmentsJson, editedSrc)
     } catch (error) {
       console.error('保存调色参数失败:', error)
     }
