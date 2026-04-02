@@ -4,10 +4,11 @@
  */
 
 const DB_NAME = 'WorkstationDB'
-const DB_VERSION = 7  // 升级到 v7 添加 Gallery 支持
+const DB_VERSION = 8  // 升级到 v8 添加 Personalize 支持
 const STORE_NAME = 'images'
 const HISTORY_STORE = 'history'
 const ALBUMS_STORE = 'albums'  // Gallery 相册表
+const PERSONALIZE_PROJECTS_STORE = 'personalizeProjects'  // Personalize 项目表
 
 // 特殊相册 ID：非分配图片（从 Workstation 直接上传的图片）
 export const UNASSIGNED_ALBUM_ID = -1
@@ -115,6 +116,12 @@ class ImageDatabase {
           const albumStore = db.createObjectStore(ALBUMS_STORE, { keyPath: 'id', autoIncrement: true })
           albumStore.createIndex('createdAt', 'createdAt', { unique: false })
           albumStore.createIndex('sortOrder', 'sortOrder', { unique: false })
+        }
+
+        // v8: 新增 personalizeProjects store（Personalize 项目表）
+        if (!db.objectStoreNames.contains(PERSONALIZE_PROJECTS_STORE)) {
+          const projectStore = db.createObjectStore(PERSONALIZE_PROJECTS_STORE, { keyPath: 'id' })
+          projectStore.createIndex('updatedAt', 'updatedAt', { unique: false })
         }
       }
     })
@@ -611,6 +618,96 @@ class ImageDatabase {
       transaction.onerror = () => reject(new Error('Failed to update images'))
     })
   }
+
+  // ── Personalize 项目操作 ──────────────────────────────────────────────
+
+  /**
+   * 保存个性化项目
+   */
+  async savePersonalizeProject(project: PersonalizeProjectData): Promise<void> {
+    if (!this.db) await this.init()
+
+    return new Promise((resolve, reject) => {
+      const transaction = this.db!.transaction([PERSONALIZE_PROJECTS_STORE], 'readwrite')
+      const objectStore = transaction.objectStore(PERSONALIZE_PROJECTS_STORE)
+      const request = objectStore.put(project)
+
+      request.onsuccess = () => resolve()
+      request.onerror = () => reject(new Error('Failed to save personalize project'))
+    })
+  }
+
+  /**
+   * 获取个性化项目
+   */
+  async getPersonalizeProject(id: string): Promise<PersonalizeProjectData | null> {
+    if (!this.db) await this.init()
+
+    return new Promise((resolve, reject) => {
+      const transaction = this.db!.transaction([PERSONALIZE_PROJECTS_STORE], 'readonly')
+      const objectStore = transaction.objectStore(PERSONALIZE_PROJECTS_STORE)
+      const request = objectStore.get(id)
+
+      request.onsuccess = () => resolve(request.result || null)
+      request.onerror = () => reject(new Error('Failed to get personalize project'))
+    })
+  }
+
+  /**
+   * 删除个性化项目
+   */
+  async deletePersonalizeProject(id: string): Promise<void> {
+    if (!this.db) await this.init()
+
+    return new Promise((resolve, reject) => {
+      const transaction = this.db!.transaction([PERSONALIZE_PROJECTS_STORE], 'readwrite')
+      const objectStore = transaction.objectStore(PERSONALIZE_PROJECTS_STORE)
+      const request = objectStore.delete(id)
+
+      request.onsuccess = () => resolve()
+      request.onerror = () => reject(new Error('Failed to delete personalize project'))
+    })
+  }
+}
+
+// Personalize 项目数据接口
+export interface PersonalizeProjectData {
+  id: string
+  name: string
+  baseImageId: number | null
+  layers: LayerData[]
+  createdAt: number
+  updatedAt: number
+}
+
+export interface LayerData {
+  id: string
+  name: string
+  type: 'image' | 'text' | 'shape'
+  visible: boolean
+  locked: boolean
+  opacity: number
+  x: number
+  y: number
+  width: number
+  height: number
+  rotation: number
+  zIndex: number
+
+  // 图片图层
+  imageId?: number
+  strokeColor?: string
+  strokeWidth?: number
+
+  // 文字图层
+  text?: string
+  fontSize?: number
+  fontFamily?: string
+  color?: string
+
+  // 形状图层
+  shapeType?: 'rectangle' | 'circle' | 'triangle' | 'star' | 'heart' | 'arrow' | 'pentagon' | 'hexagon'
+  fillColor?: string
 }
 
 // 导出单例实例
