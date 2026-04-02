@@ -84,7 +84,8 @@ export function useImageState(): UseImageStateReturn {
 
   // 选择图片进行编辑
   const selectImage = (image: ImageItem): void => {
-    imageSrc.value = image.src
+    // 画布渲染始终使用原始图片，避免调色效果叠加
+    imageSrc.value = image.originalSrc || image.src
     selectedImageId.value = image.id
   }
 
