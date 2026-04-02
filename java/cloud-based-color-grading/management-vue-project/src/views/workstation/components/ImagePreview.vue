@@ -223,14 +223,28 @@ const onGridHeaderClick = () => {
   gridExpanded.value = !gridExpanded.value
 }
 
+// 记录原图尺寸（第一次加载时确定，后续保持不变）
+let canvasFixedWidth = 0
+let canvasFixedHeight = 0
+
 const drawSrc = (src: string) => {
   if (!src || !previewCanvas.value) return
   const canvas = previewCanvas.value
   const img = new Image()
   img.onload = () => {
-    canvas.width  = img.naturalWidth
-    canvas.height = img.naturalHeight
-    canvas.getContext('2d')!.drawImage(img, 0, 0)
+    // 第一次加载时，记录原图尺寸作为 canvas 固定尺寸
+    if (canvasFixedWidth === 0 || canvasFixedHeight === 0) {
+      canvasFixedWidth = img.naturalWidth
+      canvasFixedHeight = img.naturalHeight
+    }
+
+    // Canvas 内部尺寸始终使用固定的原图尺寸
+    canvas.width  = canvasFixedWidth
+    canvas.height = canvasFixedHeight
+
+    // 将图片绘制到 canvas，如果是预览图（尺寸小于固定尺寸），会被拉伸填充
+    // 这样预览图和原图的 canvas 尺寸完全一致，不会跳动
+    canvas.getContext('2d')!.drawImage(img, 0, 0, canvasFixedWidth, canvasFixedHeight)
     imageReady.value = true
     // 绘制完成后通知外部（用于裁切模式下重置缩放）
     onDrawComplete?.()
@@ -238,8 +252,12 @@ const drawSrc = (src: string) => {
   img.src = src
 }
 
-// imageSrc 变化时重置 imageReady，等新图绘制完成再置 true
-watch(() => props.imageSrc, () => { imageReady.value = false })
+// imageSrc 变化时重置 imageReady 和固定尺寸，等新图绘制完成再置 true
+watch(() => props.imageSrc, () => {
+  imageReady.value = false
+  canvasFixedWidth = 0
+  canvasFixedHeight = 0
+})
 
 // 外部可注入的绘制完成回调（用一次后自动清除）
 let onDrawComplete: (() => void) | null = null

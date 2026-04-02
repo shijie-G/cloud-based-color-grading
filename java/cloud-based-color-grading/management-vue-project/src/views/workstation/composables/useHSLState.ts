@@ -238,6 +238,36 @@ export function useHSLState(): UseHSLStateReturn {
     return ctx.getImageData(0, 0, targetW, targetH)
   }
 
+  /**
+   * 将 ImageData 缩放到目标尺寸
+   * 用于将预览图放大到原图尺寸，保持 Canvas 尺寸一致
+   */
+  const scaleImageData = async (
+    data: ImageData,
+    targetW: number,
+    targetH: number
+  ): Promise<ImageData> => {
+    // 创建临时 canvas
+    const tempCanvas = document.createElement('canvas')
+    tempCanvas.width = data.width
+    tempCanvas.height = data.height
+    tempCanvas.getContext('2d')!.putImageData(data, 0, 0)
+
+    // 使用 createImageBitmap 高质量缩放
+    const bitmap = await createImageBitmap(tempCanvas, {
+      resizeWidth: targetW,
+      resizeHeight: targetH,
+      resizeQuality: 'high', // 放大时使用高质量
+    })
+
+    const oc = new OffscreenCanvas(targetW, targetH)
+    const ctx = oc.getContext('2d') as OffscreenCanvasRenderingContext2D
+    ctx.drawImage(bitmap, 0, 0)
+    bitmap.close()
+
+    return ctx.getImageData(0, 0, targetW, targetH)
+  }
+
   /** 蒙版合成：分片并行 lerp(original, adjusted, mask) */
   const runMaskCompose = (
     original: ImageData,
