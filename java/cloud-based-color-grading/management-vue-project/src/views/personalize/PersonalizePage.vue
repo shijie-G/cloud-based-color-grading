@@ -220,9 +220,9 @@ function handleAddShape(shapeType: 'rectangle' | 'circle' | 'triangle' | 'star' 
     height: 150,
     rotation: 0,
     shapeType,
-    fillColor: '#5b6af0',
+    fillColor: '#ffffff',
     strokeColor: '#000000',
-    strokeWidth: 2
+    strokeWidth: 0
   })
 }
 

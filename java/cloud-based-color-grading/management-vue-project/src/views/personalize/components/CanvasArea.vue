@@ -127,6 +127,19 @@ onMounted(() => {
 
   // 监听窗口大小变化，更新 Canvas 显示尺寸
   window.addEventListener('resize', updateCanvasDisplaySize)
+
+  // 使用 ResizeObserver 监听容器大小变化（更精确）
+  if (wrapperRef.value) {
+    const resizeObserver = new ResizeObserver(() => {
+      updateCanvasDisplaySize()
+    })
+    resizeObserver.observe(wrapperRef.value)
+
+    // 清理时断开观察
+    onUnmounted(() => {
+      resizeObserver.disconnect()
+    })
+  }
 })
 
 // 处理图层点击
@@ -501,7 +514,9 @@ onUnmounted(() => {
 
 .image-wrapper canvas {
   max-width: 100%;
-  max-height: 100%;
+  max-height: 90%;
+  width: auto;
+  height: auto;
   object-fit: contain;
   display: block;
   border: 1px solid rgba(255, 255, 255, 0.1);
