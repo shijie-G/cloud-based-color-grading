@@ -4,7 +4,7 @@ import { imageDB } from '@/views/workstation/utils/imageDB'
 import type { ImageDBItem } from '@/views/workstation/utils/imageDB'
 
 interface Emits {
-  (e: 'select', imageUrl: string, width: number, height: number): void
+  (e: 'select', imageId: number, imageUrl: string, width: number, height: number): void
   (e: 'close'): void
 }
 
@@ -52,7 +52,7 @@ function handleImageSelect(image: ImageDBItem) {
   const img = new Image()
   img.onload = () => {
     console.log('ImageSelector: 图片加载完成', img.naturalWidth, img.naturalHeight)
-    emit('select', imageUrl, img.naturalWidth, img.naturalHeight)
+    emit('select', image.id, imageUrl, img.naturalWidth, img.naturalHeight)
     emit('close')
   }
   img.onerror = (e) => {

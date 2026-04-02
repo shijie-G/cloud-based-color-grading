@@ -1,6 +1,7 @@
 <script setup lang="ts">
-import { ref } from 'vue'
+import { ref, watch } from 'vue'
 import { useLayerManager } from './composables/useLayerManager'
+import { usePersonalizeStorage } from './composables/usePersonalizeStorage'
 import CanvasArea from './components/CanvasArea.vue'
 import LayerPanel from './components/LayerPanel.vue'
 import AssetPanel from './components/AssetPanel.vue'
@@ -17,6 +18,10 @@ const {
   sortedLayers
 } = layerManager
 
+// 图层存储管理
+const personalizeStorage = usePersonalizeStorage()
+const { saveLayersToStorage, loadLayersFromStorage } = personalizeStorage
+
 // 画布配置
 const canvasConfig = ref<CanvasConfig>({
   width: 0,
@@ -27,6 +32,21 @@ const canvasConfig = ref<CanvasConfig>({
 // 图片选择器
 const showImageSelector = ref(false)
 const baseImageUrl = ref<string>('')  // 底图URL
+const currentImageId = ref<number | null>(null)  // 当前图片 ID
+
+// 自动保存定时器
+let saveTimer: ReturnType<typeof setTimeout> | null = null
+
+// 监听图层变化，自动保存
+watch(layers, () => {
+  if (!currentImageId.value) return
+
+  // 防抖保存：500ms 后保存
+  if (saveTimer) clearTimeout(saveTimer)
+  saveTimer = setTimeout(() => {
+    saveLayersToStorage(currentImageId.value!, layers.value)
+  }, 500)
+}, { deep: true })
 
 // 面板宽度
 const assetPanelWidth = ref(260)
@@ -125,8 +145,8 @@ function handleStickerSelect(sticker: { id: string; name: string; url: string; c
 }
 
 // 从相册选择图片
-function handleImageSelect(imageUrl: string, width: number, height: number) {
-  console.log('选择图片:', imageUrl, width, height)
+async function handleImageSelect(imageId: number, imageUrl: string, width: number, height: number) {
+  console.log('选择图片:', imageId, imageUrl, width, height)
 
   // 切换画布：清空所有图层，设置新的底图
   layerManager.clearLayers()
@@ -136,7 +156,23 @@ function handleImageSelect(imageUrl: string, width: number, height: number) {
   canvasConfig.value.width = width
   canvasConfig.value.height = height
   baseImageUrl.value = imageUrl
+  currentImageId.value = imageId
+
   console.log('切换画布底图:', baseImageUrl.value, canvasConfig.value)
+
+  // 加载该图片保存的图层数据
+  try {
+    const savedLayers = await loadLayersFromStorage(imageId)
+    if (savedLayers.length > 0) {
+      console.log(`恢复 ${savedLayers.length} 个图层`)
+      // 逐个添加图层（保持原有的 ID 和属性）
+      savedLayers.forEach(layer => {
+        layerManager.addLayer(layer)
+      })
+    }
+  } catch (error) {
+    console.error('加载图层数据失败:', error)
+  }
 }
 
 // 添加文字图层
@@ -204,12 +240,24 @@ function handleExport() {
 }
 
 // 清空画布
-function handleClear() {
+// 清空画布
+async function handleClear() {
   if (confirm('确定要清空所有图层吗？')) {
     layerManager.clearLayers()
     canvasConfig.value.width = 0
     canvasConfig.value.height = 0
     baseImageUrl.value = ''
+
+    // 清除存储的图层数据
+    if (currentImageId.value) {
+      try {
+        await personalizeStorage.clearLayersFromStorage(currentImageId.value)
+      } catch (error) {
+        console.error('清除图层存储失败:', error)
+      }
+    }
+
+    currentImageId.value = null
   }
 }
 </script>

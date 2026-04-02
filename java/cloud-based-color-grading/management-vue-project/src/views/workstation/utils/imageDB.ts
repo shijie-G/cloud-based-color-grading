@@ -4,7 +4,7 @@
  */
 
 const DB_NAME = 'WorkstationDB'
-const DB_VERSION = 7  // 升级到 v7 添加 Gallery 支持
+const DB_VERSION = 8  // 升级到 v8 添加个性化图层支持
 const STORE_NAME = 'images'
 const HISTORY_STORE = 'history'
 const ALBUMS_STORE = 'albums'  // Gallery 相册表
@@ -24,6 +24,7 @@ export interface ImageDBItem {
   lastModified: Date
   fileHash?: string
   adjustmentsJson?: string
+  personalizeLayersJson?: string  // 个性化图层数据 JSON（Layer[]）
 
   // ========== Gallery 扩展字段（可选） ==========
   albumId?: number      // 所属相册 ID（Gallery 专用）
@@ -103,6 +104,7 @@ class ImageDatabase {
 
         // v3→v4: adjustmentsJson 是普通字段，无需建索引，自动兼容旧记录（值为 undefined）
         // v4→v5: editedSrc / cropStateJson 是普通字段，自动兼容旧记录（值为 undefined）
+        // v8: personalizeLayersJson 是普通字段，自动兼容旧记录（值为 undefined）
 
         // v5→v6: 新增 history store（撤销/重做历史栈持久化）
         if (!db.objectStoreNames.contains(HISTORY_STORE)) {
@@ -632,6 +634,93 @@ class ImageDatabase {
       })
 
       transaction.onerror = () => reject(new Error('Failed to update images'))
+    })
+  }
+
+  // ── 个性化图层操作 ──────────────────────────────────────────────
+
+  /**
+   * 保存个性化图层数据（完整覆盖）
+   * @param imageId 图片 ID
+   * @param layersJson 图层数据 JSON 字符串（Layer[] 序列化）
+   */
+  async savePersonalizeLayers(imageId: number, layersJson: string): Promise<void> {
+    if (!this.db) await this.init()
+
+    return new Promise((resolve, reject) => {
+      const transaction = this.db!.transaction([STORE_NAME], 'readwrite')
+      const objectStore = transaction.objectStore(STORE_NAME)
+      const getReq = objectStore.get(imageId)
+
+      getReq.onsuccess = () => {
+        const record = getReq.result
+        if (!record) {
+          reject(new Error(`图片 ID ${imageId} 不存在`))
+          return
+        }
+
+        record.personalizeLayersJson = layersJson
+        record.lastModified = new Date()
+
+        const putReq = objectStore.put(record)
+        putReq.onsuccess = () => resolve()
+        putReq.onerror = () => reject(new Error('Failed to save personalize layers'))
+      }
+
+      getReq.onerror = () => reject(new Error('Failed to get record for personalize layers'))
+    })
+  }
+
+  /**
+   * 读取个性化图层数据
+   * @param imageId 图片 ID
+   * @returns 图层数据 JSON 字符串，如果不存在返回 null
+   */
+  async loadPersonalizeLayers(imageId: number): Promise<string | null> {
+    if (!this.db) await this.init()
+
+    return new Promise((resolve, reject) => {
+      const transaction = this.db!.transaction([STORE_NAME], 'readonly')
+      const objectStore = transaction.objectStore(STORE_NAME)
+      const request = objectStore.get(imageId)
+
+      request.onsuccess = () => {
+        const record = request.result
+        resolve(record?.personalizeLayersJson ?? null)
+      }
+
+      request.onerror = () => reject(new Error('Failed to load personalize layers'))
+    })
+  }
+
+  /**
+   * 清除个性化图层数据
+   * @param imageId 图片 ID
+   */
+  async clearPersonalizeLayers(imageId: number): Promise<void> {
+    if (!this.db) await this.init()
+
+    return new Promise((resolve, reject) => {
+      const transaction = this.db!.transaction([STORE_NAME], 'readwrite')
+      const objectStore = transaction.objectStore(STORE_NAME)
+      const getReq = objectStore.get(imageId)
+
+      getReq.onsuccess = () => {
+        const record = getReq.result
+        if (!record) {
+          resolve()
+          return
+        }
+
+        delete record.personalizeLayersJson
+        record.lastModified = new Date()
+
+        const putReq = objectStore.put(record)
+        putReq.onsuccess = () => resolve()
+        putReq.onerror = () => reject(new Error('Failed to clear personalize layers'))
+      }
+
+      getReq.onerror = () => reject(new Error('Failed to get record for clear personalize layers'))
     })
   }
 }
