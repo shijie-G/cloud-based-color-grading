@@ -21,8 +21,6 @@ export interface Layer {
   height: number
   rotation: number
   zIndex: number
-  // 图片图层特有属性
-  imageId?: number  // 引用 WorkstationDB.images 表的 ID
   imageUrl?: string
   imageBlob?: Blob
   // 文字图层特有属性
