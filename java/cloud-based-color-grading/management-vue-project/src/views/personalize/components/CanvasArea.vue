@@ -20,13 +20,16 @@ const emit = defineEmits<Emits>()
 
 const canvasRef = ref<HTMLCanvasElement | null>(null)
 const wrapperRef = ref<HTMLDivElement | null>(null)
-const layerContainerRef = ref<HTMLDivElement | null>(null)
 const isDragging = ref(false)
 const dragLayerId = ref<string | null>(null)
 const dragStart = ref({ x: 0, y: 0 })
 const layerStart = ref({ x: 0, y: 0 })
 const editingTextLayerId = ref<string | null>(null)
 const editingText = ref('')
+
+// Canvas 实际显示尺寸（用于图层容器定位）
+const canvasDisplayWidth = ref(0)
+const canvasDisplayHeight = ref(0)
 
 // 画布变换状态
 const scale = ref(1)
@@ -62,14 +65,22 @@ function drawBaseImage() {
 
     img.onload = () => {
       console.log('图片加载成功:', img.naturalWidth, 'x', img.naturalHeight)
-      canvas.width = img.naturalWidth
-      canvas.height = img.naturalHeight
+      console.log('画布配置尺寸:', props.config.width, 'x', props.config.height)
+
+      // 使用配置的画布尺寸，而不是图片原始尺寸
+      canvas.width = props.config.width
+      canvas.height = props.config.height
+
       const ctx = canvas.getContext('2d')
       if (ctx) {
         ctx.clearRect(0, 0, canvas.width, canvas.height)
-        ctx.drawImage(img, 0, 0)
+        // 将图片绘制到整个画布，保持比例
+        ctx.drawImage(img, 0, 0, canvas.width, canvas.height)
         console.log('Canvas 绘制完成')
       }
+
+      // 计算 Canvas 实际显示尺寸（CSS 渲染尺寸）
+      updateCanvasDisplaySize()
     }
 
     img.onerror = (e) => {
@@ -80,6 +91,17 @@ function drawBaseImage() {
   })
 }
 
+// 更新 Canvas 实际显示尺寸
+function updateCanvasDisplaySize() {
+  if (!canvasRef.value) return
+
+  const rect = canvasRef.value.getBoundingClientRect()
+  canvasDisplayWidth.value = rect.width
+  canvasDisplayHeight.value = rect.height
+
+  console.log('Canvas 显示尺寸:', canvasDisplayWidth.value, 'x', canvasDisplayHeight.value)
+}
+
 // 监听底图变化
 watch(() => props.baseImageUrl, (newUrl, oldUrl) => {
   console.log('CanvasArea: baseImageUrl 变化', { oldUrl, newUrl, config: props.config })
@@ -88,12 +110,23 @@ watch(() => props.baseImageUrl, (newUrl, oldUrl) => {
   }
 }, { immediate: true })
 
+// 监听画布配置变化
+watch(() => [props.config.width, props.config.height], () => {
+  console.log('CanvasArea: config 尺寸变化', props.config)
+  if (props.baseImageUrl) {
+    drawBaseImage()
+  }
+})
+
 // 组件挂载后也尝试绘制
 onMounted(() => {
   console.log('CanvasArea: 组件挂载', { baseImageUrl: props.baseImageUrl, config: props.config })
   if (props.baseImageUrl) {
     drawBaseImage()
   }
+
+  // 监听窗口大小变化，更新 Canvas 显示尺寸
+  window.addEventListener('resize', updateCanvasDisplaySize)
 })
 
 // 处理图层点击
@@ -133,8 +166,13 @@ function handleMouseDown(layer: Layer, event: MouseEvent) {
 function handleMouseMove(event: MouseEvent) {
   if (!isDragging.value || !dragLayerId.value) return
 
-  const dx = (event.clientX - dragStart.value.x) / scale.value
-  const dy = (event.clientY - dragStart.value.y) / scale.value
+  // 计算缩放比例
+  const scaleX = canvasDisplayWidth.value / props.config.width
+  const scaleY = canvasDisplayHeight.value / props.config.height
+
+  // 鼠标移动的像素距离需要除以缩放比例，转换为实际坐标
+  const dx = (event.clientX - dragStart.value.x) / scaleX / scale.value
+  const dy = (event.clientY - dragStart.value.y) / scaleY / scale.value
 
   emit('updateLayer', dragLayerId.value, {
     x: layerStart.value.x + dx,
@@ -279,12 +317,16 @@ function onCanvasPanUp() {
 
 // 获取图层样式
 function getLayerStyle(layer: Layer) {
+  // 计算 Canvas 的缩放比例（显示尺寸 / 实际尺寸）
+  const scaleX = canvasDisplayWidth.value / props.config.width
+  const scaleY = canvasDisplayHeight.value / props.config.height
+
   const style: any = {
     position: 'absolute',
-    left: `${layer.x}px`,
-    top: `${layer.y}px`,
-    width: `${layer.width}px`,
-    height: `${layer.height}px`,
+    left: `${layer.x * scaleX}px`,
+    top: `${layer.y * scaleY}px`,
+    width: `${layer.width * scaleX}px`,
+    height: `${layer.height * scaleY}px`,
     opacity: layer.opacity,
     transform: `rotate(${layer.rotation}deg)`,
     cursor: layer.locked ? 'not-allowed' : 'move',
@@ -295,7 +337,7 @@ function getLayerStyle(layer: Layer) {
 
   // 添加边框样式（图片和形状）
   if (layer.strokeWidth && layer.strokeWidth > 0) {
-    style.border = `${layer.strokeWidth}px solid ${layer.strokeColor || '#000000'}`
+    style.border = `${layer.strokeWidth * scaleX}px solid ${layer.strokeColor || '#000000'}`
     style.boxSizing = 'border-box'
   }
 
@@ -308,112 +350,112 @@ onUnmounted(() => {
   document.removeEventListener('mouseup', handleMouseUp)
   document.removeEventListener('mousemove', onCanvasPanMove)
   document.removeEventListener('mouseup', onCanvasPanUp)
+  window.removeEventListener('resize', updateCanvasDisplaySize)
 })
 </script>
 
 <template>
   <div class="canvas-area" ref="wrapperRef" @wheel.prevent="handleCanvasWheel">
     <div class="image-wrapper">
-      <!-- 底图 canvas -->
-      <canvas
-        ref="canvasRef"
-        v-show="!!baseImageUrl"
-        :style="{
-          transform: `translate(${offsetX}px, ${offsetY}px) scale(${scale})`,
-          cursor: isPanningCanvas ? 'grabbing' : 'grab'
-        }"
-        @click="handleCanvasClick"
-        @dblclick="handleCanvasDoubleClick"
-        @mousedown="handleCanvasMouseDown"
-      />
-
-      <!-- 图层容器 -->
+      <!-- 画布和图层的统一容器 -->
       <div
-        ref="layerContainerRef"
-        class="layer-container"
-        v-show="!!baseImageUrl"
+        class="canvas-layer-wrapper"
         :style="{
           transform: `translate(${offsetX}px, ${offsetY}px) scale(${scale})`
         }"
       >
-        <!-- 图层内部容器，尺寸与 canvas 一致 -->
-        <div
-          class="layer-inner"
+        <!-- 底图 canvas -->
+        <canvas
+          ref="canvasRef"
+          v-show="!!baseImageUrl"
           :style="{
-            width: `${config.width}px`,
-            height: `${config.height}px`
+            cursor: isPanningCanvas ? 'grabbing' : 'grab'
           }"
-        >
-        <!-- 渲染所有图层 -->
-        <div
-          v-for="layer in layers"
-          :key="layer.id"
-          :class="['layer', { selected: layer.id === selectedLayerId }]"
-          :style="getLayerStyle(layer)"
-          @click="handleLayerClick(layer, $event)"
-          @mousedown="handleMouseDown(layer, $event)"
-          @dblclick="handleDoubleClick(layer, $event)"
-        >
-        <!-- 图片图层 -->
-        <img
-          v-if="layer.type === 'image' && layer.imageUrl"
-          :src="layer.imageUrl"
-          :alt="layer.name"
-          class="layer-image"
-          draggable="false"
+          @click="handleCanvasClick"
+          @dblclick="handleCanvasDoubleClick"
+          @mousedown="handleCanvasMouseDown"
         />
 
-        <!-- 文字图层 - 编辑模式 -->
-        <textarea
-          v-if="layer.type === 'text' && editingTextLayerId === layer.id"
-          v-model="editingText"
-          class="layer-text-edit"
-          :style="{
-            fontSize: `${layer.fontSize}px`,
-            fontFamily: layer.fontFamily,
-            color: layer.color
-          }"
-          @blur="finishTextEdit"
-          @keydown.enter.exact="finishTextEdit"
-          @keydown.esc="cancelTextEdit"
-        ></textarea>
-
-        <!-- 文字图层 - 显示模式 -->
+        <!-- 图层容器 -->
         <div
-          v-else-if="layer.type === 'text'"
-          class="layer-text"
+          class="layer-container"
+          v-show="!!baseImageUrl"
           :style="{
-            fontSize: `${layer.fontSize}px`,
-            fontFamily: layer.fontFamily,
-            color: layer.color
+            width: `${canvasDisplayWidth}px`,
+            height: `${canvasDisplayHeight}px`
           }"
         >
-          {{ layer.text }}
-        </div>
+          <!-- 渲染所有图层 -->
+          <div
+            v-for="layer in layers"
+            :key="layer.id"
+            :class="['layer', { selected: layer.id === selectedLayerId }]"
+            :style="getLayerStyle(layer)"
+            @click="handleLayerClick(layer, $event)"
+            @mousedown="handleMouseDown(layer, $event)"
+            @dblclick="handleDoubleClick(layer, $event)"
+          >
+            <!-- 图片图层 -->
+            <img
+              v-if="layer.type === 'image' && layer.imageUrl"
+              :src="layer.imageUrl"
+              :alt="layer.name"
+              class="layer-image"
+              draggable="false"
+            />
 
-        <!-- 形状图层 -->
-        <div
-          v-else-if="layer.type === 'shape'"
-          class="layer-shape"
-          :class="layer.shapeType"
-          :style="{
-            backgroundColor: layer.fillColor
-          }"
-        ></div>
+            <!-- 文字图层 - 编辑模式 -->
+            <textarea
+              v-if="layer.type === 'text' && editingTextLayerId === layer.id"
+              v-model="editingText"
+              class="layer-text-edit"
+              :style="{
+                fontSize: `${layer.fontSize}px`,
+                fontFamily: layer.fontFamily,
+                color: layer.color
+              }"
+              @blur="finishTextEdit"
+              @keydown.enter.exact="finishTextEdit"
+              @keydown.esc="cancelTextEdit"
+            ></textarea>
 
-        <!-- 选中边框和变换控制 -->
-        <div v-if="layer.id === selectedLayerId && editingTextLayerId !== layer.id" class="selection-border">
-          <TransformControls
-            :x="layer.x"
-            :y="layer.y"
-            :width="layer.width"
-            :height="layer.height"
-            :rotation="layer.rotation"
-            @resize="handleLayerResize(layer.id, $event)"
-            @rotate="handleLayerRotate(layer.id, $event)"
-          />
-        </div>
-        </div>
+            <!-- 文字图层 - 显示模式 -->
+            <div
+              v-else-if="layer.type === 'text'"
+              class="layer-text"
+              :style="{
+                fontSize: `${layer.fontSize}px`,
+                fontFamily: layer.fontFamily,
+                color: layer.color
+              }"
+            >
+              {{ layer.text }}
+            </div>
+
+            <!-- 形状图层 -->
+            <div
+              v-else-if="layer.type === 'shape'"
+              class="layer-shape"
+              :class="layer.shapeType"
+              :style="{
+                backgroundColor: layer.fillColor,
+                color: layer.fillColor
+              }"
+            ></div>
+
+            <!-- 选中边框和变换控制 -->
+            <div v-if="layer.id === selectedLayerId && editingTextLayerId !== layer.id" class="selection-border">
+              <TransformControls
+                :x="layer.x"
+                :y="layer.y"
+                :width="layer.width"
+                :height="layer.height"
+                :rotation="layer.rotation"
+                @resize="handleLayerResize(layer.id, $event)"
+                @rotate="handleLayerRotate(layer.id, $event)"
+              />
+            </div>
+          </div>
         </div>
       </div>
     </div>
@@ -448,16 +490,23 @@ onUnmounted(() => {
   overflow: visible;
 }
 
+.canvas-layer-wrapper {
+  position: relative;
+  transform-origin: center center;
+  will-change: transform;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
 .image-wrapper canvas {
   max-width: 100%;
   max-height: 100%;
   object-fit: contain;
+  display: block;
   border: 1px solid rgba(255, 255, 255, 0.1);
   border-radius: 4px;
-  transform-origin: center center;
   user-select: none;
-  display: block;
-  will-change: transform;
   box-shadow: 0 4px 20px rgba(0, 0, 0, 0.5);
 }
 
@@ -465,18 +514,8 @@ onUnmounted(() => {
   position: absolute;
   top: 0;
   left: 0;
-  right: 0;
-  bottom: 0;
-  transform-origin: center center;
-  will-change: transform;
-  pointer-events: none;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-}
-
-.layer-inner {
-  position: relative;
+  width: 100%;
+  height: 100%;
   pointer-events: none;
 }
 
@@ -545,6 +584,7 @@ onUnmounted(() => {
 
 .layer-shape.heart {
   position: relative;
+  background: transparent !important;
 }
 
 .layer-shape.heart::before,

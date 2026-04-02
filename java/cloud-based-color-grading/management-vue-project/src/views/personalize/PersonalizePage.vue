@@ -130,6 +130,8 @@ function handleImageSelect(imageUrl: string, width: number, height: number) {
 
   // 如果还没有底图，设置为底图
   if (!baseImageUrl.value) {
+    // 直接使用图片的实际尺寸，不做任何限制
+    // imageUrl 是调色区处理好的 editedSrc 或原图 src
     canvasConfig.value.width = width
     canvasConfig.value.height = height
     baseImageUrl.value = imageUrl
