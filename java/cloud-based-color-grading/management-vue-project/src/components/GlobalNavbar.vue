@@ -1,5 +1,4 @@
 <script setup lang="ts">
-import { ref } from 'vue'
 import { useRouter, useRoute } from 'vue-router'
 
 const router = useRouter()
@@ -7,9 +6,11 @@ const route = useRoute()
 
 // 导航菜单项
 const navItems = [
+  { name: '首页', path: '/home' },
+    { name: '图库', path: '/gallery' },
   { name: '工作站', path: '/workstation' },
-  { name: '个性化', path: '/personalize' },
-  { name: '图库', path: '/gallery' }
+  { name: '个性化', path: '/personalize' }
+
 ]
 
 // 判断当前激活的菜单
@@ -47,8 +48,13 @@ const navigateTo = (path: string) => {
           :class="['menu-item', { active: isActive(item.path) }]"
           @click="navigateTo(item.path)"
         >
+          <!-- 首页图标 -->
+          <svg v-if="item.path === '/home'" class="menu-icon" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+            <path d="M3 9l9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/>
+            <path d="M9 22V12h6v10" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/>
+          </svg>
           <!-- 工作站图标 -->
-          <svg v-if="item.path === '/workstation'" class="menu-icon" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+          <svg v-else-if="item.path === '/workstation'" class="menu-icon" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
             <circle cx="12" cy="12" r="4" stroke="currentColor" stroke-width="1.5"/>
             <path d="M12 2v3M12 19v3M2 12h3M19 12h3" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/>
             <path d="M5.636 5.636l2.121 2.121M16.243 16.243l2.121 2.121M5.636 18.364l2.121-2.121M16.243 7.757l2.121-2.121" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/>

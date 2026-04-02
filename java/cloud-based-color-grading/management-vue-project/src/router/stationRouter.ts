@@ -3,6 +3,14 @@ import { createRouter, createWebHashHistory, RouteRecordRaw } from 'vue-router'
 // Station 实例路由配置 (hash 模式)
 const routes: RouteRecordRaw[] = [
   {
+    path: '/home',
+    name: 'Home',
+    component: () => import('../views/home/Home.vue'),
+    meta: {
+      requiresAuth: false
+    }
+  },
+  {
     path: '/workstation',
     name: 'Workstation',
     component: () => import('../views/workstation/WorkstationPage.vue'),
@@ -36,7 +44,7 @@ const routes: RouteRecordRaw[] = [
   },
   {
     path: '/',
-    redirect: '/workstation'
+    redirect: '/home'
   }
 ]
 

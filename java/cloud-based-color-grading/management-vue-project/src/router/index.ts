@@ -1,5 +1,4 @@
 import { createRouter, createWebHistory, RouteRecordRaw } from 'vue-router'
-import { useUserStore } from '../stores/userStore'
 
 const routes: RouteRecordRaw[] = [
   {
@@ -12,11 +11,14 @@ const routes: RouteRecordRaw[] = [
   },
   {
     path: '/',
+    redirect: '/home'
+  },
+  {
+    path: '/home',
     name: 'Home',
-    redirect: () => {
-      // 动态重定向：根据登录状态决定跳转目标
-      const userStore = useUserStore();
-      return userStore.isLoggedIn ? '/workstation' : '/login';
+    component: () => import('../views/home/Home.vue'),
+    meta: {
+      requiresAuth: false
     }
   },
   {
