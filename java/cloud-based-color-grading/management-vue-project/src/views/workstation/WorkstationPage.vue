@@ -259,8 +259,9 @@ const scheduleSave = () => {
   if (!selectedImageId.value || isLoadingAdjustments) return
   if (saveTimer) clearTimeout(saveTimer)
   saveTimer = setTimeout(() => {
-    // 同时保存调色参数和处理后的图片预览（用于 Gallery 显示）
-    saveAdjustments(selectedImageId.value!, serializeAdjustments(), processedSrc.value)
+    // 只保存调色参数，不保存 processedSrc 到 editedSrc
+    // editedSrc 应该只用于裁切/旋转/翻转后的图片
+    saveAdjustments(selectedImageId.value!, serializeAdjustments())
   }, 500)
 }
 
@@ -841,7 +842,31 @@ const onKeyDown = (e: KeyboardEvent) => {
   if ((key === 'z' && e.shiftKey) || key === 'y') { e.preventDefault(); handleRedo() }
 }
 
-onMounted(() => window.addEventListener('keydown', onKeyDown))
+onMounted(() => {
+  window.addEventListener('keydown', onKeyDown)
+
+  // 清理错误保存的 editedSrc（只保留有 cropStateJson 的 editedSrc）
+  // 这是一次性修复，清理之前版本错误保存的调色结果
+  cleanupInvalidEditedSrc()
+})
+
+// 清理错误保存的 editedSrc
+// editedSrc 应该只用于裁切/旋转/翻转，不应包含调色效果
+// 如果 editedSrc 存在但没有对应的 cropStateJson，说明是错误保存的调色结果，需要清除
+const cleanupInvalidEditedSrc = async () => {
+  try {
+    const allImages = await imageDB.getAllImages()
+    for (const image of allImages) {
+      // 如果有 editedSrc 但没有 cropStateJson，清除 editedSrc
+      if (image.editedSrc && !image.cropStateJson) {
+        console.log(`清理图片 ${image.id} 的错误 editedSrc`)
+        await imageDB.clearCropData(image.id)
+      }
+    }
+  } catch (error) {
+    console.error('清理 editedSrc 失败:', error)
+  }
+}
 onUnmounted(() => window.removeEventListener('keydown', onKeyDown))
 
 // 暴露属性和方法供测试使用

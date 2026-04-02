@@ -15,7 +15,7 @@ export interface UseImageStorageReturn {
   getStoredImageCount: () => Promise<number>
   generateFileHash: (file: File) => string
   checkFileExists: (fileHash: string) => Promise<boolean>
-  saveAdjustments: (imageId: number, adjustmentsJson: string, editedSrc?: string) => Promise<void>
+  saveAdjustments: (imageId: number, adjustmentsJson: string) => Promise<void>
   loadAdjustments: (imageId: number) => Promise<string | null>
   /** 保存裁切数据（editedSrc + cropState），不覆盖原图 */
   saveCropData: (imageId: number, editedSrc: string, cropState: CropState) => Promise<void>
@@ -143,11 +143,13 @@ export function useImageStorage(): UseImageStorageReturn {
   }
 
   /**
-   * 保存调色参数到 IndexedDB（JSON 格式），同时保存处理后的图片预览
+   * 保存调色参数到 IndexedDB（JSON 格式）
+   * 注意：不保存 editedSrc，editedSrc 只用于裁切/旋转/翻转
    */
-  const saveAdjustments = async (imageId: number, adjustmentsJson: string, editedSrc?: string): Promise<void> => {
+  const saveAdjustments = async (imageId: number, adjustmentsJson: string): Promise<void> => {
     try {
-      await imageDB.updateAdjustments(imageId, adjustmentsJson, editedSrc)
+      // 只更新 adjustmentsJson，不更新 editedSrc
+      await imageDB.updateAdjustments(imageId, adjustmentsJson)
     } catch (error) {
       console.error('保存调色参数失败:', error)
     }
