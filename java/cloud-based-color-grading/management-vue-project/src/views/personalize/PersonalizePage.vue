@@ -2,6 +2,8 @@
 import { ref, watch } from 'vue'
 import { useLayerManager } from './composables/useLayerManager'
 import { usePersonalizeStorage } from './composables/usePersonalizeStorage'
+import { useHSLState } from '@/views/workstation/composables/useHSLState'
+import { imageDB } from '@/views/workstation/utils/imageDB'
 import CanvasArea from './components/CanvasArea.vue'
 import LayerPanel from './components/LayerPanel.vue'
 import AssetPanel from './components/AssetPanel.vue'
@@ -22,6 +24,14 @@ const {
 const personalizeStorage = usePersonalizeStorage()
 const { saveLayersToStorage, loadLayersFromStorage } = personalizeStorage
 
+// 使用 HSL 调色处理链
+const {
+  processedSrc,
+  setSourceImage,
+  setBasicAdjustments,
+  setMaskLayers,
+} = useHSLState()
+
 // 画布配置
 const canvasConfig = ref<CanvasConfig>({
   width: 0,
@@ -31,7 +41,7 @@ const canvasConfig = ref<CanvasConfig>({
 
 // 图片选择器
 const showImageSelector = ref(false)
-const baseImageUrl = ref<string>('')  // 底图URL
+const baseImageUrl = ref<string>('')  // 底图URL（调色后的）
 const currentImageId = ref<number | null>(null)  // 当前图片 ID
 
 // 自动保存定时器
@@ -47,6 +57,14 @@ watch(layers, () => {
     saveLayersToStorage(currentImageId.value!, layers.value)
   }, 500)
 }, { deep: true })
+
+// 监听 processedSrc 变化，更新 baseImageUrl
+watch(processedSrc, (newSrc) => {
+  if (newSrc) {
+    baseImageUrl.value = newSrc
+    console.log('PersonalizePage: 更新底图为调色后的图片')
+  }
+})
 
 // 面板宽度
 const assetPanelWidth = ref(260)
@@ -151,12 +169,45 @@ async function handleImageSelect(imageId: number, imageUrl: string, width: numbe
   // 切换画布：清空所有图层，设置新的底图
   layerManager.clearLayers()
 
-  // 直接使用图片的实际尺寸，不做任何限制
-  // imageUrl 是调色区处理好的 editedSrc 或原图 src
+  // 设置画布尺寸
   canvasConfig.value.width = width
   canvasConfig.value.height = height
-  baseImageUrl.value = imageUrl
   currentImageId.value = imageId
+
+  // 从 IndexedDB 读取图片数据，应用调色参数
+  try {
+    const dbItem = await imageDB.getImage(imageId)
+    if (!dbItem) {
+      console.error('图片不存在:', imageId)
+      return
+    }
+
+    // 使用裁切后的图片（如果有）或原图
+    const baseSrc = dbItem.editedSrc || dbItem.src
+    setSourceImage(baseSrc)
+
+    // 应用调色参数（如果有）
+    if (dbItem.adjustmentsJson) {
+      const data = JSON.parse(dbItem.adjustmentsJson)
+      if (data.adjustments) {
+        setBasicAdjustments(data.adjustments)
+      }
+      if (data.hslAdjustments) {
+        // HSL 调整会自动应用
+      }
+      if (data.mask && Array.isArray(data.mask)) {
+        setMaskLayers(data.mask)
+      }
+      console.log('PersonalizePage: 应用调色参数')
+    } else {
+      // 没有调色参数，直接使用原图
+      baseImageUrl.value = baseSrc
+      console.log('PersonalizePage: 没有调色参数，使用原图')
+    }
+  } catch (error) {
+    console.error('加载图片数据失败:', error)
+    baseImageUrl.value = imageUrl
+  }
 
   console.log('切换画布底图:', baseImageUrl.value, canvasConfig.value)
 

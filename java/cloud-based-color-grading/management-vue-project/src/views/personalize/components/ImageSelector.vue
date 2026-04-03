@@ -45,8 +45,9 @@ async function handleAlbumChange(albumId: number) {
 }
 
 function handleImageSelect(image: ImageDBItem) {
+  // 使用裁切后的图片（如果有）或原图
   const imageUrl = image.editedSrc || image.src
-  console.log('ImageSelector: 选择图片', imageUrl)
+  console.log('ImageSelector: 选择图片', imageUrl.substring(0, 50))
 
   // 获取图片尺寸
   const img = new Image()
@@ -56,7 +57,7 @@ function handleImageSelect(image: ImageDBItem) {
     emit('close')
   }
   img.onerror = (e) => {
-    console.error('ImageSelector: 图片加载失败', imageUrl, e)
+    console.error('ImageSelector: 图片加载失败', imageUrl.substring(0, 50), e)
   }
   img.src = imageUrl
 }
