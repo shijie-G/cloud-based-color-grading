@@ -1,0 +1,402 @@
+
+
+
+
+
+
+
+
+毕业设计（论文）
+
+
+题    目：   基于云端调色的修图软件系统    
+学    生：            高世杰             
+指导老师：          林 芳 副教授         
+学    院：      计算机科学与数学学院     
+专    业：             软件工程          
+班    级：            软工 2201          
+学    号：            3221306110         
+
+福建理工大学教务处 制 
+承诺书
+ 
+基于云端调色的修图软件系统的设计与实现
+
+摘要
+
+随着数字图像处理技术的快速发展和移动互联网的普及，用户对修图工具的便捷性、专业性和跨设备访问需求日益提升。传统本地修图软件存在功能单一、数据无法同步、硬件依赖度高的问题，难以满足当代用户的多样化修图需求。为此，本文设计并实现了一套基于云端调色的修图软件系统，旨在解决本地修图的痛点，提供高效、便捷、专业的云端修图服务。
+
+本文首先分析了云修图领域的研究现状和市场需求，明确了系统的核心目标和功能定位。系统采用前后端分离的微服务架构，后端基于Spring Boot + Spring Cloud Gateway构建认证授权服务，实现了完整的RBAC权限模型；前端采用Vue 3 + TypeScript + Vite技术栈，结合IndexedDB本地存储和Web Worker多线程处理，构建了高性能的图像处理工作台。
+
+系统核心聚焦于云端调色功能的设计与实现。在图像处理方面，整合了亮度、对比度、饱和度、色温等基础调色参数，实现了HSL颜色范围精细调节，支持蒙版局部调色功能，并提供裁切、旋转、翻转等图像变换操作。在数据管理方面，采用IndexedDB实现本地数据缓存，支持调色参数、图层信息、编辑历史的持久化存储，确保用户在不同会话间可恢复修图进度。在性能优化方面，采用Web Worker处理图像计算，避免阻塞UI线程；实现了撤销/重做历史栈，支持无限次操作回退；优化了画布渲染逻辑，采用原图+参数的渲染模式，避免调色效果叠加异常。
+
+在安全性方面，系统实现了完整的用户认证授权机制。采用JWT令牌认证，支持2小时有效期和自动刷新；使用BCrypt算法对密码进行加密存储；实现了登录失败锁定机制（5次失败锁定15分钟）；通过Spring Cloud Gateway统一网关进行请求拦截和权限验证，确保系统安全可靠。
+
+经过系统测试验证，本系统运行稳定、响应高效，能够实现图片上传、云端调色、图层管理、数据同步等核心功能，满足用户在不同场景下的修图需求。相比传统本地修图软件，具有跨设备访问、数据持久化、操作便捷等优势。本系统的实现不仅解决了本地修图的诸多痛点，也为云修图领域的应用提供了可参考的技术方案，具有一定的实际应用价值和推广前景。
+
+关键词：云端调色；修图软件；前后端分离；微服务架构；图像处理；IndexedDB
+ 
+Design and Implementation of a Cloud-Based Color Grading Image Editing Software System
+
+Abstract
+
+With the rapid development of digital image processing technology and the popularization of mobile Internet, users' demand for the convenience, professionalism and cross-device access of image editing tools is increasing. Traditional local image editing software has problems such as single function, inability to synchronize data, and high hardware dependence, which are difficult to meet the diverse image editing needs of contemporary users. To this end, this paper designs and implements a cloud-based color grading image editing software system, aiming to solve the pain points of local image editing and provide efficient, convenient and professional cloud-based image editing services.
+
+This paper first analyzes the research status and market demand in the field of cloud image editing, and clarifies the core goals and functional positioning of the system. The system adopts a front-end and back-end separated microservice architecture. The back-end is built on Spring Boot + Spring Cloud Gateway to build authentication and authorization services, implementing a complete RBAC permission model. The front-end adopts Vue 3 + TypeScript + Vite technology stack, combined with IndexedDB local storage and Web Worker multi-threaded processing, to build a high-performance image processing workstation.
+
+The core of the system focuses on the design and implementation of cloud color grading functions. In terms of image processing, it integrates basic color adjustment parameters such as brightness, contrast, saturation, and color temperature, implements fine adjustment of HSL color range, supports mask local color grading function, and provides image transformation operations such as cropping, rotation, and flipping. In terms of data management, IndexedDB is used to implement local data caching, supporting persistent storage of color adjustment parameters, layer information, and editing history, ensuring that users can resume image editing progress between different sessions. In terms of performance optimization, Web Worker is used to process image calculations to avoid blocking the UI thread; an undo/redo history stack is implemented to support unlimited operation rollback; the canvas rendering logic is optimized, adopting the rendering mode of original image + parameters to avoid abnormal superposition of color adjustment effects.
+
+In terms of security, the system implements a complete user authentication and authorization mechanism. JWT token authentication is adopted, supporting 2-hour validity period and automatic refresh; BCrypt algorithm is used to encrypt and store passwords; a login failure locking mechanism is implemented (5 failures lock for 15 minutes); Spring Cloud Gateway unified gateway is used for request interception and permission verification to ensure system security and reliability.
+
+Through system test verification, the system runs stably and responds efficiently, which can realize core functions such as image upload, cloud color grading, layer management, and data synchronization, meeting users' image editing needs in different scenarios. Compared with traditional local image editing software, it has the advantages of cross-device access, data persistence, and convenient operation. The implementation of this system not only solves many pain points of local image editing, but also provides a reference technical solution for the application in the field of cloud image editing, which has certain practical application value and promotion prospects.
+
+Keywords: Cloud Color Grading; Image Editing Software; Front-end and Back-end Separation; Microservice Architecture; Image Processing; IndexedDB
+ 
+目录
+
+摘要	I
+Abstract	II
+第1章	绪论	1
+1.1	研究背景	1
+1.2	社会现状与研究目的	1
+1.3	研究的意义与价值	2
+第2章	技术选型及可行性分析	4
+2.1 微服务架构技术选型	4
+2.2 前端技术选型	6
+2.3 后端技术选型	7
+2.4 基础软件服务类	8
+2.5 可行性分析	10
+第3章	系统需求分析	12
+3.1 系统功能需求	12
+3.2 非功能性需求分析	16
+3.3 系统数据流图	18
+第4章	系统架构设计	23
+4.1 系统分层结构	23
+4.2 系统功能结构设计	24
+4.3 微服务架构设计	25
+第5章	数据存储设计与实现	27
+5.1 数据库设计	27
+5.2 数据库概念设计	28
+5.3 数据库逻辑设计	29
+5.4 IndexedDB本地存储设计	33
+第6章	系统详细设计与实现	35
+6.1	用户认证授权模块	35
+6.2	图像处理核心模块	38
+6.3	调色功能实现	42
+6.4	蒙版局部调色实现	45
+6.5	历史记录与撤销重做	47
+第7章	系统测试	49
+7.1	测试环境	49
+7.2	功能测试	49
+7.3	性能测试	51
+7.4	安全性测试	52
+结论与展望	54
+参考文献	55
+致谢	56
+ 
+第1章	绪论
+
+1.1	研究背景
+
+在数字时代，随着智能手机、相机等智能终端的普及以及社交媒体平台的快速发展，图像处理需求呈现出爆发式增长态势。图像已成为人们记录生活、传递信息、展示自我的重要载体，人们对图像质量和艺术效果的要求也在不断提高。无论是专业摄影师还是普通用户，都需要便捷、专业的修图工具来优化图像效果，满足个性化表达需求。
+
+传统修图软件多基于本地安装运行，例如Adobe Photoshop、Lightroom等专业工具，这类软件虽功能强大，但在实际应用中存在明显局限性。一方面，其对硬件配置要求较高，在手机、平板等低性能设备上难以流畅运行；另一方面，编辑产生的数据（如调色参数、图层信息等）均存储在本地，无法实现跨设备同步，用户只能在原始设备上继续编辑操作。此外，传统软件的学习成本高，操作复杂，对于普通用户而言存在较高的使用门槛。
+
+近年来，云计算技术的快速发展为解决这些问题提供了新的思路。基于云端的图像处理服务可以将计算密集型任务转移到服务器端，降低客户端设备的性能要求；同时，通过云端存储用户的编辑数据，可以实现跨设备的无缝访问和协作。然而，现有的云端修图工具多数功能单一，专业性不足，难以满足用户对高质量图像处理的需求。
+
+1.2	社会现状与研究目的
+
+当前，修图需求已渗透到日常生活、专业工作、商业宣传等多个领域，形成了多元化的用户群体，不同群体的修图需求呈现出差异化特征：
+
+（1）普通用户追求便捷性、轻量化，希望无需专业技能即可快速完成修图，主要用于社交媒体分享、生活记录等场景。
+
+（2）专业从业者（如摄影师、设计师）注重专业性、精准度，需要丰富的调色功能和参数自定义空间，要求工具能够提供精细的色彩控制和高质量的输出。
+
+（3）商业用户则关注效率和协同性，要求实现修图成果的快速共享与跨设备协作，支持团队协作和批量处理。
+
+然而，现有修图工具难以兼顾所有群体的需求。专业软件操作复杂、门槛高，轻量化工具功能单一、效果有限，云端修图工具虽有出现，但多数存在调色效果不稳定、数据同步不及时、操作体验不佳等问题，市场仍存在明显的需求缺口。
+
+与此同时，Web技术的不断成熟，特别是HTML5、Canvas API、Web Worker、IndexedDB等技术的发展，为构建高性能的Web端图像处理应用提供了技术基础。现代浏览器的性能已经能够支持复杂的图像处理算法，使得在浏览器中实现专业级的修图功能成为可能。
+
+本研究的核心目的在于：
+
+（1）针对传统修图软件的局限性，结合当前社会对修图工具的多元化需求，设计并实现一套兼具专业性、便捷性和跨设备特性的云端调色修图系统，填补现有工具的功能缺口。
+
+（2）优化云端调色的核心算法与画布渲染逻辑，解决调色效果叠加异常、数据持久化不足等问题，提升系统的稳定性和用户体验。
+
+（3）通过系统的研发与实践，探索云端图像处理技术的应用路径，为同类云修图系统的开发提供参考，推动修图工具向云端化、轻量化、专业化方向发展。
+
+1.3	研究的意义与价值
+
+本文的系统设计围绕基于云端调色的修图软件系统展开设计与实现，其意义与价值主要体现在理论意义和实践价值两个方面。
+
+在理论意义方面，本研究丰富了云端图像处理技术的应用研究。针对传统修图软件的痛点，探索了"云端存储+本地缓存"的混合数据管理模式，优化了云端调色渲染逻辑与参数计算方法，为同类云端修图系统的研发提供了新的思路和技术参考。同时，本研究将前后端分离架构与数字图像处理技术深度结合，验证了该架构在云端修图场景中的可行性和优越性，进一步完善了云端应用系统的设计理论。
+
+具体而言，本研究在以下几个方面具有理论创新：
+
+（1）提出了基于IndexedDB的本地数据持久化方案，解决了Web应用中大容量图像数据的存储问题，实现了调色参数、图层信息、编辑历史的完整保存。
+
+（2）设计了基于Web Worker的多线程图像处理架构，将计算密集型任务从主线程分离，有效避免了UI阻塞，提升了用户体验。
+
+（3）实现了"原图+参数"的渲染模式，避免了传统方法中调色效果叠加导致的图像质量下降问题，确保了修图效果的准确性和可重复性。
+
+（4）构建了完整的RBAC权限模型，结合JWT令牌认证和Spring Cloud Gateway网关，实现了企业级的安全认证授权机制。
+
+在实践价值方面，本研究设计实现的云端调色修图系统，能够有效解决传统修图软件硬件依赖高、数据不同步、操作门槛高的核心痛点，兼顾普通用户、专业从业者和商业用户的多元化需求。
+
+对于普通用户，系统提供了直观易用的操作界面和丰富的预设调色模板，降低了修图门槛，用户无需专业知识即可快速完成图像优化。系统支持实时预览，所见即所得，大大提升了修图效率。
+
+对于专业从业者，系统提供了完整的调色工具链，包括基础调色（亮度、对比度、饱和度、色温等）、HSL颜色范围精细调节、蒙版局部调色等专业功能。支持无限次撤销重做，允许用户自由探索不同的调色方案。精确的参数控制和高质量的输出，能够满足专业摄影师和设计师的严格要求。
+
+对于商业用户，系统基于云端架构，支持跨设备访问和数据同步，团队成员可以在不同设备上协作编辑。完整的用户权限管理系统，确保了数据安全和访问控制。系统的可扩展性设计，便于未来集成更多的企业级功能。
+
+此外，本系统采用Web技术实现，无需安装，通过浏览器即可访问，降低了部署和维护成本。系统的模块化设计和微服务架构，便于功能扩展和性能优化，具有良好的可维护性和可扩展性。
+
+综上所述，本研究不仅在理论上探索了云端图像处理的新方法，在实践中也提供了一个功能完整、性能优良的修图系统，具有重要的学术价值和应用前景。
+
+第2章	技术选型及可行性分析
+
+2.1 微服务架构技术选型
+
+2.1.1 微服务架构概述
+
+微服务架构作为软件开发领域的一项创新，通过将庞大的应用分解成多个小型服务来实现，每个服务独立运行在自己的进程中，并通过轻量级的通信方式（如HTTP REST API）相互配合。这种组织架构不仅提升了应用程序的灵活性和易维护性，还有助于实现持续集成和持续部署的策略。
+
+在本系统中，后端采用微服务架构，将认证服务（Auth Service）、授权服务（Authz Service）和网关服务（Gateway）分离部署，每个服务专注于特定的业务领域。这种设计使得系统具有以下优势：
+
+（1）独立部署：每个服务可以独立开发、测试和部署，互不影响，提高了开发效率。
+
+（2）技术异构：不同服务可以采用最适合的技术栈，本系统中认证授权服务使用Spring Boot，前端使用Vue 3，实现了技术的灵活选择。
+
+（3）故障隔离：单个服务的故障不会影响整个系统，提高了系统的可靠性和容错能力。
+
+（4）弹性扩展：可以根据负载情况对特定服务进行水平扩展，优化资源利用。
+
+2.1.2 Spring Cloud Gateway网关
+
+Spring Cloud Gateway作为系统的统一入口，承担着请求路由、认证授权、负载均衡等重要职责。相比传统的Zuul网关，Spring Cloud Gateway基于Spring 5、Spring Boot 2和Project Reactor构建，采用非阻塞式API，性能更优。
+
+在本系统中，Gateway实现了以下核心功能：
+
+（1）统一认证：通过JwtAuthenticationFilter过滤器，对所有请求进行JWT令牌验证，确保只有经过认证的用户才能访问系统资源。
+
+（2）权限控制：通过PermissionAuthorizationFilter过滤器，调用授权服务检查用户权限，实现细粒度的访问控制。
+
+（3）路由转发：根据请求路径将请求转发到相应的后端服务，实现了服务的解耦和负载分担。
+
+（4）令牌刷新：自动检测令牌有效期，当剩余时间少于30分钟时自动刷新，提升用户体验。
+
+（5）白名单机制：对登录、注册等公开接口实现白名单放行，避免不必要的认证检查。
+
+2.1.3 服务注册与发现
+
+虽然本系统当前采用直连方式配置服务地址，但架构设计预留了服务注册与发现的扩展空间。在生产环境中，可以集成Nacos或Eureka等服务注册中心，实现服务的自动发现和动态路由，进一步提升系统的灵活性和可维护性。
+
+2.2 前端技术选型
+
+2.2.1 Vue 3框架
+
+Vue 3是目前主流的前端框架之一，采用了响应式数据绑定和组件化的思想来构建用户界面。相比Vue 2，Vue 3在性能、TypeScript支持、Composition API等方面都有显著提升。
+
+本系统选择Vue 3的主要原因：
+
+（1）Composition API：提供了更灵活的代码组织方式，便于逻辑复用和代码维护。本系统中大量使用Composables（如useImageState、useAdjustmentState、useMaskState等）来管理不同的业务逻辑。
+
+（2）响应式系统：基于Proxy的响应式系统性能更优，能够更精确地追踪依赖关系，减少不必要的更新。
+
+（3）TypeScript支持：Vue 3对TypeScript的支持更加完善，提供了更好的类型推导和IDE支持，提升了代码质量和开发效率。
+
+（4）性能优化：编译优化、Tree-shaking等特性使得打包体积更小，运行性能更好。
+
+2.2.2 TypeScript
+
+TypeScript是JavaScript的超集，添加了静态类型系统。在本系统中，全面采用TypeScript进行前端开发，带来了以下优势：
+
+（1）类型安全：编译时类型检查可以提前发现潜在错误，减少运行时bug。
+
+（2）代码提示：IDE可以提供更准确的代码补全和提示，提升开发效率。
+
+（3）重构支持：类型系统使得大规模重构更加安全可靠。
+
+（4）文档作用：类型定义本身就是最好的文档，提高了代码的可读性和可维护性。
+
+2.2.3 Vite构建工具
+
+Vite是新一代的前端构建工具，基于ES模块和esbuild，提供了极快的冷启动速度和热更新性能。相比传统的Webpack，Vite在开发体验上有质的提升：
+
+（1）快速启动：利用浏览器原生ES模块支持，无需打包即可启动开发服务器。
+
+（2）即时热更新：模块级别的热更新，修改代码后几乎瞬间生效。
+
+（3）优化构建：生产环境使用Rollup打包，支持代码分割和Tree-shaking，生成高度优化的代码。
+
+2.2.4 Element Plus组件库
+
+Element Plus是基于Vue 3的企业级UI组件库，提供了丰富的组件和完善的文档。本系统使用Element Plus构建用户界面，包括表单、按钮、对话框、消息提示等组件，大大提升了开发效率和界面一致性。
+
+2.2.5 Pinia状态管理
+
+Pinia是Vue 3官方推荐的状态管理库，相比Vuex更加轻量和易用。本系统使用Pinia管理全局状态，包括用户信息（userStore）和图库状态（galleryStore），实现了组件间的数据共享和状态同步。
+
+2.3 后端技术选型
+
+2.3.1 Spring Boot框架
+
+Spring Boot是基于Java的快速开发框架，是当前最主流的企业级应用开发框架之一。Spring Boot遵循约定优于配置的原则，大大简化了项目配置和部署。
+
+本系统选择Spring Boot的主要原因：
+
+（1）快速开发：自动配置和起步依赖使得项目搭建非常快速，开发者可以专注于业务逻辑。
+
+（2）生态丰富：Spring生态系统提供了完善的解决方案，包括数据访问、安全、缓存、消息队列等。
+
+（3）微服务支持：与Spring Cloud无缝集成，是构建微服务应用的理想选择。
+
+（4）生产就绪：内置健康检查、指标监控、外部化配置等特性，便于生产环境部署。
+
+2.3.2 Spring Security与JWT
+
+Spring Security是Spring生态中的安全框架，提供了完善的认证和授权机制。本系统结合JWT（JSON Web Token）实现了无状态的认证方案：
+
+（1）JWT令牌：使用HS512算法签名，包含用户ID、用户名、角色等信息，有效期2小时。
+
+（2）令牌验证：Gateway网关统一验证JWT签名和有效期，并通过Redis验证令牌是否有效（支持主动失效）。
+
+（3）自动刷新：当令牌剩余有效期少于30分钟时，自动生成新令牌并返回给客户端。
+
+（4）BCrypt加密：使用BCrypt算法对用户密码进行加密存储，每次加密结果不同，安全性高。
+
+2.3.3 MyBatis-Plus
+
+MyBatis-Plus是MyBatis的增强工具，在MyBatis的基础上只做增强不做改变，提供了更便捷的CRUD操作和强大的条件构造器。
+
+本系统使用MyBatis-Plus的优势：
+
+（1）代码生成：自动生成基础的CRUD方法，减少重复代码。
+
+（2）条件构造：提供了类型安全的条件构造器，避免SQL拼接错误。
+
+（3）分页插件：内置分页插件，简化分页查询的实现。
+
+（4）性能优化：支持批量操作、懒加载等性能优化特性。
+
+2.4 基础软件服务类
+
+2.4.1 MySQL数据库
+
+MySQL是世界上最流行的开源关系型数据库管理系统之一，具有高性能、高可靠性、易于使用等特点。在本系统中，MySQL用于存储用户信息、角色权限、菜单配置等结构化数据。
+
+选择MySQL的原因：
+
+（1）成熟稳定：经过多年发展，MySQL已经非常成熟，在各种场景下都有良好的表现。
+
+（2）性能优异：支持索引优化、查询缓存等特性，能够处理大量并发请求。
+
+（3）生态完善：有丰富的工具和文档支持，便于开发和维护。
+
+（4）事务支持：InnoDB存储引擎提供了完整的ACID事务支持，保证数据一致性。
+
+2.4.2 Redis缓存
+
+Redis是一种高性能的内存数据库，支持多种数据结构，具有极快的读写速度。在本系统中，Redis主要用于以下场景：
+
+（1）令牌存储：存储用户的JWT令牌，支持令牌的快速验证和主动失效。
+
+（2）权限缓存：缓存用户的权限列表，减少数据库查询，提升权限检查性能。
+
+（3）登录限制：记录登录失败次数和账户锁定状态，实现防暴力破解功能。
+
+（4）会话管理：存储用户会话信息，支持分布式会话共享。
+
+Redis的键值对存储模式和丰富的数据结构（String、Hash、List、Set等）使得它非常适合作为缓存和会话存储。
+
+2.4.3 IndexedDB本地存储
+
+IndexedDB是浏览器提供的本地数据库，支持存储大量结构化数据，包括文件和二进制对象。相比LocalStorage，IndexedDB具有以下优势：
+
+（1）存储容量大：通常可以存储数百MB甚至GB级别的数据，足以存储大量图片。
+
+（2）异步操作：所有操作都是异步的，不会阻塞UI线程。
+
+（3）事务支持：提供事务机制，保证数据操作的原子性。
+
+（4）索引查询：支持创建索引，可以高效地查询和过滤数据。
+
+在本系统中，IndexedDB用于存储：
+
+- 上传的图片文件（Blob对象）
+- 图片的调色参数（JSON格式）
+- 裁切和变换状态
+- 编辑历史记录
+- 相册和图库信息
+
+2.4.4 Web Worker多线程
+
+Web Worker允许在后台线程中运行JavaScript代码，不会阻塞主线程的UI渲染。在图像处理这种计算密集型场景中，Web Worker的作用尤为重要。
+
+本系统实现了四个专用Worker：
+
+（1）basicWorker：处理基础调色（亮度、对比度、饱和度等）。
+
+（2）hslWorker：处理HSL颜色范围调节。
+
+（3）maskWorker：处理蒙版的生成和应用。
+
+（4）rgbWorker：处理RGB直方图分析。
+
+通过将图像处理任务分配到Worker线程，主线程可以保持流畅的用户交互，即使在处理大尺寸图片时也不会出现卡顿。
+
+2.5 可行性分析
+
+2.5.1 经济可行性
+
+本系统的开发成本主要包括：
+
+（1）开发成本：使用开源技术栈（Spring Boot、Vue 3等），无需支付授权费用。
+
+（2）服务器成本：初期可以使用云服务器（如阿里云、腾讯云），按需付费，成本可控。
+
+（3）维护成本：采用成熟的技术框架，社区支持完善，维护成本较低。
+
+从收益角度看：
+
+（1）市场需求：修图工具市场需求旺盛，用户基数大。
+
+（2）差异化优势：专业的调色功能和跨设备同步特性，具有竞争力。
+
+（3）扩展潜力：可以通过增值服务（如高级滤镜、AI修图等）实现商业化。
+
+综合考虑，系统具有良好的经济可行性。
+
+2.5.2 技术可行性
+
+本系统采用的技术均为成熟的主流技术：
+
+（1）Spring Boot + Spring Cloud：企业级Java开发的标准选择，技术成熟，文档完善。
+
+（2）Vue 3 + TypeScript：现代前端开发的主流方案，生态丰富，社区活跃。
+
+（3）Canvas API：HTML5标准API，所有现代浏览器都支持，性能优异。
+
+（4）Web Worker：W3C标准，浏览器支持度高，适合处理计算密集型任务。
+
+（5）IndexedDB：浏览器原生支持，无需额外依赖，存储能力强。
+
+这些技术的成熟度和可靠性确保了系统实现的技术可行性。
+
+2.5.3 操作可行性
+
+系统的操作可行性体现在：
+
+（1）用户界面：采用现代化的UI设计，操作直观，学习成本低。
+
+（2）实时预览：所有调色操作都能实时预览效果，所见即所得。
+
+（3）撤销重做：支持无限次撤销重做，用户可以自由尝试不同效果。
+
+（4）自动保存：调色参数自动保存到本地，防止数据丢失。
+
+（5）跨设备访问：基于Web技术，任何设备的浏览器都可以访问。
+
+系统的易用性设计确保了用户能够快速上手，操作可行性良好。
+test

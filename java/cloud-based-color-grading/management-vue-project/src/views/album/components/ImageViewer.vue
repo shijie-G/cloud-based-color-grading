@@ -3,6 +3,7 @@ import { ref, watch, computed } from 'vue'
 import type { ImageDisplay } from '@/views/gallery/types/gallery'
 import { useHSLState } from '@/views/workstation/composables/useHSLState'
 import { imageDB } from '@/views/workstation/utils/imageDB'
+import ExportModal from './export/ExportModal.vue'
 
 interface Props {
   image: ImageDisplay | null
@@ -26,6 +27,9 @@ const offsetY = ref(0)
 const isPanning = ref(false)
 const imageContainer = ref<HTMLElement | null>(null)
 
+// 导出弹窗
+const showExportModal = ref(false)
+
 // 使用 HSL 调色处理链
 const {
   processedSrc,
@@ -40,6 +44,17 @@ const displayUrl = computed(() => {
   // 如果有调色效果，使用 processedSrc；否则使用裁切后的图片或原图
   return processedSrc.value || props.image.editedSrc || props.image.url
 })
+
+// 打开导出弹窗
+const handleExport = () => {
+  if (!props.image) return
+  showExportModal.value = true
+}
+
+// 导出完成
+const handleExportComplete = () => {
+  console.log('导出完成')
+}
 
 // 重置变换
 const resetTransform = () => {
@@ -233,6 +248,12 @@ function formatDimensions(width: number, height: number) {
           </svg>
         </button>
 
+        <button class="action-btn export-btn" @click="handleExport" title="导出图片">
+          <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4" />
+          </svg>
+        </button>
+
         <button class="action-btn" @click="emit('move')" title="转移到其他相册">
           <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor">
             <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 7h12m0 0l-4-4m4 4l-4 4m0 6H4m0 0l4 4m-4-4l4-4" />
@@ -282,6 +303,18 @@ function formatDimensions(width: number, height: number) {
       </svg>
       <p>选择图片以查看</p>
     </div>
+
+    <!-- 导出弹窗 -->
+    <ExportModal
+      v-if="image"
+      :visible="showExportModal"
+      :image-src="displayUrl"
+      :image-width="image.width"
+      :image-height="image.height"
+      :filename="image.filename.replace(/\.[^/.]+$/, '')"
+      @close="showExportModal = false"
+      @export-complete="handleExportComplete"
+    />
   </div>
 </template>
 
@@ -355,6 +388,14 @@ function formatDimensions(width: number, height: number) {
 
 .action-btn:hover {
   background: #5b6af0;
+}
+
+.export-btn {
+  background: #5b6af0 !important;
+}
+
+.export-btn:hover {
+  background: #4a59df !important;
 }
 
 .delete-btn:hover {
