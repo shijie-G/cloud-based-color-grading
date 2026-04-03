@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { ref, watch } from 'vue'
+import { ref, watch, onBeforeUnmount } from 'vue'
 import { useLayerManager } from './composables/useLayerManager'
 import { usePersonalizeStorage } from './composables/usePersonalizeStorage'
 import { useHSLState } from '@/views/workstation/composables/useHSLState'
@@ -47,14 +47,19 @@ const currentImageId = ref<number | null>(null)  // 当前图片 ID
 // 自动保存定时器
 let saveTimer: ReturnType<typeof setTimeout> | null = null
 
-// 监听图层变化，自动保存
+// 监听图层变化，自动保存（传递图片尺寸用于百分比转换）
 watch(layers, () => {
-  if (!currentImageId.value) return
+  if (!currentImageId.value || !canvasConfig.value.width || !canvasConfig.value.height) return
 
   // 防抖保存：500ms 后保存
   if (saveTimer) clearTimeout(saveTimer)
   saveTimer = setTimeout(() => {
-    saveLayersToStorage(currentImageId.value!, layers.value)
+    saveLayersToStorage(
+      currentImageId.value!,
+      layers.value,
+      canvasConfig.value.width,
+      canvasConfig.value.height
+    )
   }, 500)
 }, { deep: true })
 
@@ -211,11 +216,11 @@ async function handleImageSelect(imageId: number, imageUrl: string, width: numbe
 
   console.log('切换画布底图:', baseImageUrl.value, canvasConfig.value)
 
-  // 加载该图片保存的图层数据
+  // 加载该图片保存的图层数据（传递图片尺寸用于百分比还原）
   try {
-    const savedLayers = await loadLayersFromStorage(imageId)
+    const savedLayers = await loadLayersFromStorage(imageId, width, height)
     if (savedLayers.length > 0) {
-      console.log(`恢复 ${savedLayers.length} 个图层`)
+      console.log(`✅ 恢复 ${savedLayers.length} 个图层（百分比 → 像素）`)
       // 逐个添加图层（保持原有的 ID 和属性）
       savedLayers.forEach(layer => {
         layerManager.addLayer(layer)
@@ -226,28 +231,45 @@ async function handleImageSelect(imageId: number, imageUrl: string, width: numbe
   }
 }
 
-// 添加文字图层
+// 添加文字图层（使用百分比计算初始位置）
 function handleAddText() {
+  if (!canvasConfig.value.width || !canvasConfig.value.height) {
+    console.warn('画布尺寸未初始化，无法添加图层')
+    return
+  }
+
+  // 百分比 → 像素：图层位置相对于图片左上角
+  const centerX = canvasConfig.value.width * 0.4  // 40% 位置
+  const centerY = canvasConfig.value.height * 0.4  // 40% 位置
+  const textWidth = canvasConfig.value.width * 0.2  // 20% 宽度
+  const textHeight = canvasConfig.value.height * 0.05  // 5% 高度
+  const fontSize = canvasConfig.value.height * 0.03  // 3% 字体大小
+
   layerManager.addLayer({
     name: '文字图层',
     type: 'text',
     visible: true,
     locked: false,
     opacity: 1,
-    x: 200,
-    y: 200,
-    width: 200,
-    height: 50,
+    x: centerX,
+    y: centerY,
+    width: textWidth,
+    height: textHeight,
     rotation: 0,
     text: '双击编辑文字',
-    fontSize: 24,
+    fontSize: fontSize,
     fontFamily: 'Arial',
     color: '#000000'
   })
 }
 
-// 添加形状图层
+// 添加形状图层（使用百分比计算初始位置）
 function handleAddShape(shapeType: 'rectangle' | 'circle' | 'triangle' | 'star' | 'heart' | 'arrow' | 'pentagon' | 'hexagon') {
+  if (!canvasConfig.value.width || !canvasConfig.value.height) {
+    console.warn('画布尺寸未初始化，无法添加图层')
+    return
+  }
+
   const shapeNames: Record<string, string> = {
     rectangle: '矩形',
     circle: '圆形',
@@ -259,16 +281,22 @@ function handleAddShape(shapeType: 'rectangle' | 'circle' | 'triangle' | 'star' 
     hexagon: '六边形'
   }
 
+  // 百分比 → 像素：图层位置相对于图片左上角
+  const centerX = canvasConfig.value.width * 0.35  // 35% 位置
+  const centerY = canvasConfig.value.height * 0.35  // 35% 位置
+  const shapeWidth = canvasConfig.value.width * 0.15  // 15% 宽度
+  const shapeHeight = canvasConfig.value.height * 0.15  // 15% 高度
+
   layerManager.addLayer({
     name: shapeNames[shapeType] || '形状',
     type: 'shape',
     visible: true,
     locked: false,
     opacity: 1,
-    x: 300,
-    y: 225,
-    width: 200,
-    height: 150,
+    x: centerX,
+    y: centerY,
+    width: shapeWidth,
+    height: shapeHeight,
     rotation: 0,
     shapeType,
     fillColor: '#ffffff',
@@ -291,7 +319,6 @@ function handleExport() {
 }
 
 // 清空画布
-// 清空画布
 async function handleClear() {
   if (confirm('确定要清空所有图层吗？')) {
     layerManager.clearLayers()
@@ -311,6 +338,22 @@ async function handleClear() {
     currentImageId.value = null
   }
 }
+
+// 离开模块时清空图层（不保存）
+onBeforeUnmount(() => {
+  console.log('离开个性化模块，清空图层')
+  layerManager.clearLayers()
+  canvasConfig.value.width = 0
+  canvasConfig.value.height = 0
+  baseImageUrl.value = ''
+  currentImageId.value = null
+
+  // 清除定时器
+  if (saveTimer) {
+    clearTimeout(saveTimer)
+    saveTimer = null
+  }
+})
 </script>
 
 <template>

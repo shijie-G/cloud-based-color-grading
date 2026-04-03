@@ -99,7 +99,10 @@ function updateCanvasDisplaySize() {
   canvasDisplayWidth.value = rect.width
   canvasDisplayHeight.value = rect.height
 
-  console.log('Canvas 显示尺寸:', canvasDisplayWidth.value, 'x', canvasDisplayHeight.value)
+  console.log('📐 Canvas 显示尺寸更新:')
+  console.log(`  实际尺寸: ${props.config.width} x ${props.config.height}`)
+  console.log(`  显示尺寸: ${canvasDisplayWidth.value.toFixed(2)} x ${canvasDisplayHeight.value.toFixed(2)}`)
+  console.log(`  缩放比例: ${(canvasDisplayWidth.value / props.config.width).toFixed(4)} x ${(canvasDisplayHeight.value / props.config.height).toFixed(4)}`)
 }
 
 // 监听底图变化
@@ -179,17 +182,34 @@ function handleMouseDown(layer: Layer, event: MouseEvent) {
 function handleMouseMove(event: MouseEvent) {
   if (!isDragging.value || !dragLayerId.value) return
 
+  // 安全检查：确保显示尺寸已初始化
+  if (!canvasDisplayWidth.value || !canvasDisplayHeight.value || !props.config.width || !props.config.height) {
+    console.warn('画布尺寸未初始化，无法拖拽')
+    return
+  }
+
   // 计算缩放比例
   const scaleX = canvasDisplayWidth.value / props.config.width
   const scaleY = canvasDisplayHeight.value / props.config.height
 
-  // 鼠标移动的像素距离需要除以缩放比例，转换为实际坐标
+  // 鼠标移动的像素距离需要除以两个缩放：
+  // 1. scaleX/scaleY: canvas 显示尺寸到实际尺寸的缩放
+  // 2. scale.value: 用户手动缩放的倍数（canvas-layer-wrapper 的 transform scale）
   const dx = (event.clientX - dragStart.value.x) / scaleX / scale.value
   const dy = (event.clientY - dragStart.value.y) / scaleY / scale.value
 
+  const newX = layerStart.value.x + dx
+  const newY = layerStart.value.y + dy
+
+  console.log(`🖱️ 拖拽图层:`)
+  console.log(`  鼠标移动: (${(event.clientX - dragStart.value.x).toFixed(2)}, ${(event.clientY - dragStart.value.y).toFixed(2)}) 屏幕像素`)
+  console.log(`  缩放比例: scaleX=${scaleX.toFixed(4)}, scaleY=${scaleY.toFixed(4)}, scale=${scale.value}`)
+  console.log(`  实际移动: (${dx.toFixed(2)}, ${dy.toFixed(2)}) 图片像素`)
+  console.log(`  新坐标: (${newX.toFixed(2)}, ${newY.toFixed(2)})`)
+
   emit('updateLayer', dragLayerId.value, {
-    x: layerStart.value.x + dx,
-    y: layerStart.value.y + dy
+    x: newX,
+    y: newY
   })
 }
 
@@ -265,6 +285,8 @@ function handleCanvasWheel(e: WheelEvent) {
   const newScale = Math.min(8, Math.max(0.2, parseFloat((oldScale + delta).toFixed(1))))
   if (newScale === oldScale) return
 
+  console.log(`🔍 画布缩放: ${oldScale.toFixed(1)}x → ${newScale.toFixed(1)}x`)
+
   // 鼠标相对于容器的位置
   const wrapper = wrapperRef.value
   if (!wrapper) {
@@ -280,6 +302,8 @@ function handleCanvasWheel(e: WheelEvent) {
   offsetX.value = mouseX - (mouseX - offsetX.value) * (newScale / oldScale)
   offsetY.value = mouseY - (mouseY - offsetY.value) * (newScale / oldScale)
   scale.value = newScale
+
+  console.log(`  偏移: (${offsetX.value.toFixed(2)}, ${offsetY.value.toFixed(2)})`)
 }
 
 // 画布拖拽平移（只在空白区域触发）
@@ -330,9 +354,25 @@ function onCanvasPanUp() {
 
 // 获取图层样式
 function getLayerStyle(layer: Layer) {
+  // 如果显示尺寸还未初始化，返回隐藏样式
+  if (!canvasDisplayWidth.value || !canvasDisplayHeight.value || !props.config.width || !props.config.height) {
+    console.warn(`⚠️ 图层 "${layer.name}" 渲染时画布尺寸未初始化`)
+    return {
+      display: 'none'
+    }
+  }
+
   // 计算 Canvas 的缩放比例（显示尺寸 / 实际尺寸）
+  // 注意：这里不需要考虑 scale.value，因为图层容器已经被 canvas-layer-wrapper 的 transform scale 缩放了
   const scaleX = canvasDisplayWidth.value / props.config.width
   const scaleY = canvasDisplayHeight.value / props.config.height
+
+  console.log(`🎨 渲染图层 "${layer.name}":`)
+  console.log(`  像素坐标: (${layer.x.toFixed(2)}, ${layer.y.toFixed(2)})`)
+  console.log(`  像素尺寸: ${layer.width.toFixed(2)} x ${layer.height.toFixed(2)}`)
+  console.log(`  显示坐标: (${(layer.x * scaleX).toFixed(2)}, ${(layer.y * scaleY).toFixed(2)})`)
+  console.log(`  显示尺寸: ${(layer.width * scaleX).toFixed(2)} x ${(layer.height * scaleY).toFixed(2)}`)
+  console.log(`  画布缩放: ${scale.value}x (已由容器处理，不影响图层坐标)`)
 
   const style: any = {
     position: 'absolute',
@@ -507,17 +547,14 @@ onUnmounted(() => {
   position: relative;
   transform-origin: center center;
   will-change: transform;
-  display: flex;
-  align-items: center;
-  justify-content: center;
+  display: inline-block;
 }
 
 .image-wrapper canvas {
   max-width: 100%;
-  max-height: 90%;
+  max-height: 100%;
   width: auto;
   height: auto;
-  object-fit: contain;
   display: block;
   border: 1px solid rgba(255, 255, 255, 0.1);
   border-radius: 4px;
@@ -529,8 +566,6 @@ onUnmounted(() => {
   position: absolute;
   top: 0;
   left: 0;
-  width: 100%;
-  height: 100%;
   pointer-events: none;
 }
 
