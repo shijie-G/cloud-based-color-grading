@@ -148,7 +148,7 @@ const navigateTo = (path: string) => {
 .menu-item {
   display: flex;
   align-items: center;
-  gap: 0.75rem;
+  gap: 0.9rem;
   padding: 0.6rem 1.5rem;
   border-radius: 6px;
   cursor: pointer;
@@ -174,7 +174,7 @@ const navigateTo = (path: string) => {
 }
 
 .menu-text {
-  font-size: 0.9rem;
+  font-size: 1rem;
   font-weight: 500;
   white-space: nowrap;
 }
