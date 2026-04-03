@@ -1,6 +1,8 @@
 <script setup lang="ts">
-import { ref, watch } from 'vue'
+import { ref, watch, computed } from 'vue'
 import type { ImageDisplay } from '@/views/gallery/types/gallery'
+import { useHSLState } from '@/views/workstation/composables/useHSLState'
+import { imageDB } from '@/views/workstation/utils/imageDB'
 
 interface Props {
   image: ImageDisplay | null
@@ -24,6 +26,21 @@ const offsetY = ref(0)
 const isPanning = ref(false)
 const imageContainer = ref<HTMLElement | null>(null)
 
+// 使用 HSL 调色处理链
+const {
+  processedSrc,
+  setSourceImage,
+  setBasicAdjustments,
+  setMaskLayers,
+} = useHSLState()
+
+// 计算最终显示的图片 URL（优先使用调色后的图片）
+const displayUrl = computed(() => {
+  if (!props.image) return ''
+  // 如果有调色效果，使用 processedSrc；否则使用裁切后的图片或原图
+  return processedSrc.value || props.image.editedSrc || props.image.url
+})
+
 // 重置变换
 const resetTransform = () => {
   scale.value = 1
@@ -31,11 +48,65 @@ const resetTransform = () => {
   offsetY.value = 0
 }
 
-// 监听图片变化，重置变换
-watch(() => props.image?.id, () => {
+// 重置为默认调色参数
+const resetToDefaults = () => {
+  setBasicAdjustments({
+    brightness: 0,
+    contrast: 0,
+    saturation: 0,
+    temperature: 0,
+    tint: 0,
+    exposure: 0,
+    highlights: 0,
+    shadows: 0,
+    whites: 0,
+    blacks: 0,
+    clarity: 0,
+    vibrance: 0,
+    sharpness: 0,
+    grain: 0,
+    vignette: 0
+  })
+  setMaskLayers([])
+}
+
+// 监听图片变化，重置变换并应用调色
+watch(() => props.image, async (newImage) => {
   resetTransform()
   rotation.value = 0
-})
+
+  if (!newImage) {
+    setSourceImage('')
+    return
+  }
+
+  // 使用裁切后的图片（如果有）或原图
+  const baseSrc = newImage.editedSrc || newImage.url
+  setSourceImage(baseSrc)
+
+  // 从 IndexedDB 读取调色参数
+  try {
+    const dbItem = await imageDB.getImage(newImage.id)
+    if (dbItem?.adjustmentsJson) {
+      const data = JSON.parse(dbItem.adjustmentsJson)
+      if (data.adjustments) {
+        setBasicAdjustments(data.adjustments)
+      }
+      if (data.hslAdjustments) {
+        // HSL 调整会自动应用
+      }
+      if (data.mask && Array.isArray(data.mask)) {
+        setMaskLayers(data.mask)
+      }
+    } else {
+      // 没有调色参数，重置为默认值
+      resetToDefaults()
+    }
+  } catch (error) {
+    console.error('加载调色参数失败:', error)
+    resetToDefaults()
+  }
+}, { immediate: true })
 
 // 移除 computed，直接在模板中使用内联样式以提升性能
 
@@ -138,7 +209,7 @@ function formatDimensions(width: number, height: number) {
     <div v-if="image" class="viewer-content">
       <div class="image-container" ref="imageContainer">
         <img
-          :src="image.url"
+          :src="displayUrl"
           :alt="image.filename"
           :style="{
             transform: `translate(${offsetX}px, ${offsetY}px) scale(${scale}) rotate(${rotation}deg)`,
