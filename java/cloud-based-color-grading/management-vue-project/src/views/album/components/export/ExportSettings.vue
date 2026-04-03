@@ -167,9 +167,6 @@ const exportHeight = computed(() => Math.round(props.imageHeight * props.setting
   display: flex;
   flex-direction: column;
   gap: 1.5rem;
-  max-height: 60vh;
-  overflow-y: auto;
-  padding-right: 0.5rem;
 }
 
 .setting-section {
@@ -318,24 +315,5 @@ const exportHeight = computed(() => Math.round(props.imageHeight * props.setting
   font-size: 0.95rem;
   font-weight: 600;
   color: #5b6af0;
-}
-
-/* 滚动条样式 */
-.export-settings::-webkit-scrollbar {
-  width: 6px;
-}
-
-.export-settings::-webkit-scrollbar-track {
-  background: rgba(255, 255, 255, 0.05);
-  border-radius: 3px;
-}
-
-.export-settings::-webkit-scrollbar-thumb {
-  background: rgba(255, 255, 255, 0.2);
-  border-radius: 3px;
-}
-
-.export-settings::-webkit-scrollbar-thumb:hover {
-  background: rgba(255, 255, 255, 0.3);
 }
 </style>

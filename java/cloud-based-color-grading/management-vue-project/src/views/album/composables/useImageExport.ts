@@ -356,24 +356,25 @@ export function useImageExport() {
       x = (watermark.customX / 100) * width
       y = (watermark.customY / 100) * height
     } else {
-      // 预设位置
-      const padding = 20 * scale
+      // 预设位置（左右 10px，上下 5px）
+      const paddingX = 10 * scale
+      const paddingY = 5 * scale
       switch (watermark.position) {
         case 'top-left':
-          x = padding
-          y = padding + textHeight
+          x = paddingX
+          y = paddingY + textHeight
           break
         case 'top-right':
-          x = width - textWidth - padding
-          y = padding + textHeight
+          x = width - textWidth - paddingX
+          y = paddingY + textHeight
           break
         case 'bottom-left':
-          x = padding
-          y = height - padding
+          x = paddingX
+          y = height - paddingY
           break
         case 'bottom-right':
-          x = width - textWidth - padding
-          y = height - padding
+          x = width - textWidth - paddingX
+          y = height - paddingY
           break
         case 'center':
           x = (width - textWidth) / 2

@@ -27,6 +27,55 @@ const settings = ref<ExportSettings>({ ...DEFAULT_EXPORT_SETTINGS })
 const isExporting = ref(false)
 const estimatedSize = ref('计算中...')
 
+// 计算水印样式
+const watermarkStyle = computed(() => {
+  const watermark = settings.value.watermark
+  if (!watermark.enabled || !watermark.text) {
+    return { display: 'none' }
+  }
+
+  const paddingX = 10 // 左右距离
+  const paddingY = 5  // 上下距离（更近）
+  let position: any = {
+    position: 'absolute',
+    fontSize: `${watermark.fontSize}px`,
+    color: watermark.color,
+    opacity: watermark.opacity,
+    fontWeight: watermark.bold ? 'bold' : 'normal',
+    fontFamily: 'Arial, sans-serif',
+    pointerEvents: 'none',
+    userSelect: 'none',
+    whiteSpace: 'nowrap'
+  }
+
+  // 根据位置设置
+  switch (watermark.position) {
+    case 'top-left':
+      position.top = `${paddingY}px`
+      position.left = `${paddingX}px`
+      break
+    case 'top-right':
+      position.top = `${paddingY}px`
+      position.right = `${paddingX}px`
+      break
+    case 'bottom-left':
+      position.bottom = `${paddingY}px`
+      position.left = `${paddingX}px`
+      break
+    case 'bottom-right':
+      position.bottom = `${paddingY}px`
+      position.right = `${paddingX}px`
+      break
+    case 'center':
+      position.top = '50%'
+      position.left = '50%'
+      position.transform = 'translate(-50%, -50%)'
+      break
+  }
+
+  return position
+})
+
 // 实时计算文件大小
 const updateEstimatedSize = async () => {
   if (!props.imageSrc || !props.visible) {
@@ -107,15 +156,31 @@ const handleClose = () => {
             </button>
           </div>
 
-          <!-- 内容区 -->
+          <!-- 左右两栏内容区 -->
           <div class="modal-body">
-            <ExportSettingsComponent
-              :settings="settings"
-              :image-width="imageWidth"
-              :image-height="imageHeight"
-              :estimated-size="estimatedSize"
-              @update:settings="settings = $event"
-            />
+            <!-- 左侧：图片预览区 -->
+            <div class="preview-section">
+              <div class="preview-container">
+                <div class="image-wrapper">
+                  <img :src="imageSrc" :alt="filename" class="preview-image" />
+                  <!-- 水印图层（相对于图片定位） -->
+                  <div v-if="settings.watermark.enabled && settings.watermark.text" class="watermark-layer" :style="watermarkStyle">
+                    {{ settings.watermark.text }}
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            <!-- 右侧：参数调节区 -->
+            <div class="settings-section">
+              <ExportSettingsComponent
+                :settings="settings"
+                :image-width="imageWidth"
+                :image-height="imageHeight"
+                :estimated-size="estimatedSize"
+                @update:settings="settings = $event"
+              />
+            </div>
           </div>
 
           <!-- 底部按钮 -->
@@ -155,7 +220,7 @@ const handleClose = () => {
 
 .export-modal {
   width: 100%;
-  max-width: 600px;
+  max-width: 1200px;
   background: #1c1e22;
   border-radius: 12px;
   box-shadow: 0 8px 32px rgba(0, 0, 0, 0.5);
@@ -211,8 +276,88 @@ const handleClose = () => {
 
 .modal-body {
   flex: 1;
-  overflow-y: auto;
+  display: grid;
+  grid-template-columns: 1fr 420px;
+  gap: 1.5rem;
   padding: 1.5rem;
+  overflow: hidden;
+  height: 600px;
+  max-height: calc(90vh - 180px);
+}
+
+/* 左侧预览区 */
+.preview-section {
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+  width: 100%;
+  height: 100%;
+  overflow: hidden;
+}
+
+.preview-container {
+  flex: 1;
+  background: #16181c;
+  border-radius: 8px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 2rem;
+  width: 100%;
+  min-height: 0;
+  overflow: hidden;
+}
+
+.image-wrapper {
+  position: relative;
+  max-width: 100%;
+  max-height: 100%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.preview-image {
+  max-width: 100%;
+  max-height: 100%;
+  width: auto;
+  height: auto;
+  object-fit: contain;
+  border-radius: 4px;
+  display: block;
+}
+
+.watermark-layer {
+  position: absolute;
+  z-index: 10;
+  text-shadow: 0 1px 2px rgba(0, 0, 0, 0.3);
+}
+
+/* 右侧设置区 */
+.settings-section {
+  display: flex;
+  flex-direction: column;
+  overflow-y: auto;
+  padding-right: 0.5rem;
+}
+
+/* 滚动条样式 */
+.settings-section::-webkit-scrollbar {
+  width: 6px;
+}
+
+.settings-section::-webkit-scrollbar-track {
+  background: rgba(255, 255, 255, 0.05);
+  border-radius: 3px;
+}
+
+.settings-section::-webkit-scrollbar-thumb {
+  background: rgba(255, 255, 255, 0.2);
+  border-radius: 3px;
+}
+
+.settings-section::-webkit-scrollbar-thumb:hover {
+  background: rgba(255, 255, 255, 0.3);
 }
 
 .modal-footer {
@@ -274,6 +419,21 @@ const handleClose = () => {
   background: #4a59df;
   border-color: #4a59df;
   transform: translateY(-1px);
+}
+
+/* 响应式布局 */
+@media (max-width: 1024px) {
+  .modal-body {
+    grid-template-columns: 1fr;
+  }
+
+  .preview-section {
+    max-height: 300px;
+  }
+
+  .settings-section {
+    max-height: 400px;
+  }
 }
 
 /* 动画 */
