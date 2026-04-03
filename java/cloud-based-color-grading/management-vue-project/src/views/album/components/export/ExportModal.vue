@@ -360,7 +360,15 @@ const handleExport = async () => {
 
   try {
     isExporting.value = true
-    await exportImage(props.imageSrc, settings.value, props.filename || 'exported-image', settings.value.dpi)
+    // 传递个性化图层数据
+    const layersToExport = settings.value.enablePersonalizeLayers ? personalizeLayers.value : []
+    await exportImage(
+      props.imageSrc,
+      settings.value,
+      props.filename || 'exported-image',
+      settings.value.dpi,
+      layersToExport
+    )
     emit('export-complete')
     emit('close')
   } catch (error) {
@@ -585,7 +593,7 @@ const handleClose = () => {
 
 .watermark-layer {
   position: absolute;
-  z-index: 10;
+  z-index: 9999; /* 永远在最上层 */
   text-shadow: 0 1px 2px rgba(0, 0, 0, 0.3);
 }
 

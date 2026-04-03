@@ -3,6 +3,7 @@
  */
 
 import type { ExportSettings } from '../types/export'
+import type { LayerStorageData } from '@/views/personalize/types'
 
 export function useImageExport() {
   /**
@@ -11,14 +12,16 @@ export function useImageExport() {
    * @param settings 导出设置
    * @param filename 文件名
    * @param dpi DPI 设置（默认 300）
+   * @param personalizeLayers 个性化图层数据（可选）
    */
   const exportImage = async (
     imageSrc: string,
     settings: ExportSettings,
     filename: string = 'exported-image',
-    dpi: number = 300
+    dpi: number = 300,
+    personalizeLayers: LayerStorageData[] = []
   ): Promise<void> => {
-    console.log('开始导出图片:', { filename, settings, dpi })
+    console.log('开始导出图片:', { filename, settings, dpi, layersCount: personalizeLayers.length })
 
     return new Promise((resolve, reject) => {
       const img = new Image()
@@ -27,7 +30,7 @@ export function useImageExport() {
         img.crossOrigin = 'anonymous'
       }
 
-      img.onload = () => {
+      img.onload = async () => {
         console.log('图片加载成功，开始导出')
         try {
           // 创建 canvas
@@ -65,7 +68,13 @@ export function useImageExport() {
           // 绘制图片
           ctx.drawImage(img, 0, 0, exportWidth, exportHeight)
 
-          // 绘制水印
+          // 绘制个性化图层
+          if (settings.enablePersonalizeLayers && personalizeLayers.length > 0) {
+            console.log('开始绘制个性化图层:', personalizeLayers.length, '个')
+            await drawPersonalizeLayers(ctx, exportWidth, exportHeight, personalizeLayers)
+          }
+
+          // 绘制水印（永远在最上层）
           if (settings.watermark.enabled && settings.watermark.text) {
             drawWatermark(ctx, exportWidth, exportHeight, settings.watermark, settings.scale)
           }
@@ -524,6 +533,93 @@ export function useImageExport() {
 
       img.src = imageSrc
     })
+  }
+
+  /**
+   * 绘制个性化图层
+   */
+  const drawPersonalizeLayers = async (
+    ctx: CanvasRenderingContext2D,
+    width: number,
+    height: number,
+    layers: LayerStorageData[]
+  ): Promise<void> => {
+    // 按 zIndex 排序，只绘制可见图层
+    const visibleLayers = layers
+      .filter(layer => layer.visible)
+      .sort((a, b) => a.zIndex - b.zIndex)
+
+    for (const layer of visibleLayers) {
+      ctx.save()
+
+      // 计算实际像素位置和尺寸（基于百分比）
+      const x = (layer.xPercent / 100) * width
+      const y = (layer.yPercent / 100) * height
+      const w = (layer.widthPercent / 100) * width
+      const h = (layer.heightPercent / 100) * height
+
+      // 设置透明度
+      ctx.globalAlpha = layer.opacity
+
+      // 移动到图层中心点进行旋转
+      ctx.translate(x + w / 2, y + h / 2)
+      ctx.rotate((layer.rotation * Math.PI) / 180)
+      ctx.translate(-(x + w / 2), -(y + h / 2))
+
+      if (layer.type === 'text' && layer.text) {
+        // 绘制文字图层
+        const fontSize = height * (layer.fontSizePercent || 5) / 100
+        ctx.font = `${fontSize}px ${layer.fontFamily || 'Arial, sans-serif'}`
+        ctx.fillStyle = layer.color || '#000000'
+        ctx.textAlign = 'center'
+        ctx.textBaseline = 'middle'
+        ctx.fillText(layer.text, x + w / 2, y + h / 2)
+        console.log('绘制文字图层:', layer.text, { x, y, w, h, fontSize })
+      } else if (layer.type === 'shape') {
+        // 绘制形状图层
+        ctx.fillStyle = layer.fillColor || 'transparent'
+
+        if (layer.shapeType === 'circle') {
+          // 圆形
+          const radius = Math.min(w, h) / 2
+          ctx.beginPath()
+          ctx.arc(x + w / 2, y + h / 2, radius, 0, Math.PI * 2)
+          ctx.fill()
+          if (layer.strokeColor && layer.strokeWidthPercent) {
+            ctx.strokeStyle = layer.strokeColor
+            ctx.lineWidth = width * (layer.strokeWidthPercent / 100)
+            ctx.stroke()
+          }
+        } else {
+          // 矩形（默认）
+          ctx.fillRect(x, y, w, h)
+          if (layer.strokeColor && layer.strokeWidthPercent) {
+            ctx.strokeStyle = layer.strokeColor
+            ctx.lineWidth = width * (layer.strokeWidthPercent / 100)
+            ctx.strokeRect(x, y, w, h)
+          }
+        }
+        console.log('绘制形状图层:', layer.shapeType, { x, y, w, h })
+      } else if (layer.type === 'image' && layer.imageUrl) {
+        // 绘制图片图层
+        await new Promise<void>((resolve) => {
+          const layerImg = new Image()
+          layerImg.crossOrigin = 'anonymous'
+          layerImg.onload = () => {
+            ctx.drawImage(layerImg, x, y, w, h)
+            console.log('绘制图片图层:', { x, y, w, h })
+            resolve()
+          }
+          layerImg.onerror = () => {
+            console.error('图层图片加载失败:', layer.imageUrl)
+            resolve()
+          }
+          layerImg.src = layer.imageUrl!
+        })
+      }
+
+      ctx.restore()
+    }
   }
 
   return {
