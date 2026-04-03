@@ -1,9 +1,11 @@
 <script setup lang="ts">
-import { ref, computed, watch } from 'vue'
+import { ref, computed, watch, onMounted } from 'vue'
 import type { ExportSettings } from '../../types/export'
 import { DEFAULT_EXPORT_SETTINGS } from '../../types/export'
 import { useImageExport } from '../../composables/useImageExport'
 import ExportSettingsComponent from './ExportSettings.vue'
+import { imageDB } from '@/views/workstation/utils/imageDB'
+import type { LayerStorageData } from '@/views/personalize/types'
 
 interface Props {
   visible: boolean
@@ -11,6 +13,7 @@ interface Props {
   imageWidth: number
   imageHeight: number
   filename?: string
+  imageId?: number // 图片 ID，用于加载个性化图层
 }
 
 interface Emits {
@@ -29,6 +32,10 @@ const estimatedSize = ref('计算中...')
 const imageWrapperRef = ref<HTMLElement | null>(null)
 const previewImageRef = ref<HTMLImageElement | null>(null)
 const previewContainerRef = ref<HTMLElement | null>(null)
+
+// 个性化图层相关
+const personalizeLayers = ref<LayerStorageData[]>([])
+const hasPersonalizeLayers = ref(false)
 
 // 强制更新缩放比例的触发器
 const scaleUpdateTrigger = ref(0)
@@ -203,6 +210,63 @@ const watermarkStyle = computed(() => {
   return position
 })
 
+// 计算个性化图层样式（按百分比渲染）
+const personalizeLayerStyles = computed(() => {
+  if (!settings.value.enablePersonalizeLayers || personalizeLayers.value.length === 0) {
+    return []
+  }
+
+  return personalizeLayers.value
+    .filter(layer => layer.visible)
+    .sort((a, b) => a.zIndex - b.zIndex)
+    .map(layer => {
+      const style: any = {
+        position: 'absolute',
+        left: `${layer.xPercent}%`,
+        top: `${layer.yPercent}%`,
+        width: `${layer.widthPercent}%`,
+        height: `${layer.heightPercent}%`,
+        opacity: layer.opacity,
+        transform: `rotate(${layer.rotation}deg)`,
+        transformOrigin: 'center center',
+        pointerEvents: 'none',
+        zIndex: layer.zIndex
+      }
+
+      // 根据图层类型设置样式
+      if (layer.type === 'text' && layer.text) {
+        const displayHeight = previewImageRef.value?.clientHeight || props.imageHeight
+        const fontSize = displayHeight * (layer.fontSizePercent || 5) / 100
+        style.fontSize = `${fontSize}px`
+        style.fontFamily = layer.fontFamily || 'Arial, sans-serif'
+        style.color = layer.color || '#000000'
+        style.display = 'flex'
+        style.alignItems = 'center'
+        style.justifyContent = 'center'
+        style.whiteSpace = 'pre-wrap'
+        style.wordBreak = 'break-word'
+      } else if (layer.type === 'shape') {
+        style.backgroundColor = layer.fillColor || 'transparent'
+        if (layer.strokeColor && layer.strokeWidthPercent) {
+          const displayWidth = previewImageRef.value?.clientWidth || props.imageWidth
+          const strokeWidth = displayWidth * layer.strokeWidthPercent / 100
+          style.border = `${strokeWidth}px solid ${layer.strokeColor}`
+        }
+        // 根据形状类型设置 border-radius
+        if (layer.shapeType === 'circle') {
+          style.borderRadius = '50%'
+        }
+      } else if (layer.type === 'image' && layer.imageUrl) {
+        style.backgroundImage = `url(${layer.imageUrl})`
+        style.backgroundSize = 'contain'
+        style.backgroundRepeat = 'no-repeat'
+        style.backgroundPosition = 'center'
+      }
+
+      return { layer, style }
+    })
+})
+
 // 实时计算文件大小
 const updateEstimatedSize = async () => {
   if (!props.imageSrc || !props.visible) {
@@ -231,10 +295,11 @@ watch([() => settings.value.format, () => settings.value.quality, () => settings
 }, { deep: true })
 
 // 监听弹窗显示，初始化计算
-watch(() => props.visible, (newVal) => {
+watch(() => props.visible, async (newVal) => {
   if (newVal) {
     console.log('弹窗显示，初始化设置')
     resetSettings()
+    await loadPersonalizeLayers() // 加载个性化图层
     updateEstimatedSize()
     // 延迟触发缩放计算，确保 DOM 已渲染
     setTimeout(() => {
@@ -243,6 +308,31 @@ watch(() => props.visible, (newVal) => {
     }, 100)
   }
 })
+
+// 加载个性化图层数据
+const loadPersonalizeLayers = async () => {
+  personalizeLayers.value = []
+  hasPersonalizeLayers.value = false
+
+  if (!props.imageId) {
+    console.log('没有提供 imageId，无法加载个性化图层')
+    return
+  }
+
+  try {
+    const dbItem = await imageDB.getImage(props.imageId)
+    if (dbItem?.personalizeLayersJson) {
+      const layers: LayerStorageData[] = JSON.parse(dbItem.personalizeLayersJson)
+      if (layers && layers.length > 0) {
+        personalizeLayers.value = layers
+        hasPersonalizeLayers.value = true
+        console.log('成功加载个性化图层:', layers.length, '个图层')
+      }
+    }
+  } catch (error) {
+    console.error('加载个性化图层失败:', error)
+  }
+}
 
 // 监听图片源变化
 watch(() => props.imageSrc, () => {
@@ -318,6 +408,15 @@ const handleClose = () => {
                     :style="{ maxWidth: maxImageSize.maxWidth, maxHeight: maxImageSize.maxHeight }"
                     @load="scaleUpdateTrigger++"
                   />
+                  <!-- 个性化图层 -->
+                  <div
+                    v-for="{ layer, style } in personalizeLayerStyles"
+                    :key="layer.id"
+                    class="personalize-layer"
+                    :style="style"
+                  >
+                    <template v-if="layer.type === 'text'">{{ layer.text }}</template>
+                  </div>
                   <!-- 水印图层（相对于图片定位，按比例缩放） -->
                   <div
                     v-if="settings.watermark.enabled && settings.watermark.text"
@@ -337,6 +436,7 @@ const handleClose = () => {
                 :image-width="imageWidth"
                 :image-height="imageHeight"
                 :estimated-size="estimatedSize"
+                :has-personalize-layers="hasPersonalizeLayers"
                 @update:settings="settings = $event"
               />
             </div>
@@ -487,6 +587,12 @@ const handleClose = () => {
   position: absolute;
   z-index: 10;
   text-shadow: 0 1px 2px rgba(0, 0, 0, 0.3);
+}
+
+.personalize-layer {
+  position: absolute;
+  user-select: none;
+  pointer-events: none;
 }
 
 /* 右侧设置区 */

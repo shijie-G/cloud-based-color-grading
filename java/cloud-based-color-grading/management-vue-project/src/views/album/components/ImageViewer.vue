@@ -311,6 +311,7 @@ function formatDimensions(width: number, height: number) {
       :image-src="displayUrl"
       :image-width="image.width"
       :image-height="image.height"
+      :image-id="image.id"
       :filename="image.filename.replace(/\.[^/.]+$/, '')"
       @close="showExportModal = false"
       @export-complete="handleExportComplete"

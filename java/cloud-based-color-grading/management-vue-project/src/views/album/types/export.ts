@@ -28,6 +28,7 @@ export interface ExportSettings {
   dpi: number
   background: BackgroundType
   watermark: WatermarkConfig
+  enablePersonalizeLayers: boolean // 是否启用个性化图层
 }
 
 export const DEFAULT_EXPORT_SETTINGS: ExportSettings = {
@@ -46,5 +47,6 @@ export const DEFAULT_EXPORT_SETTINGS: ExportSettings = {
     position: 'bottom-right',
     customX: undefined,
     customY: undefined
-  }
+  },
+  enablePersonalizeLayers: false // 默认不启用
 }

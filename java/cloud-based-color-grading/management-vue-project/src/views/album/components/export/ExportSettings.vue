@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { computed } from 'vue'
+import { computed, watch } from 'vue'
 import type { ExportSettings, ExportFormat, BackgroundType } from '../../types/export'
 import WatermarkConfig from './WatermarkConfig.vue'
 
@@ -8,14 +8,26 @@ interface Props {
   imageWidth: number
   imageHeight: number
   estimatedSize: string
+  hasPersonalizeLayers?: boolean // 是否有个性化图层数据
 }
 
 interface Emits {
   (e: 'update:settings', value: ExportSettings): void
 }
 
-const props = defineProps<Props>()
+const props = withDefaults(defineProps<Props>(), {
+  hasPersonalizeLayers: false
+})
 const emit = defineEmits<Emits>()
+
+// 调试日志
+watch(() => props.hasPersonalizeLayers, (val) => {
+  console.log('ExportSettings - hasPersonalizeLayers:', val)
+}, { immediate: true })
+
+watch(() => props.settings.enablePersonalizeLayers, (val) => {
+  console.log('ExportSettings - enablePersonalizeLayers:', val)
+}, { immediate: true })
 
 const formats: { value: ExportFormat; label: string }[] = [
   { value: 'jpeg', label: 'JPG/JPEG' },
@@ -140,6 +152,22 @@ const exportHeight = computed(() => Math.round(props.imageHeight * props.setting
         >
           {{ bg.label }}
         </button>
+      </div>
+    </div>
+
+    <!-- 个性化图层 -->
+    <div class="setting-section">
+      <div class="personalize-toggle">
+        <label class="toggle-label">
+          <input
+            type="checkbox"
+            :checked="settings.enablePersonalizeLayers"
+            :disabled="!hasPersonalizeLayers"
+            @change="updateSettings({ enablePersonalizeLayers: ($event.target as HTMLInputElement).checked })"
+          />
+          <span>启用个性化图层</span>
+        </label>
+        <span v-if="!hasPersonalizeLayers" class="toggle-hint">（当前图片无个性化数据）</span>
       </div>
     </div>
 
@@ -315,5 +343,37 @@ const exportHeight = computed(() => Math.round(props.imageHeight * props.setting
   font-size: 0.95rem;
   font-weight: 600;
   color: #5b6af0;
+}
+
+.personalize-toggle {
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+}
+
+.toggle-label {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  font-size: 0.9rem;
+  color: #e2e4e9;
+  cursor: pointer;
+}
+
+.toggle-label input[type="checkbox"] {
+  width: 16px;
+  height: 16px;
+  cursor: pointer;
+}
+
+.toggle-label input[type="checkbox"]:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+.toggle-hint {
+  font-size: 0.85rem;
+  color: #9ca3af;
+  margin-left: 1.5rem;
 }
 </style>
