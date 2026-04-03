@@ -172,28 +172,33 @@ const watermarkStyle = computed(() => {
     whiteSpace: 'nowrap'
   }
 
-  // 根据位置设置（使用像素值，相对于图片）
+  // 根据位置设置（使用像素值，相对于图片）并设置 transform-origin
   switch (watermark.position) {
     case 'top-left':
       position.top = `${paddingY}px`
       position.left = `${paddingX}px`
+      position.transformOrigin = 'top left'
       break
     case 'top-right':
       position.top = `${paddingY}px`
       position.right = `${paddingX}px`
+      position.transformOrigin = 'top right'
       break
     case 'bottom-left':
       position.bottom = `${paddingY}px`
       position.left = `${paddingX}px`
+      position.transformOrigin = 'bottom left'
       break
     case 'bottom-right':
       position.bottom = `${paddingY}px`
       position.right = `${paddingX}px`
+      position.transformOrigin = 'bottom right'
       break
     case 'center':
       position.top = '50%'
       position.left = '50%'
       position.transform = 'translate(-50%, -50%)'
+      position.transformOrigin = 'center center'
       break
   }
 
