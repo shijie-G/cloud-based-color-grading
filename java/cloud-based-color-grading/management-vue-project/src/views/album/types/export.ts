@@ -11,7 +11,7 @@ export type WatermarkPosition = 'top-left' | 'top-right' | 'bottom-left' | 'bott
 export interface WatermarkConfig {
   enabled: boolean
   text: string
-  fontSize: number
+  scale: number // 水印缩放比例（0.5 - 3.0，1.0 为基准大小）
   color: string
   opacity: number
   bold: boolean
@@ -39,7 +39,7 @@ export const DEFAULT_EXPORT_SETTINGS: ExportSettings = {
   watermark: {
     enabled: false,
     text: '',
-    fontSize: 24,
+    scale: 1.0, // 默认 1.0 倍（基准大小）
     color: '#ffffff',
     opacity: 0.8,
     bold: false,

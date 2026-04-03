@@ -26,19 +26,136 @@ const { exportImage, estimateFileSize } = useImageExport()
 const settings = ref<ExportSettings>({ ...DEFAULT_EXPORT_SETTINGS })
 const isExporting = ref(false)
 const estimatedSize = ref('计算中...')
+const imageWrapperRef = ref<HTMLElement | null>(null)
+const previewImageRef = ref<HTMLImageElement | null>(null)
+const previewContainerRef = ref<HTMLElement | null>(null)
 
-// 计算水印样式
+// 强制更新缩放比例的触发器
+const scaleUpdateTrigger = ref(0)
+
+// 基准字体大小（相对于图片宽度的百分比）
+const BASE_FONT_SIZE_RATIO = 0.03 // 3% 的图片宽度作为基准字体大小
+
+// 水印位置间距（百分比）
+const PADDING_RATIO = 0.02 // 距离边缘 2%
+
+// 计算图片的最大显示尺寸（确保完整显示在容器内）
+const maxImageSize = computed(() => {
+  if (!previewContainerRef.value || !props.imageWidth || !props.imageHeight) {
+    return { maxWidth: '100%', maxHeight: '100%' }
+  }
+
+  // 获取容器的可用空间（减去 padding）
+  const containerWidth = previewContainerRef.value.clientWidth - 64 // 2rem padding * 2
+  const containerHeight = previewContainerRef.value.clientHeight - 64
+
+  // 计算图片的宽高比
+  const imageRatio = props.imageWidth / props.imageHeight
+  const containerRatio = containerWidth / containerHeight
+
+  let maxWidth: number, maxHeight: number
+
+  if (imageRatio > containerRatio) {
+    // 图片更宽，以宽度为基准
+    maxWidth = containerWidth
+    maxHeight = containerWidth / imageRatio
+  } else {
+    // 图片更高，以高度为基准
+    maxHeight = containerHeight
+    maxWidth = containerHeight * imageRatio
+  }
+
+  console.log('计算最大图片尺寸:', {
+    containerWidth,
+    containerHeight,
+    imageWidth: props.imageWidth,
+    imageHeight: props.imageHeight,
+    imageRatio,
+    containerRatio,
+    maxWidth,
+    maxHeight
+  })
+
+  return {
+    maxWidth: `${maxWidth}px`,
+    maxHeight: `${maxHeight}px`
+  }
+})
+
+// 计算图片缩放比例（预览图相对于原图的缩放）
+const imageScale = computed(() => {
+  // 依赖触发器，确保能重新计算
+  scaleUpdateTrigger.value
+
+  if (!previewImageRef.value || !props.imageWidth || !props.imageHeight) {
+    console.log('缩放比例计算：缺少必要数据', {
+      hasRef: !!previewImageRef.value,
+      imageWidth: props.imageWidth,
+      imageHeight: props.imageHeight
+    })
+    return 1
+  }
+  // 获取实际显示的图片尺寸
+  const displayWidth = previewImageRef.value.clientWidth
+  const displayHeight = previewImageRef.value.clientHeight
+
+  if (displayWidth === 0 || displayHeight === 0) {
+    console.log('缩放比例计算：图片尺寸为 0，等待加载')
+    return 1
+  }
+
+  // 计算缩放比例（取较小的比例，因为是 contain 模式）
+  const scaleX = displayWidth / props.imageWidth
+  const scaleY = displayHeight / props.imageHeight
+  const scale = Math.min(scaleX, scaleY)
+
+  console.log('缩放比例计算完成:', {
+    displayWidth,
+    displayHeight,
+    originalWidth: props.imageWidth,
+    originalHeight: props.imageHeight,
+    scaleX,
+    scaleY,
+    finalScale: scale
+  })
+
+  return scale
+})
+
+// 计算水印样式（按图片缩放比例调整）
 const watermarkStyle = computed(() => {
   const watermark = settings.value.watermark
+
+  console.log('计算水印样式:', {
+    enabled: watermark.enabled,
+    text: watermark.text,
+    watermarkScale: watermark.scale,
+    imageScale: imageScale.value
+  })
+
   if (!watermark.enabled || !watermark.text) {
     return { display: 'none' }
   }
 
-  const paddingX = 10 // 左右距离
-  const paddingY = 5  // 上下距离（更近）
+  const imgScale = imageScale.value
+
+  // 获取预览图的实际显示尺寸
+  const displayWidth = previewImageRef.value?.clientWidth || props.imageWidth * imgScale
+  const displayHeight = previewImageRef.value?.clientHeight || props.imageHeight * imgScale
+
+  // 计算基准字体大小（基于预览图的宽度）
+  const baseFontSize = displayWidth * BASE_FONT_SIZE_RATIO
+
+  // 应用用户设置的缩放比例
+  const fontSize = baseFontSize * watermark.scale
+
+  // 间距使用百分比计算实际像素值（相对于预览图尺寸）
+  const paddingX = displayWidth * PADDING_RATIO
+  const paddingY = displayHeight * PADDING_RATIO
+
   let position: any = {
     position: 'absolute',
-    fontSize: `${watermark.fontSize}px`,
+    fontSize: `${fontSize}px`,
     color: watermark.color,
     opacity: watermark.opacity,
     fontWeight: watermark.bold ? 'bold' : 'normal',
@@ -48,7 +165,7 @@ const watermarkStyle = computed(() => {
     whiteSpace: 'nowrap'
   }
 
-  // 根据位置设置
+  // 根据位置设置（使用像素值，相对于图片）
   switch (watermark.position) {
     case 'top-left':
       position.top = `${paddingY}px`
@@ -72,6 +189,16 @@ const watermarkStyle = computed(() => {
       position.transform = 'translate(-50%, -50%)'
       break
   }
+
+  console.log('水印样式计算完成:', {
+    fontSize,
+    paddingX,
+    paddingY,
+    displayWidth,
+    displayHeight,
+    paddingRatio: PADDING_RATIO,
+    position
+  })
 
   return position
 })
@@ -106,10 +233,31 @@ watch([() => settings.value.format, () => settings.value.quality, () => settings
 // 监听弹窗显示，初始化计算
 watch(() => props.visible, (newVal) => {
   if (newVal) {
+    console.log('弹窗显示，初始化设置')
     resetSettings()
     updateEstimatedSize()
+    // 延迟触发缩放计算，确保 DOM 已渲染
+    setTimeout(() => {
+      console.log('触发缩放比例重新计算')
+      scaleUpdateTrigger.value++
+    }, 100)
   }
 })
+
+// 监听图片源变化
+watch(() => props.imageSrc, () => {
+  console.log('图片源变化')
+  // 延迟触发，等待图片加载
+  setTimeout(() => {
+    console.log('触发缩放比例重新计算')
+    scaleUpdateTrigger.value++
+  }, 100)
+})
+
+// 监听水印设置变化
+watch(() => settings.value.watermark, () => {
+  console.log('水印设置变化')
+}, { deep: true })
 
 // 重置设置
 const resetSettings = () => {
@@ -160,11 +308,22 @@ const handleClose = () => {
           <div class="modal-body">
             <!-- 左侧：图片预览区 -->
             <div class="preview-section">
-              <div class="preview-container">
-                <div class="image-wrapper">
-                  <img :src="imageSrc" :alt="filename" class="preview-image" />
-                  <!-- 水印图层（相对于图片定位） -->
-                  <div v-if="settings.watermark.enabled && settings.watermark.text" class="watermark-layer" :style="watermarkStyle">
+              <div class="preview-container" ref="previewContainerRef">
+                <div class="image-wrapper" ref="imageWrapperRef">
+                  <img
+                    ref="previewImageRef"
+                    :src="imageSrc"
+                    :alt="filename"
+                    class="preview-image"
+                    :style="{ maxWidth: maxImageSize.maxWidth, maxHeight: maxImageSize.maxHeight }"
+                    @load="scaleUpdateTrigger++"
+                  />
+                  <!-- 水印图层（相对于图片定位，按比例缩放） -->
+                  <div
+                    v-if="settings.watermark.enabled && settings.watermark.text"
+                    class="watermark-layer"
+                    :style="watermarkStyle"
+                  >
                     {{ settings.watermark.text }}
                   </div>
                 </div>
@@ -306,25 +465,22 @@ const handleClose = () => {
   width: 100%;
   min-height: 0;
   overflow: hidden;
+  position: relative;
 }
 
 .image-wrapper {
   position: relative;
-  max-width: 100%;
-  max-height: 100%;
-  display: flex;
-  align-items: center;
-  justify-content: center;
+  display: inline-block;
+  line-height: 0;
 }
 
 .preview-image {
-  max-width: 100%;
-  max-height: 100%;
   width: auto;
   height: auto;
   object-fit: contain;
   border-radius: 4px;
   display: block;
+  vertical-align: top;
 }
 
 .watermark-layer {

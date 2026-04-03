@@ -52,16 +52,17 @@ const updateWatermark = (updates: Partial<WatermarkConfig>) => {
       </div>
 
       <div class="config-row">
-        <label class="config-label">字体大小</label>
+        <label class="config-label">水印大小</label>
         <div class="slider-group">
           <input
             type="range"
-            min="12"
-            max="72"
-            :value="watermark.fontSize"
-            @input="updateWatermark({ fontSize: Number(($event.target as HTMLInputElement).value) })"
+            min="0.5"
+            max="3"
+            step="0.1"
+            :value="watermark.scale"
+            @input="updateWatermark({ scale: Number(($event.target as HTMLInputElement).value) })"
           />
-          <span class="slider-value">{{ watermark.fontSize }}px</span>
+          <span class="slider-value">{{ Math.round(watermark.scale * 100) }}%</span>
         </div>
       </div>
 

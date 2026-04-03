@@ -334,19 +334,28 @@ export function useImageExport() {
   ) => {
     ctx.save()
 
-    // 根据缩放调整字体大小
-    const scaledFontSize = watermark.fontSize * scale
+    // 基准字体大小（相对于图片宽度的百分比）
+    const BASE_FONT_SIZE_RATIO = 0.03 // 3% 的图片宽度作为基准字体大小
+
+    // 水印位置间距（百分比）
+    const PADDING_RATIO = 0.02 // 距离边缘 2%
+
+    // 计算基准字体大小（基于导出图片的宽度）
+    const baseFontSize = width * BASE_FONT_SIZE_RATIO
+
+    // 应用用户设置的缩放比例
+    const fontSize = baseFontSize * watermark.scale
 
     // 设置字体
     const fontWeight = watermark.bold ? 'bold' : 'normal'
-    ctx.font = `${fontWeight} ${scaledFontSize}px Arial, sans-serif`
+    ctx.font = `${fontWeight} ${fontSize}px Arial, sans-serif`
     ctx.fillStyle = watermark.color
     ctx.globalAlpha = watermark.opacity
 
     // 测量文字尺寸
     const metrics = ctx.measureText(watermark.text)
     const textWidth = metrics.width
-    const textHeight = scaledFontSize
+    const textHeight = fontSize
 
     // 计算位置
     let x: number, y: number
@@ -356,9 +365,10 @@ export function useImageExport() {
       x = (watermark.customX / 100) * width
       y = (watermark.customY / 100) * height
     } else {
-      // 预设位置（左右 10px，上下 5px）
-      const paddingX = 10 * scale
-      const paddingY = 5 * scale
+      // 预设位置（使用百分比）
+      const paddingX = width * PADDING_RATIO
+      const paddingY = height * PADDING_RATIO
+
       switch (watermark.position) {
         case 'top-left':
           x = paddingX
@@ -381,10 +391,23 @@ export function useImageExport() {
           y = (height + textHeight) / 2
           break
         default:
-          x = width - textWidth - padding
-          y = height - padding
+          x = width - textWidth - paddingX
+          y = height - paddingY
       }
     }
+
+    console.log('导出水印位置:', {
+      x,
+      y,
+      textWidth,
+      textHeight,
+      fontSize,
+      paddingRatio: PADDING_RATIO,
+      position: watermark.position,
+      watermarkScale: watermark.scale,
+      imageWidth: width,
+      imageHeight: height
+    })
 
     // 绘制文字
     ctx.fillText(watermark.text, x, y)
