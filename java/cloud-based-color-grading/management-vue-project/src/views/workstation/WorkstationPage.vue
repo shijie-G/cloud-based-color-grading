@@ -259,9 +259,9 @@ const scheduleSave = () => {
   if (!selectedImageId.value || isLoadingAdjustments) return
   if (saveTimer) clearTimeout(saveTimer)
   saveTimer = setTimeout(async () => {
-    // 保存调色参数，同时保存调色后的图片到 editedSrc（供 Gallery 显示）
-    const processedImage = displayProcessedSrc.value || ''
-    await saveAdjustments(selectedImageId.value!, serializeAdjustments(), processedImage)
+    // 只保存调色参数 JSON，不保存渲染后的图片到 editedSrc
+    // editedSrc 仅用于裁切/旋转/翻转后的图片
+    await saveAdjustments(selectedImageId.value!, serializeAdjustments())
   }, 500)
 }
 
