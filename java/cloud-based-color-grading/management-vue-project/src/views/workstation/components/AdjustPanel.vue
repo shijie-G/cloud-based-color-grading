@@ -54,7 +54,7 @@
           @mask:adjSliderEnd="$emit('mask:adjSliderEnd')"
           @mask:adjSliderCommit="$emit('mask:adjSliderCommit')"
         />
-        <FilterPanel v-else-if="activeTab === 'filter'" />
+        <FilterPanel v-else-if="activeTab === 'filter'" @filter:commit="$emit('filter:commit')" />
       </div>
 
       <!-- 右侧导航栏 -->
@@ -152,6 +152,7 @@ interface AdjustPanelEvents {
   'crop:flip':               [dir: 'h' | 'v']
   'crop:restore':            []
   'sliderEnd':               []
+  'filter:commit':           []
 }
 
 const props = defineProps<AdjustPanelProps>()

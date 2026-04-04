@@ -1,5 +1,5 @@
 <template>
-  <div class="filter-panel">
+  <div class="filter-panel" @mouseup="onMouseUp" @touchend="onMouseUp">
 
     <!-- 预设滤镜 -->
     <div class="panel-section">
@@ -162,6 +162,8 @@ import { inject, reactive, computed } from 'vue'
 import type { FilterConfig } from '../types/filterTypes'
 import { filterPresets, defaultFilterConfig } from '../types/filterTypes'
 
+const emit = defineEmits<{ 'filter:commit': [] }>()
+
 const filterConfig = inject<FilterConfig>('filterConfig', reactive(defaultFilterConfig()))
 
 // 暗角强度填充（中心对称，min=-1）
@@ -255,11 +257,20 @@ const activePresetName = computed(() => {
 
 const applyPreset = (id: string) => {
   const preset = filterPresets[id]
-  if (preset) Object.assign(filterConfig, preset)
+  if (preset) {
+    Object.assign(filterConfig, preset)
+    emit('filter:commit')
+  }
 }
 
 const handleReset = () => {
   Object.assign(filterConfig, defaultFilterConfig())
+  emit('filter:commit')
+}
+
+// 滑块拖动结束时入栈（mouseup/touchend 冒泡到面板根元素）
+const onMouseUp = () => {
+  emit('filter:commit')
 }
 </script>
 

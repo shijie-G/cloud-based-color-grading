@@ -82,6 +82,7 @@
         @mask:adjSliderEnd="adjSliderDragging = false"
         @mask:adjSliderCommit="pushHistory"
         @sliderEnd="pushHistory"
+        @filter:commit="pushHistory"
         @tab:change="(t) => { activePanelTab = t; if (t !== 'crop') { cropToolActive = false; if (transformPending) { handleTransformCancel() } else { restoreCropPreview() } } if (t === 'crop') prewarmTransformCache() }"
         @mask:clearSelection="maskSetActiveLayer('')"
         @crop:ratio="(r) => { cropRatio = r; cropToolActive = true; handleCropRatioChange() }"
@@ -204,6 +205,7 @@ const captureSnapshot = () => ({
   maskLayers: getMaskSerializable() as SerializedMaskLayer[],
   cropState: { ...currentCropState.value, rect: currentCropState.value.rect ? { ...currentCropState.value.rect } : null },
   imageSrc: imageSrc.value,
+  filterConfig: JSON.parse(JSON.stringify(filterConfig)),
 })
 
 /** 保存一步历史（操作完成后调用） */
@@ -262,6 +264,15 @@ const applySnapshot = (snap: ReturnType<typeof captureSnapshot>) => {
       } else {
         saveCropData(id, snapImageSrc, snapCropState).catch(e => console.error('撤销保存裁切数据失败:', e))
       }
+    }
+
+    // 恢复滤镜配置
+    if (snap.filterConfig) {
+      Object.assign(filterConfig, snap.filterConfig)
+      setFilterConfig(filterConfig)
+    } else {
+      Object.assign(filterConfig, defaultFilterConfig())
+      setFilterConfig(filterConfig)
     }
   } finally {
     isLoadingAdjustments = false
