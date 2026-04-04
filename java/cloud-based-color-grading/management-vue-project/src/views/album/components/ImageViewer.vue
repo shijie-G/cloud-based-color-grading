@@ -2,6 +2,7 @@
 import { ref, watch, computed } from 'vue'
 import type { ImageDisplay } from '@/views/gallery/types/gallery'
 import { useHSLState } from '@/views/workstation/composables/useHSLState'
+import { drawLinearMask, drawRadialMask } from '@/views/workstation/composables/useMaskState'
 import { imageDB } from '@/views/workstation/utils/imageDB'
 import ExportModal from './export/ExportModal.vue'
 
@@ -30,12 +31,15 @@ const imageContainer = ref<HTMLElement | null>(null)
 // 导出弹窗
 const showExportModal = ref(false)
 
-// 使用 HSL 调色处理链
+// 使用 HSL 调色处理链（与 WorkstationPage 保持一致）
 const {
   processedSrc,
+  hslAdjustments,
   setSourceImage,
   setBasicAdjustments,
   setMaskLayers,
+  setFilterConfig,
+  resetHSL,
 } = useHSLState()
 
 // 计算最终显示的图片 URL（优先使用调色后的图片）
@@ -63,29 +67,23 @@ const resetTransform = () => {
   offsetY.value = 0
 }
 
-// 重置为默认调色参数
+// 重置为默认调色参数（与 WorkstationPage 保持一致）
 const resetToDefaults = () => {
   setBasicAdjustments({
-    brightness: 0,
-    contrast: 0,
-    saturation: 0,
-    temperature: 0,
-    tint: 0,
-    exposure: 0,
-    highlights: 0,
-    shadows: 0,
-    whites: 0,
-    blacks: 0,
-    clarity: 0,
-    vibrance: 0,
-    sharpness: 0,
-    grain: 0,
-    vignette: 0
+    brightness: 0, contrast: 0, saturation: 0,
+    vibrance: 0, hue: 0, temperature: 0, clarity: 0,
   })
+  resetHSL()
   setMaskLayers([])
+  setFilterConfig({
+    blur_radius: 0, sharpen_amount: 0, sharpen_radius: 1.0,
+    style_type: 0, style_strength: 0,
+    style_highlight_color: '#f8e9d6', style_shadow_color: '#2a3d55',
+    style_blend: 0.3, grain_intensity: 0, vignette_strength: 0, vignette_size: 1.2,
+  })
 }
 
-// 监听图片变化，重置变换并应用调色
+// 监听图片变化，重置变换并应用调色（与 WorkstationPage.applyStoredAdjustments 对齐）
 watch(() => props.image, async (newImage) => {
   resetTransform()
   rotation.value = 0
@@ -104,17 +102,60 @@ watch(() => props.image, async (newImage) => {
     const dbItem = await imageDB.getImage(newImage.id)
     if (dbItem?.adjustmentsJson) {
       const data = JSON.parse(dbItem.adjustmentsJson)
+
+      // 1. 基础调色
       if (data.adjustments) {
         setBasicAdjustments(data.adjustments)
       }
+
+      // 2. HSL 调整（直接写入 reactive 对象，处理链会自动触发）
       if (data.hslAdjustments) {
-        // HSL 调整会自动应用
+        Object.assign(hslAdjustments, data.hslAdjustments)
       }
-      if (data.mask && Array.isArray(data.mask)) {
-        setMaskLayers(data.mask)
+
+      // 3. 蒙版：需要重建 canvas，与 WorkstationPage 的 loadMaskFromSerializable 逻辑一致
+      if (data.mask && Array.isArray(data.mask) && data.mask.length > 0) {
+        const img = new Image()
+        img.onload = () => {
+          const w = img.naturalWidth
+          const h = img.naturalHeight
+          // 为每层重建 canvas 并绘制蒙版
+          const rebuiltLayers = data.mask.map((d: any) => {
+            const canvas = document.createElement('canvas')
+            canvas.width = w
+            canvas.height = h
+            const ctx = canvas.getContext('2d')!
+            if (d.type === 'linear') {
+              drawLinearMask(ctx, w, h, d.linear)
+            } else {
+              drawRadialMask(ctx, w, h, d.radial)
+            }
+            return {
+              id: d.id,
+              name: d.name,
+              enabled: d.enabled,
+              type: d.type,
+              linear: { ...d.linear },
+              radial: { ...d.radial },
+              adjustments: d.adjustments ?? {
+                brightness: 0, contrast: 0, saturation: 0,
+                vibrance: 0, hue: 0, temperature: 0, clarity: 0,
+              },
+              canvas,
+            }
+          })
+          setMaskLayers(rebuiltLayers)
+        }
+        img.src = baseSrc
+      } else {
+        setMaskLayers([])
+      }
+
+      // 4. 滤镜
+      if (data.filterConfig) {
+        setFilterConfig(data.filterConfig)
       }
     } else {
-      // 没有调色参数，重置为默认值
       resetToDefaults()
     }
   } catch (error) {

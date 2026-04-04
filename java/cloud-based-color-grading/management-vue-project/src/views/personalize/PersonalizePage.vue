@@ -3,6 +3,7 @@ import { ref, watch, onBeforeUnmount } from 'vue'
 import { useLayerManager } from './composables/useLayerManager'
 import { usePersonalizeStorage } from './composables/usePersonalizeStorage'
 import { useHSLState } from '@/views/workstation/composables/useHSLState'
+import { drawLinearMask, drawRadialMask } from '@/views/workstation/composables/useMaskState'
 import { imageDB } from '@/views/workstation/utils/imageDB'
 import CanvasArea from './components/CanvasArea.vue'
 import LayerPanel from './components/LayerPanel.vue'
@@ -27,9 +28,12 @@ const { saveLayersToStorage, loadLayersFromStorage } = personalizeStorage
 // 使用 HSL 调色处理链
 const {
   processedSrc,
+  hslAdjustments,
   setSourceImage,
   setBasicAdjustments,
   setMaskLayers,
+  setFilterConfig,
+  resetHSL,
 } = useHSLState()
 
 // 画布配置
@@ -194,18 +198,65 @@ async function handleImageSelect(imageId: number, imageUrl: string, width: numbe
     // 应用调色参数（如果有）
     if (dbItem.adjustmentsJson) {
       const data = JSON.parse(dbItem.adjustmentsJson)
+
+      // 1. 基础调色
       if (data.adjustments) {
         setBasicAdjustments(data.adjustments)
       }
+
+      // 2. HSL 调整（直接写入 reactive 对象，处理链自动触发）
       if (data.hslAdjustments) {
-        // HSL 调整会自动应用
+        Object.assign(hslAdjustments, data.hslAdjustments)
       }
-      if (data.mask && Array.isArray(data.mask)) {
-        setMaskLayers(data.mask)
+
+      // 3. 蒙版：重建 canvas 后再传给处理链（与 WorkstationPage 对齐）
+      if (data.mask && Array.isArray(data.mask) && data.mask.length > 0) {
+        const maskImg = new Image()
+        maskImg.onload = () => {
+          const w = maskImg.naturalWidth
+          const h = maskImg.naturalHeight
+          const rebuiltLayers = data.mask.map((d: any) => {
+            const canvas = document.createElement('canvas')
+            canvas.width = w
+            canvas.height = h
+            const ctx = canvas.getContext('2d')!
+            if (d.type === 'linear') {
+              drawLinearMask(ctx, w, h, d.linear)
+            } else {
+              drawRadialMask(ctx, w, h, d.radial)
+            }
+            return {
+              id: d.id,
+              name: d.name,
+              enabled: d.enabled,
+              type: d.type,
+              linear: { ...d.linear },
+              radial: { ...d.radial },
+              adjustments: d.adjustments ?? {
+                brightness: 0, contrast: 0, saturation: 0,
+                vibrance: 0, hue: 0, temperature: 0, clarity: 0,
+              },
+              canvas,
+            }
+          })
+          setMaskLayers(rebuiltLayers)
+        }
+        maskImg.src = baseSrc
+      } else {
+        setMaskLayers([])
       }
+
+      // 4. 滤镜
+      if (data.filterConfig) {
+        setFilterConfig(data.filterConfig)
+      }
+
       console.log('PersonalizePage: 应用调色参数')
     } else {
-      // 没有调色参数，直接使用原图
+      // 没有调色参数，重置并直接使用原图
+      setBasicAdjustments({ brightness: 0, contrast: 0, saturation: 0, vibrance: 0, hue: 0, temperature: 0, clarity: 0 })
+      resetHSL()
+      setMaskLayers([])
       baseImageUrl.value = baseSrc
       console.log('PersonalizePage: 没有调色参数，使用原图')
     }

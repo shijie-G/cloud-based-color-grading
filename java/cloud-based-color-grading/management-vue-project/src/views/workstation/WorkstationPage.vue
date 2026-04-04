@@ -14,7 +14,7 @@
         :processedSrc="displayProcessedSrc"
         :showUploadTips="!imageSrc"
         :galleryHeight="galleryHeight"
-        :maskActive="maskLayers.length > 0"
+        :maskActive="maskLayers.length > 0 && activePanelTab === 'mask'"
         :maskActiveLayer="maskActiveLayer"
         :maskShowOverlay="!!maskShowOverlay && !adjSliderDragging && activePanelTab === 'mask' && !!maskActiveLayerId && (maskActiveLayer?.enabled ?? false)"
         :cropActive="activePanelTab === 'crop' && cropToolActive"
