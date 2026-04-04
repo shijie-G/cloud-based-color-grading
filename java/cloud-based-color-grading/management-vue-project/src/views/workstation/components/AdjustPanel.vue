@@ -54,6 +54,7 @@
           @mask:adjSliderEnd="$emit('mask:adjSliderEnd')"
           @mask:adjSliderCommit="$emit('mask:adjSliderCommit')"
         />
+        <FilterPanel v-else-if="activeTab === 'filter'" />
       </div>
 
       <!-- 右侧导航栏 -->

@@ -17,6 +17,7 @@ import { reactive, ref, watch, type Ref } from 'vue'
 import { defaultHSLAdjustments, type HSLAdjustments, type HSLRange } from './useHSLProcessor'
 import type { AdjustmentValues } from '../component-interfaces'
 import type { MaskLayer } from './useMaskState'
+import type { FilterConfig } from '../types/filterTypes'
 
 export type { HSLAdjustments, HSLRange }
 
@@ -38,6 +39,8 @@ export interface UseHSLStateReturn {
   updateMaskLayerAdj: (id: string, adjustments: AdjustmentValues) => void
   /** 兼容旧接口：传入合成蒙版 canvas（无独立调色） */
   setMaskCanvas: (canvas: HTMLCanvasElement | null) => void
+  /** 设置滤镜配置 */
+  setFilterConfig: (config: FilterConfig) => void
   exportProcessed: (format?: 'png' | 'jpeg', quality?: number) => Promise<string>
 }
 
@@ -55,6 +58,9 @@ export function useHSLState(): UseHSLStateReturn {
   // 当前蒙版层列表（含每层独立调色参数）
   let currentMaskLayers: MaskLayer[] = []
 
+  // 当前滤镜配置
+  let currentFilterConfig: FilterConfig | null = null
+
   let sourceSrc   = ''
   let previewData: ImageData | null = null
   let fullData:    ImageData | null = null
@@ -63,6 +69,7 @@ export function useHSLState(): UseHSLStateReturn {
   // Worker 池（懒创建）
   let basicWorkers: Worker[] = []
   let hslWorkers:   Worker[] = []
+  let filterWorkers: Worker[] = []
   let poolBusy  = false
   let pendingReq: { hslAdj: HSLAdjustments; basicAdj: AdjustmentValues; hires: boolean } | null = null
   let hiresTimer: ReturnType<typeof setTimeout> | null = null
@@ -101,6 +108,19 @@ export function useHSLState(): UseHSLStateReturn {
     }
     return maskWorkers
   }
+
+  // filterWorker 池（滤镜处理）
+  const getFilterWorkers = (): Worker[] => {
+    if (filterWorkers.length === 0) {
+      for (let i = 0; i < WORKER_COUNT; i++) {
+        filterWorkers.push(new Worker(
+          new URL('../workers/filterWorker.ts', import.meta.url), { type: 'module' }
+        ))
+      }
+    }
+    return filterWorkers
+  }
+
   // 把 ImageData 切成 N 份，分发给 N 个 Worker，返回合并后的 ImageData
   const runParallel = (
     data: ImageData,
@@ -161,6 +181,7 @@ export function useHSLState(): UseHSLStateReturn {
     hires: boolean,
     maskLayers?: MaskLayer[]
   ): Promise<string> => {
+    console.log('[runFullChain] Starting, currentFilterConfig:', currentFilterConfig)
     const bAdjCopy = { ...bAdj }
     const hAdjCopy = JSON.parse(JSON.stringify(hAdj)) as HSLAdjustments
 
@@ -168,8 +189,9 @@ export function useHSLState(): UseHSLStateReturn {
     const hasBasic = Object.values(bAdjCopy).some(v => v !== 0)
     const hasHSL   = hasHSLAdjustments()
     const hasMask  = enabledLayers.length > 0
+    const hasFilter = currentFilterConfig && hasFilterAdjustments()
 
-    if (!hasBasic && !hasHSL && !hasMask) return ''
+    if (!hasBasic && !hasHSL && !hasMask && !hasFilter) return ''
 
     // Step 1: 全局基础调色
     let current: ImageData = data
@@ -211,10 +233,52 @@ export function useHSLState(): UseHSLStateReturn {
       current = await runMaskCompose(current, layerAdjusted, maskData)
     }
 
+    // Step 4: 全局滤镜处理（在所有调色之后）
+    if (currentFilterConfig && hasFilterAdjustments()) {
+      console.log('[useHSLState] Applying filter:', currentFilterConfig)
+      current = await runFilterProcess(current, currentFilterConfig)
+    }
+
     const canvas = document.createElement('canvas')
     canvas.width = current.width; canvas.height = current.height
     canvas.getContext('2d')!.putImageData(current, 0, 0)
     return canvas.toDataURL('image/jpeg', hires ? 0.95 : 0.88)
+  }
+
+  /** 滤镜处理 */
+  const runFilterProcess = async (data: ImageData, config: FilterConfig): Promise<ImageData> => {
+    // 简化版：使用单个 Worker 处理
+    const worker = getFilterWorkers()[0]
+    const copy = new Uint8ClampedArray(data.data)
+
+    // 将 Proxy 对象转换为普通对象，避免 DataCloneError
+    const plainConfig = JSON.parse(JSON.stringify(config))
+
+    return new Promise((resolve) => {
+      worker.onmessage = (e: MessageEvent) => {
+        const result = new Uint8ClampedArray(e.data.buffer)
+        resolve(new ImageData(result, data.width, data.height))
+      }
+      worker.postMessage(
+        { buffer: copy.buffer, config: plainConfig, width: data.width, height: data.height },
+        { transfer: [copy.buffer] }
+      )
+    })
+  }
+
+  /** 检查是否有滤镜调整 */
+  const hasFilterAdjustments = (): boolean => {
+    if (!currentFilterConfig) {
+      console.log('[hasFilterAdjustments] No currentFilterConfig')
+      return false
+    }
+    const result = currentFilterConfig.blur_radius > 0 ||
+      currentFilterConfig.sharpen_amount > 0 ||
+      currentFilterConfig.style_type > 0 ||
+      currentFilterConfig.grain_intensity > 0 ||
+      currentFilterConfig.vignette_strength !== 0
+    console.log('[hasFilterAdjustments] result:', result, 'config:', currentFilterConfig)
+    return result
   }
 
   /**
@@ -479,6 +543,13 @@ export function useHSLState(): UseHSLStateReturn {
     return result
   }
 
+  /** 设置滤镜配置 */
+  const setFilterConfig = (config: FilterConfig) => {
+    console.log('[useHSLState] setFilterConfig called:', config)
+    currentFilterConfig = config
+    requestAnimationFrame(() => triggerProcess())
+  }
+
   return {
     hslAdjustments,
     processedSrc,
@@ -490,6 +561,7 @@ export function useHSLState(): UseHSLStateReturn {
     setMaskCanvas,
     setMaskLayers,
     updateMaskLayerAdj,
+    setFilterConfig,
     exportProcessed,
   }
 }

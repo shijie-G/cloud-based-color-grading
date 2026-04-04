@@ -94,7 +94,7 @@
 </template>
 
 <script setup lang="ts">
-import { ref, watch, nextTick, computed, onMounted, onUnmounted } from 'vue';;
+import { ref, watch, nextTick, computed, onMounted, onUnmounted, reactive, provide } from 'vue';;
 import type { ImageItem } from './component-interfaces'
 import type { CropState } from './types/cropTypes'
 import { DEFAULT_CROP_STATE } from './types/cropTypes'
@@ -112,6 +112,8 @@ import { useImageStorage } from './composables/useImageStorage'
 import { useMaskState } from './composables/useMaskState'
 import { useGridState } from './composables/useGridState'
 import { useHistoryState } from './composables/useHistoryState'
+import type { FilterConfig } from './types/filterTypes'
+import { defaultFilterConfig } from './types/filterTypes'
 import type { SerializedMaskLayer } from './composables/useHistoryState'
 
 // 使用布局状态管理
@@ -153,6 +155,7 @@ const {
   setBasicAdjustments,
   setMaskLayers,
   updateMaskLayerAdj,
+  setFilterConfig,
   exportProcessed,
 } = useHSLState()
 
@@ -178,6 +181,17 @@ const {
 } = useMaskState()
 
 const { settings: gridSettings, applyPreset: applyGridPreset } = useGridState()
+
+// ── 滤镜配置 ──────────────────────────────────────────────────
+const filterConfig = reactive<FilterConfig>(defaultFilterConfig())
+
+// 提供滤镜配置给子组件
+provide('filterConfig', filterConfig)
+
+// 监听滤镜配置变化，触发处理链
+watch(filterConfig, () => {
+  setFilterConfig(filterConfig)
+}, { deep: true })
 
 // ── 历史栈（撤销 / 重做） ─────────────────────────────────────
 const history = useHistoryState()
@@ -428,7 +442,7 @@ const imageDisplayRef = ref(null)
 // 局部调色滑块拖动中：临时隐藏蒙版叠加层
 const adjSliderDragging = ref(false)
 // 当前激活的面板 tab
-const activePanelTab = ref<'basic' | 'crop' | 'mask'>('basic')
+const activePanelTab = ref<'basic' | 'crop' | 'mask' | 'filter'>('basic')
 
 // ── 对比模式 ──────────────────────────────────────────────────
 const compareActive = ref(false)
