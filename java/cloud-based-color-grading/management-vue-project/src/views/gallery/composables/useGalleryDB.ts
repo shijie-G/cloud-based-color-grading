@@ -139,22 +139,6 @@ export function useGalleryDB() {
   }
 
   /**
-   * 添加图片（已通过 uploadImageToDB 保存，这里只是占位）
-   */
-  async function addImage(image: Omit<ImageRecord, 'id'>): Promise<number> {
-    // 图片已通过 uploadImageToDB 保存到数据库，这里不需要再次保存
-    throw new Error('请使用 uploadImageToDB 上传图片')
-  }
-
-  /**
-   * 批量添加图片（已通过 batchUploadImages 保存，这里只是占位）
-   */
-  async function addImages(images: Omit<ImageRecord, 'id'>[]): Promise<number[]> {
-    // 图片已通过 batchUploadImages 保存到数据库，这里不需要再次保存
-    throw new Error('请使用 batchUploadImages 上传图片')
-  }
-
-  /**
    * 更新图片
    */
   async function updateImage(image: ImageRecord): Promise<void> {
@@ -230,8 +214,6 @@ export function useGalleryDB() {
     // 图片操作
     getImagesByAlbum,
     getImageById,
-    addImage,
-    addImages,
     updateImage,
     updateImages,
     deleteImage,

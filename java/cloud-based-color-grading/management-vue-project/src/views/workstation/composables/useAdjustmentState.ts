@@ -15,10 +15,7 @@ interface UseAdjustmentStateReturn {
   resetAdjustments: () => void
   setAdjustment: (key: keyof AdjustmentValues, value: number) => void
   setAdjustments: (newAdjustments: Partial<AdjustmentValues>) => void
-  getAdjustments: () => AdjustmentValues
   hasAdjustments: () => boolean
-  saveImage: (previewImageRef?: HTMLImageElement) => void
-  updateImageFilter: () => void
 }
 
 export function useAdjustmentState(): UseAdjustmentStateReturn {
@@ -117,42 +114,6 @@ export function useAdjustmentState(): UseAdjustmentStateReturn {
            adjustments.clarity     !== 0
   }
 
-  // 保存图片（应用滤镜效果）
-  const saveImage = (previewImageRef?: HTMLImageElement): void => {
-    if (!previewImageRef || !previewImageRef.src) {
-      alert('请先上传图片！')
-      return
-    }
-
-    const canvas = document.createElement('canvas')
-    const ctx = canvas.getContext('2d')
-    
-    if (!ctx) {
-      alert('无法创建画布上下文！')
-      return
-    }
-    
-    // 设置canvas尺寸与原图一致
-    canvas.width = previewImageRef.naturalWidth
-    canvas.height = previewImageRef.naturalHeight
-    
-    // 应用滤镜并绘制图片
-    ctx.filter = imageFilter.value
-    ctx.drawImage(previewImageRef, 0, 0)
-    
-    // 生成下载链接
-    const link = document.createElement('a')
-    link.download = `edited-${Date.now()}.png`
-    link.href = canvas.toDataURL('image/png')
-    link.click()
-  }
-
-  // 更新滤镜（Vue中由computed自动处理，此方法仅为统一入口）
-  const updateImageFilter = (): void => {
-    // 由于使用computed，滤镜会自动更新
-    // 此方法保留用于兼容性或触发其他副作用
-  }
-
   return {
     // 状态
     adjustments,
@@ -162,9 +123,6 @@ export function useAdjustmentState(): UseAdjustmentStateReturn {
     resetAdjustments,
     setAdjustment,
     setAdjustments,
-    getAdjustments,
     hasAdjustments,
-    saveImage,
-    updateImageFilter
   }
 }
