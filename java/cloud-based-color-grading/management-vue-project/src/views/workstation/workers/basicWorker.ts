@@ -10,6 +10,10 @@ export {}
 interface BasicAdjustments {
   brightness:  number  // -150 ~ +150
   contrast:    number  // -100 ~ +100
+  highlights:  number  // -100 ~ +100
+  shadows:     number  // -100 ~ +100
+  whites:      number  // -100 ~ +100
+  blacks:      number  // -100 ~ +100
   saturation:  number  // -100 ~ +100
   vibrance:    number  // -100 ~ +100
   hue:         number  // -180 ~ +180 (deg)
@@ -77,13 +81,10 @@ self.onmessage = (e: MessageEvent) => {
   const brightShift = adj.brightness * 0.6
 
   // 3. 对比度：-100~+100 → 乘数，以 128 为中心
-  //    factor = (259 * (contrast + 255)) / (255 * (259 - contrast))  PS 公式
-  //    映射系数从 2.55 缩小到 1.2，让过渡更缓和
   const cVal = adj.contrast * 0.7
   const contrastFactor = (259 * (cVal + 255)) / (255 * (259 - cVal))
 
   // 4. 清晰度：用轻微 S 曲线模拟局部对比度（简化版）
-  //    clarity > 0：增强中间调对比，clarity < 0：柔化
   const clarityFactor = 1 + adj.clarity / 200
 
   // 5. 饱和度：-100~+100 → HSL s 偏移
@@ -94,6 +95,14 @@ self.onmessage = (e: MessageEvent) => {
 
   // 7. 色相旋转（度）
   const hueDeg = adj.hue
+
+  // 8. 高光/阴影/白色/黑色（Lightroom 色调分区）
+  // 高光：作用于亮部（luma > 192），shadows：作用于暗部（luma < 64）
+  // whites：作用于极亮（luma > 224），blacks：作用于极暗（luma < 32）
+  const highlightShift = (adj.highlights ?? 0) * 0.5
+  const shadowShift    = (adj.shadows    ?? 0) * 0.5
+  const whiteShift     = (adj.whites     ?? 0) * 0.6
+  const blackShift     = (adj.blacks     ?? 0) * 0.4
 
   for (let i = 0; i < src.length; i += 4) {
     let r = src[i], g = src[i+1], b = src[i+2]
@@ -117,6 +126,40 @@ self.onmessage = (e: MessageEvent) => {
       r = clamp(contrastFactor * (r - 128) + 128)
       g = clamp(contrastFactor * (g - 128) + 128)
       b = clamp(contrastFactor * (b - 128) + 128)
+    }
+
+    // Step 3.5: 色调分区（高光/阴影/白色/黑色）
+    if (highlightShift !== 0 || shadowShift !== 0 || whiteShift !== 0 || blackShift !== 0) {
+      const luma = 0.299 * r + 0.587 * g + 0.114 * b
+
+      // 白色：极亮区域（luma > 224），平滑权重
+      if (whiteShift !== 0 && luma > 192) {
+        const w = Math.min(1, (luma - 192) / 63)
+        r = clamp(r + whiteShift * w)
+        g = clamp(g + whiteShift * w)
+        b = clamp(b + whiteShift * w)
+      }
+      // 高光：亮部（128~224），平滑权重
+      if (highlightShift !== 0 && luma > 96) {
+        const w = Math.min(1, Math.max(0, (luma - 96) / 128)) * (1 - Math.min(1, (luma - 192) / 63))
+        r = clamp(r + highlightShift * w)
+        g = clamp(g + highlightShift * w)
+        b = clamp(b + highlightShift * w)
+      }
+      // 阴影：暗部（32~160），平滑权重
+      if (shadowShift !== 0 && luma < 160) {
+        const w = Math.min(1, Math.max(0, (160 - luma) / 128)) * (1 - Math.min(1, (32 - luma + 32) / 32))
+        r = clamp(r + shadowShift * w)
+        g = clamp(g + shadowShift * w)
+        b = clamp(b + shadowShift * w)
+      }
+      // 黑色：极暗区域（luma < 64），平滑权重
+      if (blackShift !== 0 && luma < 64) {
+        const w = Math.min(1, (64 - luma) / 64)
+        r = clamp(r + blackShift * w)
+        g = clamp(g + blackShift * w)
+        b = clamp(b + blackShift * w)
+      }
     }
 
     // Step 4: 清晰度（中间调对比度增强，简化为 S 曲线）

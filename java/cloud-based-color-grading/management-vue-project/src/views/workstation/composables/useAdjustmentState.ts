@@ -23,6 +23,10 @@ export function useAdjustmentState(): UseAdjustmentStateReturn {
   const adjustments = reactive<AdjustmentValues>({
     brightness:  0,
     contrast:    0,
+    highlights:  0,
+    shadows:     0,
+    whites:      0,
+    blacks:      0,
     saturation:  0,
     vibrance:    0,
     hue:         0,
@@ -75,6 +79,10 @@ export function useAdjustmentState(): UseAdjustmentStateReturn {
   const resetAdjustments = (): void => {
     adjustments.brightness  = 0
     adjustments.contrast    = 0
+    adjustments.highlights  = 0
+    adjustments.shadows     = 0
+    adjustments.whites      = 0
+    adjustments.blacks      = 0
     adjustments.saturation  = 0
     adjustments.vibrance    = 0
     adjustments.hue         = 0

@@ -68,7 +68,7 @@
         @update:hslAdjustments="(v) => Object.assign(hslAdjustments, v)"
         @action:uploadImage="handleImageUpload"
         @action:save="handleSaveImage"
-        @action:reset="() => { resetAdjustments(); setBasicAdjustments({ brightness:0, contrast:0, saturation:0, vibrance:0, hue:0, temperature:0, clarity:0 }); resetHSL(); resetMask(); setMaskLayers([]); pushHistory() }"
+        @action:reset="() => { resetAdjustments(); setBasicAdjustments({ brightness:0, contrast:0, highlights:0, shadows:0, whites:0, blacks:0, saturation:0, vibrance:0, hue:0, temperature:0, clarity:0 }); resetHSL(); resetMask(); setMaskLayers([]); pushHistory() }"
         @mask:toggleOverlay="handleMaskToggleOverlay"
         @mask:addLayer="handleMaskAddLayer"
         @mask:removeLayer="handleMaskRemoveLayer"
@@ -213,9 +213,17 @@ const pushHistory = () => history.push(captureSnapshot())
 const applySnapshot = (snap: ReturnType<typeof captureSnapshot>) => {
   isLoadingAdjustments = true
   try {
-    setAdjustments(snap.adjustments)
+    // 先重置所有字段为 0，再应用快照值
+    // 避免旧快照缺少新字段时，当前值残留不归位
+    const fullAdj = {
+      brightness: 0, contrast: 0, highlights: 0, shadows: 0,
+      whites: 0, blacks: 0, saturation: 0, vibrance: 0,
+      hue: 0, temperature: 0, clarity: 0,
+      ...snap.adjustments,
+    }
+    setAdjustments(fullAdj)
     Object.assign(hslAdjustments, snap.hslAdjustments)
-    setBasicAdjustments({ ...snap.adjustments })
+    setBasicAdjustments({ ...fullAdj })
     // 恢复图片（裁切/旋转/翻转会改变 imageSrc 像素内容）
     if (snap.imageSrc && snap.imageSrc !== imageSrc.value) {
       isCropPreviewRestoring = true
@@ -318,7 +326,14 @@ const applyStoredAdjustments = async (imageId: number) => {
       setMaskLayers([])
     } else {
       const data = JSON.parse(json)
-      if (data.adjustments) setAdjustments(data.adjustments)
+      if (data.adjustments) {
+        setAdjustments({
+          brightness: 0, contrast: 0, highlights: 0, shadows: 0,
+          whites: 0, blacks: 0, saturation: 0, vibrance: 0,
+          hue: 0, temperature: 0, clarity: 0,
+          ...data.adjustments,
+        })
+      }
       if (data.hslAdjustments) Object.assign(hslAdjustments, data.hslAdjustments)
       // 恢复蒙版
       if (data.mask && Array.isArray(data.mask) && data.mask.length > 0 && imageSrc.value) {

@@ -54,6 +54,10 @@ interface SliderDef {
 const basicItems: SliderDef[] = [
   { key: 'brightness', label: '亮度',    min: -150,  max: 150 },
   { key: 'contrast',   label: '对比度',  min: -100,  max: 100 },
+  { key: 'highlights', label: '高光',    min: -100,  max: 100 },
+  { key: 'shadows',    label: '阴影',    min: -100,  max: 100 },
+  { key: 'whites',     label: '白色',    min: -100,  max: 100 },
+  { key: 'blacks',     label: '黑色',    min: -100,  max: 100 },
   { key: 'clarity',    label: '清晰度',  min: -100,  max: 100 },
 ]
 
