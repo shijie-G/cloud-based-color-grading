@@ -271,5 +271,140 @@ export const filterPresets: Record<string, Partial<FilterConfig>> = {
     grain_intensity: 22,
     vignette_strength: 0.4,
     vignette_size: 1.0
+  },
+
+  // 15. 富士 Provia（标准鲜艳）
+  fuji_provia: {
+    blur_radius: 0,
+    sharpen_amount: 0.5,
+    sharpen_radius: 1.1,
+    style_type: 2,
+    style_strength: 0.9,
+    style_highlight_color: '#fff8ee',
+    style_shadow_color: '#1a3a2a',
+    style_blend: 0.35,
+    grain_intensity: 6,
+    vignette_strength: 0.12,
+    vignette_size: 1.4
+  },
+
+  // 16. 富士 NC（自然色彩）
+  fuji_nc: {
+    blur_radius: 0,
+    sharpen_amount: 0.3,
+    sharpen_radius: 1.0,
+    style_type: 2,
+    style_strength: 0.7,
+    style_highlight_color: '#fdf4e8',
+    style_shadow_color: '#1e3028',
+    style_blend: 0.28,
+    grain_intensity: 4,
+    vignette_strength: 0.08,
+    vignette_size: 1.5
+  },
+
+  // 17. 富士 Velvia（高饱和风景）
+  fuji_velvia: {
+    blur_radius: 0,
+    sharpen_amount: 0.7,
+    sharpen_radius: 1.2,
+    style_type: 2,
+    style_strength: 1.1,
+    style_highlight_color: '#fff0d0',
+    style_shadow_color: '#0a2a1a',
+    style_blend: 0.45,
+    grain_intensity: 5,
+    vignette_strength: 0.18,
+    vignette_size: 1.3
+  },
+
+  // 18. 富士 Classic Chrome（低饱和复古）
+  fuji_classic_chrome: {
+    blur_radius: 0,
+    sharpen_amount: 0.4,
+    sharpen_radius: 1.0,
+    style_type: 1,
+    style_strength: 1.0,
+    style_highlight_color: '#e8dcc8',
+    style_shadow_color: '#1e2830',
+    style_blend: 0.5,
+    grain_intensity: 14,
+    vignette_strength: 0.28,
+    vignette_size: 1.2
+  },
+
+  // 19. 柯达 Portra 400（人像暖调）
+  kodak_portra: {
+    blur_radius: 0,
+    sharpen_amount: 0.25,
+    sharpen_radius: 0.9,
+    style_type: 1,
+    style_strength: 0.85,
+    style_highlight_color: '#ffe8d0',
+    style_shadow_color: '#2a1e18',
+    style_blend: 0.4,
+    grain_intensity: 18,
+    vignette_strength: 0.15,
+    vignette_size: 1.4
+  },
+
+  // 20. 柯达 Ektar（高饱和鲜艳）
+  kodak_ektar: {
+    blur_radius: 0,
+    sharpen_amount: 0.6,
+    sharpen_radius: 1.2,
+    style_type: 2,
+    style_strength: 1.0,
+    style_highlight_color: '#ffeecc',
+    style_shadow_color: '#0a1e10',
+    style_blend: 0.4,
+    grain_intensity: 8,
+    vignette_strength: 0.2,
+    vignette_size: 1.3
+  },
+
+  // 21. 宝丽来（褪色即时显影）
+  polaroid: {
+    blur_radius: 0.5,
+    sharpen_amount: 0.1,
+    sharpen_radius: 0.8,
+    style_type: 1,
+    style_strength: 1.1,
+    style_highlight_color: '#fff8e8',
+    style_shadow_color: '#3a3028',
+    style_blend: 0.55,
+    grain_intensity: 20,
+    vignette_strength: 0.5,
+    vignette_size: 0.9
+  },
+
+  // 22. 默克罗姆（单色银盐）
+  silver_gelatin: {
+    blur_radius: 0,
+    sharpen_amount: 0.8,
+    sharpen_radius: 1.0,
+    style_type: 1,
+    style_strength: 1.3,
+    style_highlight_color: '#f0ece4',
+    style_shadow_color: '#0a0a0a',
+    style_blend: 0.0,
+    grain_intensity: 28,
+    vignette_strength: 0.5,
+    vignette_size: 1.0
+  },
+
+  // 23. 跨冲（反转片负冲）
+  cross_process: {
+    blur_radius: 0,
+    sharpen_amount: 0.5,
+    sharpen_radius: 1.1,
+    style_type: 4,
+    style_strength: 1.5,
+    style_highlight_color: '#aaff44',
+    style_shadow_color: '#440088',
+    style_blend: 0.7,
+    grain_intensity: 15,
+    vignette_strength: 0.35,
+    vignette_size: 1.0
   }
 }
