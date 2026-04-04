@@ -191,6 +191,7 @@ provide('filterConfig', filterConfig)
 // 监听滤镜配置变化，触发处理链
 watch(filterConfig, () => {
   setFilterConfig(filterConfig)
+  scheduleFilterSave()
 }, { deep: true })
 
 // ── 历史栈（撤销 / 重做） ─────────────────────────────────────
@@ -252,10 +253,11 @@ const handleRedo = () => {
 }
 
 // 调色参数持久化
-const { saveAdjustments, loadAdjustments, saveCropData, loadCropData, loadOriginalSrc } = useImageStorage()
+const { saveAdjustments, loadAdjustments, saveCropData, loadCropData, loadOriginalSrc, saveFilterConfig, loadFilterConfig } = useImageStorage()
 
 // 防抖保存 timer
 let saveTimer: ReturnType<typeof setTimeout> | null = null
+let saveFilterTimer: ReturnType<typeof setTimeout> | null = null
 // 加载参数期间不触发保存
 let isLoadingAdjustments = false
 
@@ -279,6 +281,15 @@ const scheduleSave = () => {
   }, 500)
 }
 
+// 滤镜配置防抖保存
+const scheduleFilterSave = () => {
+  if (!selectedImageId.value || isLoadingAdjustments) return
+  if (saveFilterTimer) clearTimeout(saveFilterTimer)
+  saveFilterTimer = setTimeout(async () => {
+    await saveFilterConfig(selectedImageId.value!, JSON.stringify(filterConfig))
+  }, 500)
+}
+
 // 从 DB 加载并应用调色参数
 const applyStoredAdjustments = async (imageId: number) => {
   isLoadingAdjustments = true
@@ -287,27 +298,39 @@ const applyStoredAdjustments = async (imageId: number) => {
     if (!json) {
       resetAdjustments(); resetHSL(); resetMask()
       setMaskLayers([])
-      return
-    }
-    const data = JSON.parse(json)
-    if (data.adjustments) setAdjustments(data.adjustments)
-    if (data.hslAdjustments) Object.assign(hslAdjustments, data.hslAdjustments)
-    // 恢复蒙版
-    if (data.mask && Array.isArray(data.mask) && data.mask.length > 0 && imageSrc.value) {
-      const img = new Image()
-      img.onload = () => {
-        maskInitSize(img.naturalWidth, img.naturalHeight)
-        loadMaskFromSerializable(data.mask)
-        setMaskLayers([...maskLayers])
-      }
-      img.src = imageSrc.value
     } else {
-      resetMask()
-      setMaskLayers([])
+      const data = JSON.parse(json)
+      if (data.adjustments) setAdjustments(data.adjustments)
+      if (data.hslAdjustments) Object.assign(hslAdjustments, data.hslAdjustments)
+      // 恢复蒙版
+      if (data.mask && Array.isArray(data.mask) && data.mask.length > 0 && imageSrc.value) {
+        const img = new Image()
+        img.onload = () => {
+          maskInitSize(img.naturalWidth, img.naturalHeight)
+          loadMaskFromSerializable(data.mask)
+          setMaskLayers([...maskLayers])
+        }
+        img.src = imageSrc.value
+      } else {
+        resetMask()
+        setMaskLayers([])
+      }
     }
+
+    // 恢复滤镜配置（独立字段）
+    const filterJson = await loadFilterConfig(imageId)
+    if (filterJson) {
+      Object.assign(filterConfig, JSON.parse(filterJson))
+    } else {
+      Object.assign(filterConfig, defaultFilterConfig())
+    }
+    setFilterConfig(filterConfig)
+
   } catch {
     resetAdjustments(); resetHSL(); resetMask()
     setMaskLayers([])
+    Object.assign(filterConfig, defaultFilterConfig())
+    setFilterConfig(filterConfig)
   } finally {
     isLoadingAdjustments = false
   }

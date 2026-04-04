@@ -4,7 +4,7 @@
  */
 
 const DB_NAME = 'WorkstationDB'
-const DB_VERSION = 8  // 升级到 v8 添加个性化图层支持
+const DB_VERSION = 9  // 升级到 v9 添加 filterConfigJson 字段
 const STORE_NAME = 'images'
 const HISTORY_STORE = 'history'
 const ALBUMS_STORE = 'albums'  // Gallery 相册表
@@ -24,6 +24,7 @@ export interface ImageDBItem {
   lastModified: Date
   fileHash?: string
   adjustmentsJson?: string
+  filterConfigJson?: string  // 滤镜配置 JSON（FilterConfig）
   personalizeLayersJson?: string  // 个性化图层数据 JSON（Layer[]）
 
   // ========== Gallery 扩展字段（可选） ==========
@@ -634,6 +635,45 @@ class ImageDatabase {
       })
 
       transaction.onerror = () => reject(new Error('Failed to update images'))
+    })
+  }
+
+  // ── 个性化图层操作 ──────────────────────────────────────────────
+
+  // ── 滤镜配置操作 ──────────────────────────────────────────────────────
+
+  /**
+   * 保存滤镜配置
+   */
+  async saveFilterConfig(imageId: number, filterConfigJson: string): Promise<void> {
+    if (!this.db) await this.init()
+    return new Promise((resolve, reject) => {
+      const tx = this.db!.transaction([STORE_NAME], 'readwrite')
+      const store = tx.objectStore(STORE_NAME)
+      const getReq = store.get(imageId)
+      getReq.onsuccess = () => {
+        const record = getReq.result
+        if (!record) { resolve(); return }
+        record.filterConfigJson = filterConfigJson
+        record.lastModified = new Date()
+        const putReq = store.put(record)
+        putReq.onsuccess = () => resolve()
+        putReq.onerror = () => reject(new Error('Failed to save filterConfig'))
+      }
+      getReq.onerror = () => reject(new Error('Failed to get record for filterConfig'))
+    })
+  }
+
+  /**
+   * 读取滤镜配置
+   */
+  async loadFilterConfig(imageId: number): Promise<string | null> {
+    if (!this.db) await this.init()
+    return new Promise((resolve, reject) => {
+      const tx = this.db!.transaction([STORE_NAME], 'readonly')
+      const req = tx.objectStore(STORE_NAME).get(imageId)
+      req.onsuccess = () => resolve(req.result?.filterConfigJson ?? null)
+      req.onerror = () => reject(new Error('Failed to load filterConfig'))
     })
   }
 

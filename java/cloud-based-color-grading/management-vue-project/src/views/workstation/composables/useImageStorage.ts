@@ -205,6 +205,25 @@ export function useImageStorage(): UseImageStorageReturn {
     }
   }
 
+  /** 保存滤镜配置到 IndexedDB */
+  const saveFilterConfig = async (imageId: number, filterConfigJson: string): Promise<void> => {
+    try {
+      await imageDB.saveFilterConfig(imageId, filterConfigJson)
+    } catch (error) {
+      console.error('保存滤镜配置失败:', error)
+    }
+  }
+
+  /** 从 IndexedDB 读取滤镜配置 */
+  const loadFilterConfig = async (imageId: number): Promise<string | null> => {
+    try {
+      return await imageDB.loadFilterConfig(imageId)
+    } catch (error) {
+      console.error('读取滤镜配置失败:', error)
+      return null
+    }
+  }
+
   return {
     saveImageToDB,
     loadImagesFromDB,
@@ -218,5 +237,7 @@ export function useImageStorage(): UseImageStorageReturn {
     saveCropData,
     loadCropData,
     loadOriginalSrc,
+    saveFilterConfig,
+    loadFilterConfig,
   }
 }
