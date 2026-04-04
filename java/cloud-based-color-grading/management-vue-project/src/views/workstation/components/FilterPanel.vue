@@ -126,9 +126,7 @@ import { filterPresets, defaultFilterConfig } from '../types/filterTypes'
 const filterConfig = inject<FilterConfig>('filterConfig', reactive(defaultFilterConfig()))
 
 onMounted(() => {
-  console.log('FilterPanel mounted, filterConfig:', filterConfig)
-  console.log('Presets:', presets)
-  console.log('First preset gradient:', presets[0].gradient)
+  // FilterPanel mounted
 })
 
 const presets = [
@@ -149,12 +147,9 @@ const presets = [
 ]
 
 const applyPreset = (presetId: string) => {
-  console.log('Applying preset:', presetId)
   const preset = filterPresets[presetId]
-  console.log('Preset config:', preset)
   if (preset) {
     Object.assign(filterConfig, preset)
-    console.log('Updated filterConfig:', filterConfig)
   }
 }
 

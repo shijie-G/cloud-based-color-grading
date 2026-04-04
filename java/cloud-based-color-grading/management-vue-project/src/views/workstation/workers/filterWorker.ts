@@ -55,57 +55,98 @@ function processFilter(data: Uint8ClampedArray, config: FilterConfig, width: num
   clampPixels(data)
 }
 
-/** Step 1: 高斯模糊 */
+/** Step 1: 高斯模糊（优化版：Box Blur 近似） */
 function applyGaussianBlur(data: Uint8ClampedArray, width: number, height: number, radius: number) {
+  if (radius < 1) return
+
   const r = Math.floor(radius)
   const temp = new Uint8ClampedArray(data)
 
+  // 水平方向模糊
   for (let y = 0; y < height; y++) {
     for (let x = 0; x < width; x++) {
       let rSum = 0, gSum = 0, bSum = 0, count = 0
 
-      // 采样邻域像素
-      for (let dy = -r; dy <= r; dy++) {
-        for (let dx = -r; dx <= r; dx++) {
-          const nx = Math.max(0, Math.min(width - 1, x + dx))
-          const ny = Math.max(0, Math.min(height - 1, y + dy))
-          const idx = (ny * width + nx) * 4
+      const xStart = Math.max(0, x - r)
+      const xEnd = Math.min(width - 1, x + r)
 
-          // 高斯权重（简化版）
-          const dist = Math.sqrt(dx * dx + dy * dy)
-          const weight = Math.exp(-(dist * dist) / (2 * radius * radius))
-
-          rSum += temp[idx] * weight
-          gSum += temp[idx + 1] * weight
-          bSum += temp[idx + 2] * weight
-          count += weight
-        }
+      for (let nx = xStart; nx <= xEnd; nx++) {
+        const idx = (y * width + nx) * 4
+        rSum += temp[idx]
+        gSum += temp[idx + 1]
+        bSum += temp[idx + 2]
+        count++
       }
 
       const idx = (y * width + x) * 4
       data[idx] = rSum / count
       data[idx + 1] = gSum / count
       data[idx + 2] = bSum / count
-      // A 通道保持不变
+    }
+  }
+
+  // 垂直方向模糊
+  temp.set(data)
+  for (let y = 0; y < height; y++) {
+    for (let x = 0; x < width; x++) {
+      let rSum = 0, gSum = 0, bSum = 0, count = 0
+
+      const yStart = Math.max(0, y - r)
+      const yEnd = Math.min(height - 1, y + r)
+
+      for (let ny = yStart; ny <= yEnd; ny++) {
+        const idx = (ny * width + x) * 4
+        rSum += temp[idx]
+        gSum += temp[idx + 1]
+        bSum += temp[idx + 2]
+        count++
+      }
+
+      const idx = (y * width + x) * 4
+      data[idx] = rSum / count
+      data[idx + 1] = gSum / count
+      data[idx + 2] = bSum / count
     }
   }
 }
 
-/** Step 2: USM 锐化 */
+/** Step 2: USM 锐化（优化版：简化卷积核） */
 function applyUSMSharpen(data: Uint8ClampedArray, width: number, height: number, amount: number, radius: number) {
-  // 生成模糊层
-  const blurred = new Uint8ClampedArray(data)
-  applyGaussianBlur(blurred, width, height, radius)
+  if (amount <= 0) return
 
-  // 原图 - 模糊图 = 边缘细节
-  for (let i = 0; i < data.length; i += 4) {
-    for (let c = 0; c < 3; c++) {
-      const original = data[i + c]
-      const blur = blurred[i + c]
-      const edge = original - blur
-      data[i + c] = original + edge * amount
+  const temp = new Uint8ClampedArray(data)
+
+  // 简化的锐化卷积核（3x3）
+  const kernel = [
+    0, -1, 0,
+    -1, 5, -1,
+    0, -1, 0
+  ]
+
+  for (let y = 1; y < height - 1; y++) {
+    for (let x = 1; x < width - 1; x++) {
+      let r = 0, g = 0, b = 0
+
+      for (let ky = -1; ky <= 1; ky++) {
+        for (let kx = -1; kx <= 1; kx++) {
+          const idx = ((y + ky) * width + (x + kx)) * 4
+          const k = kernel[(ky + 1) * 3 + (kx + 1)]
+          r += temp[idx] * k
+          g += temp[idx + 1] * k
+          b += temp[idx + 2] * k
+        }
+      }
+
+      const idx = (y * width + x) * 4
+      const originalR = temp[idx]
+      const originalG = temp[idx + 1]
+      const originalB = temp[idx + 2]
+
+      // 混合原图和锐化结果
+      data[idx] = originalR + (r - originalR) * amount * 0.2
+      data[idx + 1] = originalG + (g - originalG) * amount * 0.2
+      data[idx + 2] = originalB + (b - originalB) * amount * 0.2
     }
-    // A 通道保持不变
   }
 }
 

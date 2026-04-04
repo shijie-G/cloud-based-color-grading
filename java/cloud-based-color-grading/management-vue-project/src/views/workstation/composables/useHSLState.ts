@@ -181,7 +181,6 @@ export function useHSLState(): UseHSLStateReturn {
     hires: boolean,
     maskLayers?: MaskLayer[]
   ): Promise<string> => {
-    console.log('[runFullChain] Starting, currentFilterConfig:', currentFilterConfig)
     const bAdjCopy = { ...bAdj }
     const hAdjCopy = JSON.parse(JSON.stringify(hAdj)) as HSLAdjustments
 
@@ -235,7 +234,6 @@ export function useHSLState(): UseHSLStateReturn {
 
     // Step 4: 全局滤镜处理（在所有调色之后）
     if (currentFilterConfig && hasFilterAdjustments()) {
-      console.log('[useHSLState] Applying filter:', currentFilterConfig)
       current = await runFilterProcess(current, currentFilterConfig)
     }
 
@@ -245,40 +243,59 @@ export function useHSLState(): UseHSLStateReturn {
     return canvas.toDataURL('image/jpeg', hires ? 0.95 : 0.88)
   }
 
-  /** 滤镜处理 */
+  /** 滤镜处理（优化版：并行分片处理） */
   const runFilterProcess = async (data: ImageData, config: FilterConfig): Promise<ImageData> => {
-    // 简化版：使用单个 Worker 处理
-    const worker = getFilterWorkers()[0]
-    const copy = new Uint8ClampedArray(data.data)
+    const workers = getFilterWorkers()
+    const n = workers.length
+    const totalBytes = data.data.length
+    const chunkBytes = Math.ceil(Math.ceil(totalBytes / n / 4) * 4)
 
-    // 将 Proxy 对象转换为普通对象，避免 DataCloneError
-    const plainConfig = JSON.parse(JSON.stringify(config))
+    const results = new Array<Uint8ClampedArray>(n)
+    let done = 0
 
     return new Promise((resolve) => {
-      worker.onmessage = (e: MessageEvent) => {
-        const result = new Uint8ClampedArray(e.data.buffer)
-        resolve(new ImageData(result, data.width, data.height))
-      }
-      worker.postMessage(
-        { buffer: copy.buffer, config: plainConfig, width: data.width, height: data.height },
-        { transfer: [copy.buffer] }
-      )
+      workers.forEach((worker, idx) => {
+        const start = idx * chunkBytes
+        if (start >= totalBytes) {
+          results[idx] = new Uint8ClampedArray(0)
+          if (++done === n) resolve(merge(results, data.width, data.height))
+          return
+        }
+
+        const end = Math.min(start + chunkBytes, totalBytes)
+        const copy = new Uint8ClampedArray(data.data.buffer.slice(start, end))
+
+        // 计算当前分片对应的图像区域
+        const startPixel = start / 4
+        const startY = Math.floor(startPixel / data.width)
+        const endPixel = end / 4
+        const endY = Math.ceil(endPixel / data.width)
+        const sliceHeight = endY - startY
+
+        worker.onmessage = (e: MessageEvent) => {
+          results[idx] = new Uint8ClampedArray(e.data.buffer)
+          if (++done === n) resolve(merge(results, data.width, data.height))
+        }
+
+        // 将 Proxy 对象转换为普通对象
+        const plainConfig = JSON.parse(JSON.stringify(config))
+
+        worker.postMessage(
+          { buffer: copy.buffer, config: plainConfig, width: data.width, height: sliceHeight },
+          { transfer: [copy.buffer] }
+        )
+      })
     })
   }
 
   /** 检查是否有滤镜调整 */
   const hasFilterAdjustments = (): boolean => {
-    if (!currentFilterConfig) {
-      console.log('[hasFilterAdjustments] No currentFilterConfig')
-      return false
-    }
-    const result = currentFilterConfig.blur_radius > 0 ||
+    if (!currentFilterConfig) return false
+    return currentFilterConfig.blur_radius > 0 ||
       currentFilterConfig.sharpen_amount > 0 ||
       currentFilterConfig.style_type > 0 ||
       currentFilterConfig.grain_intensity > 0 ||
       currentFilterConfig.vignette_strength !== 0
-    console.log('[hasFilterAdjustments] result:', result, 'config:', currentFilterConfig)
-    return result
   }
 
   /**
@@ -543,11 +560,24 @@ export function useHSLState(): UseHSLStateReturn {
     return result
   }
 
-  /** 设置滤镜配置 */
+  /** 设置滤镜配置（添加防抖） */
+  let filterDebounceTimer: ReturnType<typeof setTimeout> | null = null
   const setFilterConfig = (config: FilterConfig) => {
-    console.log('[useHSLState] setFilterConfig called:', config)
     currentFilterConfig = config
-    requestAnimationFrame(() => triggerProcess())
+
+    // 清除之前的定时器
+    if (filterDebounceTimer) clearTimeout(filterDebounceTimer)
+
+    // 立即触发预览版本（低质量快速响应）
+    requestAnimationFrame(() => {
+      if (previewData) scheduleProcess({ ...basicAdj }, hslAdjustments, false)
+    })
+
+    // 延迟触发高清版本
+    filterDebounceTimer = setTimeout(() => {
+      filterDebounceTimer = null
+      if (fullData) scheduleProcess({ ...basicAdj }, hslAdjustments, true)
+    }, 300)
   }
 
   return {
