@@ -49,10 +49,32 @@ const handleNavigate = (path: string) => {
     radial-gradient(at 100% 100%, rgba(30, 58, 138, 0.15) 0px, transparent 50%),
     radial-gradient(at 0% 100%, rgba(67, 56, 202, 0.1) 0px, transparent 50%);
   overflow-x: hidden;
+  overflow-y: auto;
+  height: 100vh;
+  scroll-behavior: smooth;
 }
 
 .home-content {
   padding-top: 5vh;
+  min-height: 100%;
+}
+
+/* 自定义滚动条 */
+.home-page::-webkit-scrollbar {
+  width: 8px;
+}
+
+.home-page::-webkit-scrollbar-track {
+  background: rgba(15, 23, 42, 0.5);
+}
+
+.home-page::-webkit-scrollbar-thumb {
+  background: rgba(148, 163, 184, 0.3);
+  border-radius: 4px;
+}
+
+.home-page::-webkit-scrollbar-thumb:hover {
+  background: rgba(148, 163, 184, 0.5);
 }
 
 /* 页脚 */
