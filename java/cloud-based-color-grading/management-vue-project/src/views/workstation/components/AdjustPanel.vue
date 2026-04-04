@@ -78,6 +78,11 @@
             <rect x="3" y="3" width="18" height="9" rx="3" fill="currentColor" fill-opacity="0.25"/>
           </svg>
         </div>
+        <div class="rail-item" :class="{ active: activeTab === 'filter' }" title="滤镜" @click="activeTab = 'filter'">
+          <svg viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+            <path d="M22 3H2l8 9.46V19l4 2v-8.54L22 3z" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/>
+          </svg>
+        </div>
         <div
           class="rail-item"
           :class="{ active: gridSettings.visible }"
@@ -104,6 +109,7 @@ import { ref, watch } from 'vue'
 import BasicAdjustPanel from './BasicAdjustPanel.vue'
 import MaskAdjustPanel from './MaskAdjustPanel.vue'
 import CropPanel from './CropPanel.vue'
+import FilterPanel from './FilterPanel.vue'
 
 interface AdjustPanelProps {
   rightPanelWidth: number
@@ -138,7 +144,7 @@ interface AdjustPanelEvents {
   'mask:adjSliderCommit':    []
   'mask:invert':             []
   'mask:clear':              []
-  'tab:change':              [tab: 'basic' | 'crop' | 'mask']
+  'tab:change':              [tab: 'basic' | 'crop' | 'mask' | 'filter']
   'mask:clearSelection':     []
   'crop:ratio':              [r: number | null]
   'crop:rotate':             [deg: number]
@@ -150,7 +156,7 @@ interface AdjustPanelEvents {
 const props = defineProps<AdjustPanelProps>()
 const emit  = defineEmits<AdjustPanelEvents>()
 
-const activeTab = ref<'basic' | 'crop' | 'mask'>('basic')
+const activeTab = ref<'basic' | 'crop' | 'mask' | 'filter'>('basic')
 
 watch(activeTab, (tab) => {
   emit('tab:change', tab)
