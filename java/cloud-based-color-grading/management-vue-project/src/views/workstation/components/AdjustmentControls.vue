@@ -37,6 +37,24 @@
       </div>
     </div>
 
+    <!-- 细节 -->
+    <div class="group-label" style="margin-top:16px">细节</div>
+    <div class="adjust-item" v-for="item in detailItems" :key="item.key">
+      <div class="item-header">
+        <span class="item-label">{{ item.label }}</span>
+        <span class="item-value" :class="{ active: adjustments[item.key] !== 0 }">
+          {{ fmtVal(adjustments[item.key], item) }}
+        </span>
+        <button class="reset-btn" :style="{ visibility: adjustments[item.key] !== 0 ? 'visible' : 'hidden' }" @click="resetOne(item.key)">↺</button>
+      </div>
+      <input type="range" class="slider" :class="item.key" :min="item.min" :max="item.max" :value="adjustments[item.key]" @input="onInput(item.key, $event)" @change="emit('sliderEnd')" />
+      <div class="track-labels">
+        <span>{{ item.min }}</span>
+        <span class="center-tick">0</span>
+        <span>{{ item.max }}</span>
+      </div>
+    </div>
+
   </div>
 </template>
 
@@ -66,6 +84,12 @@ const colorItems: SliderDef[] = [
   { key: 'vibrance',    label: '自然饱和度',  min: -100, max: 100 },
   { key: 'hue',         label: '色相',       min: -180, max: 180, unit: '°' },
   { key: 'temperature', label: '色温',       min: -100, max: 100 },
+  { key: 'tint',        label: '色调',       min: -100, max: 100 },
+]
+
+const detailItems: SliderDef[] = [
+  { key: 'clarity',  label: '清晰度', min: -100, max: 100 },
+  { key: 'dehaze',   label: '去朦胧', min: -100, max: 100 },
 ]
 
 interface Props { adjustments: AdjustmentValues }
@@ -200,6 +224,16 @@ const resetOne = (key: keyof AdjustmentValues) => {
 /* 色相彩虹轨道 */
 .slider.hue {
   background: linear-gradient(to right, #f00, #ff0, #0f0, #0ff, #00f, #f0f, #f00);
+}
+
+/* 色调：绿 → 洋红 */
+.slider.tint {
+  background: linear-gradient(to right, #22c55e, rgba(255,255,255,0.08) 50%, #ec4899);
+}
+
+/* 去朦胧：柔化 → 清晰 */
+.slider.dehaze {
+  background: linear-gradient(to right, #94a3b8, rgba(255,255,255,0.08) 50%, #1e40af);
 }
 
 /* 刻度标签 */

@@ -68,7 +68,7 @@
         @update:hslAdjustments="(v) => Object.assign(hslAdjustments, v)"
         @action:uploadImage="handleImageUpload"
         @action:save="handleSaveImage"
-        @action:reset="() => { resetAdjustments(); setBasicAdjustments({ brightness:0, contrast:0, highlights:0, shadows:0, whites:0, blacks:0, saturation:0, vibrance:0, hue:0, temperature:0, clarity:0 }); resetHSL(); resetMask(); setMaskLayers([]); pushHistory() }"
+        @action:reset="() => { resetAdjustments(); setBasicAdjustments({ brightness:0, contrast:0, highlights:0, shadows:0, whites:0, blacks:0, saturation:0, vibrance:0, hue:0, temperature:0, tint:0, clarity:0, dehaze:0 }); resetHSL(); resetMask(); setMaskLayers([]); pushHistory() }"
         @mask:toggleOverlay="handleMaskToggleOverlay"
         @mask:addLayer="handleMaskAddLayer"
         @mask:removeLayer="handleMaskRemoveLayer"
@@ -218,7 +218,7 @@ const applySnapshot = (snap: ReturnType<typeof captureSnapshot>) => {
     const fullAdj = {
       brightness: 0, contrast: 0, highlights: 0, shadows: 0,
       whites: 0, blacks: 0, saturation: 0, vibrance: 0,
-      hue: 0, temperature: 0, clarity: 0,
+      hue: 0, temperature: 0, tint: 0, clarity: 0, dehaze: 0,
       ...snap.adjustments,
     }
     setAdjustments(fullAdj)
@@ -330,7 +330,7 @@ const applyStoredAdjustments = async (imageId: number) => {
         setAdjustments({
           brightness: 0, contrast: 0, highlights: 0, shadows: 0,
           whites: 0, blacks: 0, saturation: 0, vibrance: 0,
-          hue: 0, temperature: 0, clarity: 0,
+          hue: 0, temperature: 0, tint: 0, clarity: 0, dehaze: 0,
           ...data.adjustments,
         })
       }

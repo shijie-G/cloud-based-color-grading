@@ -18,7 +18,9 @@ interface BasicAdjustments {
   vibrance:    number  // -100 ~ +100
   hue:         number  // -180 ~ +180 (deg)
   temperature: number  // -100(冷) ~ +100(暖)
+  tint:        number  // -100(绿) ~ +100(洋红)
   clarity:     number  // -100 ~ +100
+  dehaze:      number  // -100 ~ +100
 }
 
 // ── 工具函数 ──────────────────────────────────────────────
@@ -75,7 +77,10 @@ self.onmessage = (e: MessageEvent) => {
 
   // 预计算各参数的乘数/偏移，避免循环内重复计算
   // 1. 色温：暖色偏移 R+/B-，冷色偏移 R-/B+
-  const tempShift = adj.temperature * 0.8  // 每单位偏移量
+  const tempShift = adj.temperature * 0.8
+
+  // 1b. 色调：洋红偏移 R+B+/G-，绿色偏移 G+/R-B-
+  const tintShift = (adj.tint ?? 0) * 0.5
 
   // 2. 亮度：-150~+150 → 像素偏移，乘以 0.6 让过渡更缓和
   const brightShift = adj.brightness * 0.6
@@ -104,6 +109,9 @@ self.onmessage = (e: MessageEvent) => {
   const whiteShift     = (adj.whites     ?? 0) * 0.6
   const blackShift     = (adj.blacks     ?? 0) * 0.4
 
+  // 9. 去朦胧：正值去雾（提对比+压中间调），负值加雾（降对比+提中间调）
+  const dehazeVal = (adj.dehaze ?? 0)
+
   for (let i = 0; i < src.length; i += 4) {
     let r = src[i], g = src[i+1], b = src[i+2]
     const a = src[i+3]
@@ -112,6 +120,21 @@ self.onmessage = (e: MessageEvent) => {
     if (adj.temperature !== 0) {
       r = clamp(r + tempShift)
       b = clamp(b - tempShift)
+    }
+
+    // Step 1b: 色调（绿↔洋红，垂直于色温轴）
+    if (tintShift !== 0) {
+      if (tintShift > 0) {
+        // 洋红：R+、B+ 轻微、G-
+        r = clamp(r + tintShift * 0.8)
+        g = clamp(g - tintShift * 0.6)
+        b = clamp(b + tintShift * 0.3)
+      } else {
+        // 绿色：G+、R- 轻微、B-
+        g = clamp(g - tintShift * 0.8)
+        r = clamp(r + tintShift * 0.4)
+        b = clamp(b + tintShift * 0.3)
+      }
     }
 
     // Step 2: 亮度
@@ -167,6 +190,25 @@ self.onmessage = (e: MessageEvent) => {
       r = clamp((r - 128) * clarityFactor + 128)
       g = clamp((g - 128) * clarityFactor + 128)
       b = clamp((b - 128) * clarityFactor + 128)
+    }
+
+    // Step 4b: 去朦胧
+    // 正值：提升对比度 + 压暗中间调（模拟去雾）
+    // 负值：降低对比度 + 提亮中间调（加雾/柔化）
+    if (dehazeVal !== 0) {
+      const luma = 0.299 * r + 0.587 * g + 0.114 * b
+      const dehazeFactor = 1 + dehazeVal / 150
+      // 对比度增强（以 128 为中心）
+      r = clamp((r - 128) * dehazeFactor + 128)
+      g = clamp((g - 128) * dehazeFactor + 128)
+      b = clamp((b - 128) * dehazeFactor + 128)
+      // 正值额外压暗中间调（去雾特征：中间调偏暗，细节更清晰）
+      if (dehazeVal > 0 && luma > 64 && luma < 192) {
+        const midWeight = Math.sin(((luma - 64) / 128) * Math.PI) * (dehazeVal / 100) * 15
+        r = clamp(r - midWeight)
+        g = clamp(g - midWeight)
+        b = clamp(b - midWeight)
+      }
     }
 
     // Step 5 & 6 & 7: 饱和度 / 自然饱和度 / 色相 → 转 HSL 处理

@@ -31,7 +31,9 @@ export function useAdjustmentState(): UseAdjustmentStateReturn {
     vibrance:    0,
     hue:         0,
     temperature: 0,
+    tint:        0,
     clarity:     0,
+    dehaze:      0,
   })
 
   const imageFilter = computed(() => {
@@ -87,7 +89,9 @@ export function useAdjustmentState(): UseAdjustmentStateReturn {
     adjustments.vibrance    = 0
     adjustments.hue         = 0
     adjustments.temperature = 0
+    adjustments.tint        = 0
     adjustments.clarity     = 0
+    adjustments.dehaze      = 0
   }
 
   // 设置单个调整参数

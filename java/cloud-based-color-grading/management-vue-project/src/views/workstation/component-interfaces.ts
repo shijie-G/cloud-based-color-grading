@@ -27,8 +27,10 @@ export interface AdjustmentValues {
   vibrance: number      // 自然饱和度 -100 ~ +100，默认 0
   hue: number           // 色相       -180 ~ +180，默认 0
   temperature: number   // 色温       -100(冷) ~ +100(暖)，默认 0
+  tint: number          // 色调       -100(绿) ~ +100(洋红)，默认 0
   // 细节
   clarity: number       // 清晰度     -100 ~ +100，默认 0
+  dehaze: number        // 去朦胧     -100 ~ +100，默认 0
 }
 
 // 布局状态接口
