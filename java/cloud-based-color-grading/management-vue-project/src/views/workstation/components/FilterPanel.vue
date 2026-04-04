@@ -46,8 +46,24 @@
         >{{ s.label }}</button>
       </div>
       <template v-if="filterConfig.style_type > 0">
-        <SliderRow label="强度" :min="0" :max="2" :step="0.05" v-model="filterConfig.style_strength" :decimals="2" />
-        <SliderRow label="混合" :min="0" :max="1" :step="0.05" v-model="filterConfig.style_blend" :decimals="2" />
+        <div class="control-row">
+          <span class="control-label">强度</span>
+          <div class="slider-wrap">
+            <div class="slider-track-bg"></div>
+            <div class="slider-fill" :style="{ left: '0%', width: (filterConfig.style_strength / 2 * 100) + '%' }"></div>
+            <input type="range" min="0" max="2" step="0.05" v-model.number="filterConfig.style_strength" class="control-slider" />
+          </div>
+          <span class="control-value" :class="{ nonzero: filterConfig.style_strength !== 0 }">{{ filterConfig.style_strength.toFixed(2) }}</span>
+        </div>
+        <div class="control-row">
+          <span class="control-label">混合</span>
+          <div class="slider-wrap">
+            <div class="slider-track-bg"></div>
+            <div class="slider-fill" :style="{ left: '0%', width: (filterConfig.style_blend * 100) + '%' }"></div>
+            <input type="range" min="0" max="1" step="0.05" v-model.number="filterConfig.style_blend" class="control-slider" />
+          </div>
+          <span class="control-value" :class="{ nonzero: filterConfig.style_blend !== 0 }">{{ filterConfig.style_blend.toFixed(2) }}</span>
+        </div>
         <div class="color-row">
           <span class="control-label">高光色</span>
           <input type="color" v-model="filterConfig.style_highlight_color" class="color-input" />
@@ -69,9 +85,33 @@
         <span class="section-title">锐化 / 模糊</span>
         <span v-if="filterConfig.sharpen_amount > 0 || filterConfig.blur_radius > 0" class="param-active-dot"></span>
       </div>
-      <SliderRow label="锐化" :min="0" :max="3" :step="0.1" v-model="filterConfig.sharpen_amount" :decimals="1" />
-      <SliderRow label="锐化半径" :min="0.5" :max="3" :step="0.1" v-model="filterConfig.sharpen_radius" :decimals="1" />
-      <SliderRow label="模糊" :min="0" :max="50" :step="1" v-model="filterConfig.blur_radius" :decimals="0" />
+      <div class="control-row">
+        <span class="control-label">锐化</span>
+        <div class="slider-wrap">
+          <div class="slider-track-bg"></div>
+          <div class="slider-fill" :style="{ left: '0%', width: (filterConfig.sharpen_amount / 3 * 100) + '%' }"></div>
+          <input type="range" min="0" max="3" step="0.1" v-model.number="filterConfig.sharpen_amount" class="control-slider" />
+        </div>
+        <span class="control-value" :class="{ nonzero: filterConfig.sharpen_amount !== 0 }">{{ filterConfig.sharpen_amount.toFixed(1) }}</span>
+      </div>
+      <div class="control-row">
+        <span class="control-label">锐化半径</span>
+        <div class="slider-wrap">
+          <div class="slider-track-bg"></div>
+          <div class="slider-fill" :style="{ left: '0%', width: ((filterConfig.sharpen_radius - 0.5) / 2.5 * 100) + '%' }"></div>
+          <input type="range" min="0.5" max="3" step="0.1" v-model.number="filterConfig.sharpen_radius" class="control-slider" />
+        </div>
+        <span class="control-value" :class="{ nonzero: filterConfig.sharpen_radius !== 1 }">{{ filterConfig.sharpen_radius.toFixed(1) }}</span>
+      </div>
+      <div class="control-row">
+        <span class="control-label">模糊</span>
+        <div class="slider-wrap">
+          <div class="slider-track-bg"></div>
+          <div class="slider-fill" :style="{ left: '0%', width: (filterConfig.blur_radius / 50 * 100) + '%' }"></div>
+          <input type="range" min="0" max="50" step="1" v-model.number="filterConfig.blur_radius" class="control-slider" />
+        </div>
+        <span class="control-value" :class="{ nonzero: filterConfig.blur_radius !== 0 }">{{ filterConfig.blur_radius }}</span>
+      </div>
     </div>
 
     <div class="divider"></div>
@@ -82,9 +122,33 @@
         <span class="section-title">颗粒 / 暗角</span>
         <span v-if="filterConfig.grain_intensity > 0 || filterConfig.vignette_strength !== 0" class="param-active-dot"></span>
       </div>
-      <SliderRow label="颗粒" :min="0" :max="100" :step="1" v-model="filterConfig.grain_intensity" :decimals="0" />
-      <SliderRow label="暗角" :min="-1" :max="1" :step="0.05" v-model="filterConfig.vignette_strength" :decimals="2" />
-      <SliderRow label="暗角范围" :min="0" :max="2" :step="0.1" v-model="filterConfig.vignette_size" :decimals="1" />
+      <div class="control-row">
+        <span class="control-label">颗粒</span>
+        <div class="slider-wrap">
+          <div class="slider-track-bg"></div>
+          <div class="slider-fill" :style="{ left: '0%', width: (filterConfig.grain_intensity / 100 * 100) + '%' }"></div>
+          <input type="range" min="0" max="100" step="1" v-model.number="filterConfig.grain_intensity" class="control-slider" />
+        </div>
+        <span class="control-value" :class="{ nonzero: filterConfig.grain_intensity !== 0 }">{{ filterConfig.grain_intensity }}</span>
+      </div>
+      <div class="control-row">
+        <span class="control-label">暗角</span>
+        <div class="slider-wrap">
+          <div class="slider-track-bg"></div>
+          <div class="slider-fill" :style="vignetteStrengthFill"></div>
+          <input type="range" min="-1" max="1" step="0.05" v-model.number="filterConfig.vignette_strength" class="control-slider" />
+        </div>
+        <span class="control-value" :class="{ nonzero: filterConfig.vignette_strength !== 0 }">{{ filterConfig.vignette_strength.toFixed(2) }}</span>
+      </div>
+      <div class="control-row">
+        <span class="control-label">暗角范围</span>
+        <div class="slider-wrap">
+          <div class="slider-track-bg"></div>
+          <div class="slider-fill" :style="{ left: '0%', width: (filterConfig.vignette_size / 2 * 100) + '%' }"></div>
+          <input type="range" min="0" max="2" step="0.1" v-model.number="filterConfig.vignette_size" class="control-slider" />
+        </div>
+        <span class="control-value" :class="{ nonzero: filterConfig.vignette_size !== 1.2 }">{{ filterConfig.vignette_size.toFixed(1) }}</span>
+      </div>
     </div>
 
     <!-- 重置 -->
@@ -100,39 +164,15 @@ import { filterPresets, defaultFilterConfig } from '../types/filterTypes'
 
 const filterConfig = inject<FilterConfig>('filterConfig', reactive(defaultFilterConfig()))
 
-// ── 内联 SliderRow 组件（避免额外文件） ──────────────────────
-const SliderRow = {
-  props: { label: String, min: Number, max: Number, step: Number, modelValue: Number, decimals: Number },
-  emits: ['update:modelValue'],
-  template: `
-    <div class="control-row">
-      <span class="control-label">{{ label }}</span>
-      <div class="slider-wrap">
-        <div class="slider-track-bg"></div>
-        <div class="slider-fill" :style="fillStyle"></div>
-        <input type="range" :min="min" :max="max" :step="step"
-          :value="modelValue" @input="$emit('update:modelValue', +$event.target.value)"
-          class="control-slider" />
-      </div>
-      <span class="control-value" :class="{ nonzero: modelValue !== 0 }">
-        {{ decimals === 0 ? modelValue : modelValue.toFixed(decimals) }}
-      </span>
-    </div>
-  `,
-  computed: {
-    fillStyle() {
-      const pct = ((this.modelValue - this.min) / (this.max - this.min)) * 100
-      // 中心对称（min<0）或从左填充
-      if (this.min < 0) {
-        const center = (-this.min / (this.max - this.min)) * 100
-        const left = Math.min(center, pct)
-        const width = Math.abs(pct - center)
-        return { left: left + '%', width: width + '%' }
-      }
-      return { left: '0%', width: pct + '%' }
-    }
-  }
-}
+// 暗角强度填充（中心对称，min=-1）
+const vignetteStrengthFill = computed(() => {
+  const v = filterConfig.vignette_strength
+  const center = 50
+  const pct = Math.abs(v) * 50
+  return v >= 0
+    ? { left: center + '%', width: pct + '%' }
+    : { left: (center - pct) + '%', width: pct + '%' }
+})
 
 // 预设列表（分组）
 const presetGroups = [
