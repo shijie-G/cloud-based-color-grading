@@ -151,9 +151,16 @@ watch(() => props.image, async (newImage) => {
         setMaskLayers([])
       }
 
-      // 4. 滤镜
-      if (data.filterConfig) {
-        setFilterConfig(data.filterConfig)
+      // 4. 滤镜（独立字段 filterConfigJson）
+      if (dbItem.filterConfigJson) {
+        setFilterConfig(JSON.parse(dbItem.filterConfigJson))
+      } else {
+        setFilterConfig({
+          blur_radius: 0, sharpen_amount: 0, sharpen_radius: 1.0,
+          style_type: 0, style_strength: 0,
+          style_highlight_color: '#f8e9d6', style_shadow_color: '#2a3d55',
+          style_blend: 0.3, grain_intensity: 0, vignette_strength: 0, vignette_size: 1.2,
+        })
       }
     } else {
       resetToDefaults()

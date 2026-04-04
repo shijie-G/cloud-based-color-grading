@@ -237,6 +237,24 @@ const applySnapshot = (snap: ReturnType<typeof captureSnapshot>) => {
       setMaskLayers([])
     }
     currentCropState.value = { ...snap.cropState, rect: snap.cropState.rect ? { ...snap.cropState.rect } : null }
+
+    // 同步持久化：将快照的 imageSrc / cropState 写回 IndexedDB
+    // 否则刷新后仍会读到旧的 editedSrc
+    if (selectedImageId.value != null) {
+      const id = selectedImageId.value
+      const item = uploadedImages.value.find(i => i.id === id)
+      if (item) item.src = snap.imageSrc
+
+      const snapCropState = currentCropState.value
+      const snapImageSrc  = snap.imageSrc
+      // 如果快照的 cropState 是初始状态（无裁切/旋转/翻转），清除 editedSrc
+      const isOriginal = snapCropState.rotate === 0 && !snapCropState.flipH && !snapCropState.flipV && !snapCropState.rect
+      if (isOriginal) {
+        imageDB.clearCropData(id).catch(e => console.error('撤销清除裁切数据失败:', e))
+      } else {
+        saveCropData(id, snapImageSrc, snapCropState).catch(e => console.error('撤销保存裁切数据失败:', e))
+      }
+    }
   } finally {
     isLoadingAdjustments = false
   }
