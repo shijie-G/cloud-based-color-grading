@@ -63,7 +63,67 @@ export const defaultFilterConfig = (): FilterConfig => ({
 
 /** 预设滤镜配置 */
 export const filterPresets: Record<string, Partial<FilterConfig>> = {
-  // 1. 清透日系
+  // 1. 自然柔和（无颗粒）
+  natural_soft: {
+    blur_radius: 0,
+    sharpen_amount: 0.2,
+    sharpen_radius: 1.0,
+    style_type: 0,
+    style_strength: 0.3,
+    style_highlight_color: '#fdfbf7',
+    style_shadow_color: '#ebedee',
+    style_blend: 0.15,
+    grain_intensity: 0,
+    vignette_strength: 0.05,
+    vignette_size: 1.5
+  },
+
+  // 2. 温暖光晕（无颗粒）
+  warm_glow: {
+    blur_radius: 0,
+    sharpen_amount: 0.15,
+    sharpen_radius: 0.9,
+    style_type: 1,
+    style_strength: 0.5,
+    style_highlight_color: '#fff5e6',
+    style_shadow_color: '#ffe0b2',
+    style_blend: 0.2,
+    grain_intensity: 0,
+    vignette_strength: 0.1,
+    vignette_size: 1.4
+  },
+
+  // 3. 清凉微风（无颗粒）
+  cool_breeze: {
+    blur_radius: 0,
+    sharpen_amount: 0.25,
+    sharpen_radius: 1.0,
+    style_type: 5,
+    style_strength: 0.4,
+    style_highlight_color: '#e3f2fd',
+    style_shadow_color: '#bbdefb',
+    style_blend: 0.2,
+    grain_intensity: 0,
+    vignette_strength: 0.08,
+    vignette_size: 1.5
+  },
+
+  // 4. 柔光人像（无颗粒）
+  soft_portrait: {
+    blur_radius: 0.5,
+    sharpen_amount: 0.1,
+    sharpen_radius: 0.8,
+    style_type: 1,
+    style_strength: 0.4,
+    style_highlight_color: '#fff3e0',
+    style_shadow_color: '#ffccbc',
+    style_blend: 0.15,
+    grain_intensity: 0,
+    vignette_strength: 0.05,
+    vignette_size: 1.6
+  },
+
+  // 5. 清透日系
   fresh_japanese: {
     blur_radius: 0,
     sharpen_amount: 0.4,
@@ -78,7 +138,7 @@ export const filterPresets: Record<string, Partial<FilterConfig>> = {
     vignette_size: 1.3
   },
 
-  // 2. 复古胶片
+  // 6. 复古胶片
   vintage_film: {
     blur_radius: 0,
     sharpen_amount: 0.2,
@@ -93,7 +153,7 @@ export const filterPresets: Record<string, Partial<FilterConfig>> = {
     vignette_size: 1.1
   },
 
-  // 3. 港风青橙
+  // 7. 港风青橙
   hongkong_teal: {
     blur_radius: 0,
     sharpen_amount: 0.6,
@@ -108,7 +168,7 @@ export const filterPresets: Record<string, Partial<FilterConfig>> = {
     vignette_size: 1.0
   },
 
-  // 4. 温柔暖调
+  // 8. 温柔暖调
   soft_warm: {
     blur_radius: 0,
     sharpen_amount: 0.3,
@@ -123,7 +183,7 @@ export const filterPresets: Record<string, Partial<FilterConfig>> = {
     vignette_size: 1.4
   },
 
-  // 5. 高级冷灰电影感
+  // 9. 高级冷灰电影感
   cinematic_cool: {
     blur_radius: 0,
     sharpen_amount: 0.7,
@@ -138,7 +198,7 @@ export const filterPresets: Record<string, Partial<FilterConfig>> = {
     vignette_size: 1.2
   },
 
-  // 6. 黑白质感
+  // 10. 黑白质感
   bw_texture: {
     blur_radius: 0,
     sharpen_amount: 0.8,
@@ -153,7 +213,7 @@ export const filterPresets: Record<string, Partial<FilterConfig>> = {
     vignette_size: 1.1
   },
 
-  // 7. 清新奶油肌（人像柔光）
+  // 11. 清新奶油肌（人像柔光）
   creamy_portrait: {
     blur_radius: 1,
     sharpen_amount: 0.2,
@@ -168,7 +228,7 @@ export const filterPresets: Record<string, Partial<FilterConfig>> = {
     vignette_size: 1.5
   },
 
-  // 8. 赛博朋克霓虹
+  // 12. 赛博朋克霓虹
   cyberpunk_neon: {
     blur_radius: 0,
     sharpen_amount: 0.9,
@@ -183,7 +243,7 @@ export const filterPresets: Record<string, Partial<FilterConfig>> = {
     vignette_size: 0.9
   },
 
-  // 9. 风景自然高清
+  // 13. 风景自然高清
   landscape_hd: {
     blur_radius: 0,
     sharpen_amount: 1.0,
@@ -198,7 +258,7 @@ export const filterPresets: Record<string, Partial<FilterConfig>> = {
     vignette_size: 1.6
   },
 
-  // 10. 复古柯达金
+  // 14. 复古柯达金
   kodak_gold: {
     blur_radius: 0,
     sharpen_amount: 0.3,

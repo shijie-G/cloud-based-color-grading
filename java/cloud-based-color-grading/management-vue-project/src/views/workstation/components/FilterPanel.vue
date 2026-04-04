@@ -7,11 +7,13 @@
         <div
           v-for="preset in presets"
           :key="preset.id"
-          class="preset-item"
+          class="preset-card"
           @click="applyPreset(preset.id)"
         >
           <div class="preset-preview" :style="{ background: preset.gradient }"></div>
-          <span class="preset-name">{{ preset.name }}</span>
+          <div class="preset-label">
+            <span class="preset-name">{{ preset.name }}</span>
+          </div>
         </div>
       </div>
     </div>
@@ -126,9 +128,14 @@ const filterConfig = inject<FilterConfig>('filterConfig', reactive(defaultFilter
 onMounted(() => {
   console.log('FilterPanel mounted, filterConfig:', filterConfig)
   console.log('Presets:', presets)
+  console.log('First preset gradient:', presets[0].gradient)
 })
 
 const presets = [
+  { id: 'natural_soft', name: '自然柔和', gradient: 'linear-gradient(135deg, #fdfbf7 0%, #ebedee 100%)' },
+  { id: 'warm_glow', name: '温暖光晕', gradient: 'linear-gradient(135deg, #fff5e6 0%, #ffe0b2 100%)' },
+  { id: 'cool_breeze', name: '清凉微风', gradient: 'linear-gradient(135deg, #e3f2fd 0%, #bbdefb 100%)' },
+  { id: 'soft_portrait', name: '柔光人像', gradient: 'linear-gradient(135deg, #fff3e0 0%, #ffccbc 100%)' },
   { id: 'fresh_japanese', name: '清透日系', gradient: 'linear-gradient(135deg, #f0f5ff 0%, #adc4e6 100%)' },
   { id: 'vintage_film', name: '复古胶片', gradient: 'linear-gradient(135deg, #fae0c8 0%, #3a4a5f 100%)' },
   { id: 'hongkong_teal', name: '港风青橙', gradient: 'linear-gradient(135deg, #ffaa55 0%, #226699 100%)' },
@@ -192,8 +199,8 @@ const handleReset = () => {
 .preset-grid {
   display: grid;
   grid-template-columns: repeat(2, 1fr);
-  gap: 0.5rem;
-  max-height: 300px;
+  gap: 0.625rem;
+  max-height: 380px;
   overflow-y: auto;
 }
 
@@ -214,32 +221,50 @@ const handleReset = () => {
   background: rgba(255, 255, 255, 0.15);
 }
 
-.preset-item {
+.preset-card {
   cursor: pointer;
   border-radius: 6px;
   overflow: hidden;
-  border: 1px solid rgba(255, 255, 255, 0.1);
-  transition: all 0.2s;
+  border: 1.5px solid rgba(255, 255, 255, 0.15);
+  background: rgba(255, 255, 255, 0.05);
+  transition: all 0.25s ease;
+  display: flex;
+  flex-direction: column;
+  min-height: 100px;
 }
 
-.preset-item:hover {
+.preset-card:hover {
   border-color: #5b6af0;
-  transform: translateY(-2px);
+  transform: translateY(-1px);
+  box-shadow: 0 2px 8px rgba(91, 106, 240, 0.2);
+}
+
+.preset-card:active {
+  transform: translateY(0);
 }
 
 .preset-preview {
   width: 100%;
-  height: 60px;
+  height: 64px;
+  border-radius: 4px 4px 0 0;
+  min-height: 64px;
+  flex-shrink: 0;
+}
+
+.preset-label {
+  padding: 0.5rem 0.625rem;
+  background: rgba(255, 255, 255, 0.08);
+  flex-shrink: 0;
 }
 
 .preset-name {
   display: block;
-  padding: 0.5rem;
-  font-size: 0.8125rem;
-  color: #d1d5db;
-  text-align: center;
-  background: rgba(255, 255, 255, 0.05);
+  font-size: 0.75rem;
   font-weight: 500;
+  color: #e2e4e9;
+  text-align: center;
+  line-height: 1.3;
+  letter-spacing: 0.01em;
 }
 
 /* 控制行 */
