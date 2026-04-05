@@ -1,6 +1,7 @@
 import { ref, computed } from 'vue'
 import type { AlbumRecord, MonthGroup } from '../types/gallery'
 import { useGalleryDB } from './useGalleryDB'
+import { albumRepo } from '@/views/workstation/utils/AlbumRepository'
 
 const albums = ref<AlbumRecord[]>([])
 const currentAlbumId = ref<number | null>(null)
@@ -57,17 +58,14 @@ export function useAlbumState() {
    * 创建相册
    */
   async function createAlbum(name: string): Promise<number> {
-    if (!name.trim()) {
-      throw new Error('相册名称不能为空')
-    }
-
+    if (!name.trim()) throw new Error('相册名称不能为空')
     try {
       const newAlbum: Omit<AlbumRecord, 'id'> = {
         name: name.trim(),
         createdAt: Date.now(),
-        sortOrder: albums.value.length
+        sortOrder: albums.value.length,
       }
-      const id = await db.createAlbum(newAlbum)
+      const id = await albumRepo.create(newAlbum)
       await loadAlbums()
       return id
     } catch (error) {
@@ -80,23 +78,12 @@ export function useAlbumState() {
    * 重命名相册
    */
   async function renameAlbum(id: number, newName: string) {
-    if (!newName.trim()) {
-      throw new Error('相册名称不能为空')
-    }
-
+    if (!newName.trim()) throw new Error('相册名称不能为空')
     try {
       const album = albums.value.find(a => a.id === id)
       if (!album) throw new Error('相册不存在')
-
-      // 创建纯对象副本
-      const plainAlbum: AlbumRecord = {
-        id: album.id,
-        name: newName.trim(),
-        createdAt: album.createdAt,
-        sortOrder: album.sortOrder,
-        coverImageId: album.coverImageId
-      }
-      await db.updateAlbum(plainAlbum)
+      const plainAlbum: AlbumRecord = { ...album, name: newName.trim() }
+      await albumRepo.execute('update', plainAlbum)
       await loadAlbums()
     } catch (error) {
       console.error('重命名相册失败:', error)
@@ -104,23 +91,12 @@ export function useAlbumState() {
     }
   }
 
-  /**
-   * 更新相册排序
-   */
   async function updateAlbumOrder(albumId: number, newOrder: number) {
     try {
       const album = albums.value.find(a => a.id === albumId)
       if (!album) throw new Error('相册不存在')
-
-      // 创建纯对象副本
-      const plainAlbum: AlbumRecord = {
-        id: album.id,
-        name: album.name,
-        createdAt: album.createdAt,
-        sortOrder: newOrder,
-        coverImageId: album.coverImageId
-      }
-      await db.updateAlbum(plainAlbum)
+      const plainAlbum: AlbumRecord = { ...album, sortOrder: newOrder }
+      await albumRepo.execute('update', plainAlbum)
       await loadAlbums()
     } catch (error) {
       console.error('更新相册排序失败:', error)
@@ -128,20 +104,16 @@ export function useAlbumState() {
     }
   }
 
-  /**
-   * 更新相册
-   */
   async function updateAlbum(album: AlbumRecord) {
     try {
-      // 创建纯对象副本，避免 Vue 响应式代理问题
       const plainAlbum: AlbumRecord = {
         id: album.id,
         name: album.name,
         createdAt: album.createdAt,
         sortOrder: album.sortOrder,
-        coverImageId: album.coverImageId
+        coverImageId: album.coverImageId,
       }
-      await db.updateAlbum(plainAlbum)
+      await albumRepo.execute('update', plainAlbum)
       await loadAlbums()
     } catch (error) {
       console.error('更新相册失败:', error)
@@ -149,16 +121,11 @@ export function useAlbumState() {
     }
   }
 
-  /**
-   * 删除相册
-   */
   async function deleteAlbum(id: number) {
     try {
-      await db.deleteAlbum(id)
+      await albumRepo.execute('delete', { id })
       await loadAlbums()
-      if (currentAlbumId.value === id) {
-        currentAlbumId.value = null
-      }
+      if (currentAlbumId.value === id) currentAlbumId.value = null
     } catch (error) {
       console.error('删除相册失败:', error)
       throw error

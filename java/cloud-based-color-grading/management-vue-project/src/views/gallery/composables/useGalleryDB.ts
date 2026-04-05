@@ -1,5 +1,7 @@
 import type { AlbumRecord, ImageRecord } from '../types/gallery'
 import { imageDB, type ImageDBItem } from '@/views/workstation/utils/imageDB'
+import { imageRepo } from '@/views/workstation/utils/ImageRepository'
+import { albumRepo } from '@/views/workstation/utils/AlbumRepository'
 
 /**
  * Gallery 数据库适配器
@@ -103,21 +105,15 @@ export function useGalleryDB() {
    * 创建相册
    */
   async function createAlbum(album: Omit<AlbumRecord, 'id'>): Promise<number> {
-    return await imageDB.createAlbum(album)
+    return await albumRepo.create(album)
   }
 
-  /**
-   * 更新相册
-   */
   async function updateAlbum(album: AlbumRecord): Promise<void> {
-    return await imageDB.updateAlbum(album)
+    return await albumRepo.execute('update', album)
   }
 
-  /**
-   * 删除相册（同时删除相册内所有图片）
-   */
   async function deleteAlbum(id: number): Promise<void> {
-    return await imageDB.deleteAlbum(id)
+    return await albumRepo.execute('delete', { id })
   }
 
   // ==================== 图片操作 ====================
@@ -144,48 +140,28 @@ export function useGalleryDB() {
   async function updateImage(image: ImageRecord): Promise<void> {
     try {
       const item = await imageDB.getImage(image.id)
-      if (!item) {
-        throw new Error(`图片 ID ${image.id} 不存在`)
-      }
-
+      if (!item) throw new Error(`图片 ID ${image.id} 不存在`)
       const updated = imageRecordToDBItem(image, item)
-      await imageDB.saveImage(updated)
+      await imageRepo.execute('save', updated)
     } catch (error) {
       console.error('更新图片失败:', error, '图片数据:', image)
       throw error
     }
   }
 
-  /**
-   * 批量更新图片
-   */
   async function updateImages(images: ImageRecord[]): Promise<void> {
-    const items: ImageDBItem[] = []
-
     for (const image of images) {
       const item = await imageDB.getImage(image.id)
-      if (item) {
-        items.push(imageRecordToDBItem(image, item))
-      }
+      if (item) await imageRepo.execute('save', imageRecordToDBItem(image, item))
     }
-
-    await imageDB.updateImages(items)
   }
 
-  /**
-   * 永久删除图片
-   */
   async function deleteImage(id: number): Promise<void> {
-    await imageDB.deleteImage(id)
+    await imageRepo.execute('delete', { id })
   }
 
-  /**
-   * 批量永久删除图片
-   */
   async function deleteImages(ids: number[]): Promise<void> {
-    for (const id of ids) {
-      await imageDB.deleteImage(id)
-    }
+    for (const id of ids) await imageRepo.execute('delete', { id })
   }
 
   /**

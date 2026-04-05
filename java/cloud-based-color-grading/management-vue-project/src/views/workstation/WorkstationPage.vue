@@ -100,6 +100,7 @@ import type { ImageItem } from './component-interfaces'
 import type { CropState } from './types/cropTypes'
 import { DEFAULT_CROP_STATE } from './types/cropTypes'
 import { imageDB } from './utils/imageDB'
+import { imageRepo } from './utils/ImageRepository'
 import TopNavbar from './components/TopNavbar.vue';
 import ImageDisplay from './components/ImageDisplay.vue';
 import PanelResizer from './components/PanelResizer.vue';
@@ -260,7 +261,7 @@ const applySnapshot = (snap: ReturnType<typeof captureSnapshot>) => {
       // 如果快照的 cropState 是初始状态（无裁切/旋转/翻转），清除 editedSrc
       const isOriginal = snapCropState.rotate === 0 && !snapCropState.flipH && !snapCropState.flipV && !snapCropState.rect
       if (isOriginal) {
-        imageDB.clearCropData(id).catch(e => console.error('撤销清除裁切数据失败:', e))
+        imageRepo.execute('clearCrop', { id }).catch(e => console.error('撤销清除裁切数据失败:', e))
       } else {
         saveCropData(id, snapImageSrc, snapCropState).catch(e => console.error('撤销保存裁切数据失败:', e))
       }
@@ -786,7 +787,7 @@ const handleCropRestore = async () => {
 
   // 清除 IndexedDB 中的裁切数据（删除字段，不写空字符串）
   try {
-    await imageDB.clearCropData(selectedImageId.value)
+    await imageRepo.execute('clearCrop', { id: selectedImageId.value })
   } catch (e) {
     console.error('清除裁切数据失败:', e)
   }
@@ -941,7 +942,7 @@ const cleanupInvalidEditedSrc = async () => {
       // 如果有 editedSrc 但没有 cropStateJson，清除 editedSrc
       if (image.editedSrc && !image.cropStateJson) {
         console.log(`清理图片 ${image.id} 的错误 editedSrc`)
-        await imageDB.clearCropData(image.id)
+        await imageRepo.execute('clearCrop', { id: image.id })
       }
     }
   } catch (error) {

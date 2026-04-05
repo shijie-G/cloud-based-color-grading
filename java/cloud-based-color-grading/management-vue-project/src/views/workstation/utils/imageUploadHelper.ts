@@ -4,6 +4,7 @@
  */
 
 import { imageDB, type ImageDBItem, UNASSIGNED_ALBUM_ID } from './imageDB'
+import { imageRepo } from './ImageRepository'
 
 /**
  * 生成文件哈希（名称+大小+格式）
@@ -111,7 +112,7 @@ export async function uploadImageToDB(
   }
 
   // 保存到数据库
-  await imageDB.saveImage(dbItem)
+  await imageRepo.execute('save', dbItem)
 
   return {
     id,

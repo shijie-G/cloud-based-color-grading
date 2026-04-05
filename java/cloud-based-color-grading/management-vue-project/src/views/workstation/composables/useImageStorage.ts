@@ -4,6 +4,7 @@
  */
 
 import { imageDB, type ImageDBItem } from '../utils/imageDB'
+import { imageRepo } from '../utils/ImageRepository'
 import type { ImageItem } from '../component-interfaces'
 import type { CropState } from '../types/cropTypes'
 
@@ -23,6 +24,8 @@ export interface UseImageStorageReturn {
   loadCropData: (imageId: number) => Promise<{ editedSrc?: string; cropState?: CropState } | null>
   /** 读取原图 src（永不被裁切覆盖） */
   loadOriginalSrc: (imageId: number) => Promise<string | null>
+  saveFilterConfig: (imageId: number, filterConfigJson: string) => Promise<void>
+  loadFilterConfig: (imageId: number) => Promise<string | null>
 }
 
 export function useImageStorage(): UseImageStorageReturn {
@@ -70,7 +73,7 @@ export function useImageStorage(): UseImageStorageReturn {
         fileHash: image.fileHash,
       }
 
-      await imageDB.saveImage(dbItem)
+      await imageRepo.execute('save', dbItem)
     } catch (error) {
       console.error('保存图片到IndexedDB失败:', error)
       throw error
@@ -108,7 +111,7 @@ export function useImageStorage(): UseImageStorageReturn {
    */
   const deleteImageFromDB = async (imageId: number): Promise<void> => {
     try {
-      await imageDB.deleteImage(imageId)
+      await imageRepo.execute('delete', { id: imageId })
       console.log(`图片已从IndexedDB删除: ID ${imageId}`)
     } catch (error) {
       console.error('从IndexedDB删除图片失败:', error)
@@ -116,12 +119,9 @@ export function useImageStorage(): UseImageStorageReturn {
     }
   }
 
-  /**
-   * 清空IndexedDB中的所有图片
-   */
   const clearAllImagesFromDB = async (): Promise<void> => {
     try {
-      await imageDB.clearAll()
+      await imageRepo.execute('deleteAll', {} as any)
       console.log('已清空IndexedDB中的所有图片')
     } catch (error) {
       console.error('清空IndexedDB失败:', error)
@@ -148,8 +148,12 @@ export function useImageStorage(): UseImageStorageReturn {
    */
   const saveAdjustments = async (imageId: number, adjustmentsJson: string, editedSrc?: string): Promise<void> => {
     try {
-      // 更新 adjustmentsJson 和可选的 editedSrc
-      await imageDB.updateAdjustments(imageId, adjustmentsJson, editedSrc)
+      await imageRepo.execute('update', {
+        id: imageId,
+        field: 'adjustmentsJson',
+        value: adjustmentsJson,
+        extra: editedSrc !== undefined ? { editedSrc } : undefined,
+      })
     } catch (error) {
       console.error('保存调色参数失败:', error)
     }
@@ -172,7 +176,12 @@ export function useImageStorage(): UseImageStorageReturn {
    */
   const saveCropData = async (imageId: number, editedSrc: string, cropState: CropState): Promise<void> => {
     try {
-      await imageDB.updateCropData(imageId, editedSrc, JSON.stringify(cropState))
+      await imageRepo.execute('update', {
+        id: imageId,
+        field: 'editedSrc',
+        value: editedSrc,
+        extra: { cropStateJson: JSON.stringify(cropState) },
+      })
     } catch (error) {
       console.error('保存裁切数据失败:', error)
     }
@@ -205,10 +214,9 @@ export function useImageStorage(): UseImageStorageReturn {
     }
   }
 
-  /** 保存滤镜配置到 IndexedDB */
   const saveFilterConfig = async (imageId: number, filterConfigJson: string): Promise<void> => {
     try {
-      await imageDB.saveFilterConfig(imageId, filterConfigJson)
+      await imageRepo.execute('update', { id: imageId, field: 'filterConfigJson', value: filterConfigJson })
     } catch (error) {
       console.error('保存滤镜配置失败:', error)
     }

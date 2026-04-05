@@ -9,6 +9,7 @@
  */
 
 import { imageDB } from '@/views/workstation/utils/imageDB'
+import { imageRepo } from '@/views/workstation/utils/ImageRepository'
 import type { Layer, LayerStorageData } from '../types'
 
 export interface UsePersonalizeStorageReturn {
@@ -165,7 +166,7 @@ export function usePersonalizeStorage(): UsePersonalizeStorageReturn {
   ): Promise<void> => {
     try {
       const layersJson = serializeLayers(layers, imageWidth, imageHeight)
-      await imageDB.savePersonalizeLayers(imageId, layersJson)
+      await imageRepo.execute('update', { id: imageId, field: 'personalizeLayersJson', value: layersJson })
       console.log(`✅ 持久化保存成功: 图片 ID ${imageId}, ${layers.length} 个图层`)
     } catch (error) {
       console.error('❌ 保存失败:', error)
@@ -207,7 +208,7 @@ export function usePersonalizeStorage(): UsePersonalizeStorageReturn {
    */
   const clearLayersFromStorage = async (imageId: number): Promise<void> => {
     try {
-      await imageDB.clearPersonalizeLayers(imageId)
+      await imageRepo.execute('update', { id: imageId, field: 'personalizeLayersJson', value: undefined })
       console.log(`✅ 清除成功: 图片 ID ${imageId}`)
     } catch (error) {
       console.error('❌ 清除失败:', error)

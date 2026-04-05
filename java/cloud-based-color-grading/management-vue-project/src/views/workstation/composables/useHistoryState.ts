@@ -17,6 +17,7 @@ import type { AdjustmentValues } from '../component-interfaces'
 import type { HSLAdjustments } from './useHSLProcessor'
 import type { CropState } from '../types/cropTypes'
 import { imageDB } from '../utils/imageDB'
+import { historyRepo } from '../utils/HistoryRepository'
 
 export interface SerializedMaskLayer {
   id: string
@@ -101,7 +102,7 @@ export function useHistoryState() {
     dbTimer = setTimeout(() => {
       const packJson = serializePack()
       if (!packJson) return
-      enqueue(() => imageDB.saveHistoryPack(imageId, packJson))
+      enqueue(() => historyRepo.execute('savePack', { imageId, packJson }))
     }, 300)
   }
 
@@ -172,7 +173,7 @@ export function useHistoryState() {
     stack.value = []
     cursor.value = -1
     const id = imageId ?? currentImageId
-    if (id != null) enqueue(() => imageDB.clearHistory(id))
+    if (id != null) enqueue(() => historyRepo.execute('clearPack', { imageId: id }))
   }
 
   const canUndo = () => cursor.value > 0
