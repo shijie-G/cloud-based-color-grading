@@ -4,6 +4,7 @@ import { useRoute, useRouter } from 'vue-router'
 import { useAlbumState } from '@/views/gallery/composables/useAlbumState'
 import { useImageState } from '@/views/gallery/composables/useImageState'
 import { useSelection } from '@/views/gallery/composables/useSelection'
+import { importGsjFile } from '@/utils/gsj'
 import ImageBrowser from './components/ImageBrowser.vue'
 import AlbumSelector from './components/AlbumSelector.vue'
 
@@ -222,18 +223,40 @@ async function handleDrop(event: DragEvent) {
   const files = Array.from(event.dataTransfer?.files || [])
   if (files.length === 0) return
 
-  if (files.length > 50) {
+  // ── 分离 .gsj 工程文件与普通图片 ──────────────────────────
+  const gsjFiles = files.filter(f => f.name.toLowerCase().endsWith('.gsj'))
+  const imageFiles = files.filter(f => !f.name.toLowerCase().endsWith('.gsj'))
+
+  // ── 处理 .gsj 导入 ────────────────────────────────────────
+  for (const gsjFile of gsjFiles) {
+    try {
+      const result = await importGsjFile(gsjFile, false)
+      await imageState.loadImagesByAlbum(albumId.value)
+      showNotification(
+        `已导入工程「${result.projectName}」：${result.imageCount} 张图片，${result.albumCount} 个相册`,
+        'success'
+      )
+    } catch (e: any) {
+      console.error('导入 .gsj 失败:', e)
+      showNotification(`导入「${gsjFile.name}」失败：${e.message || '格式错误'}`, 'error')
+    }
+  }
+
+  // ── 处理普通图片上传（原有逻辑） ──────────────────────────
+  if (imageFiles.length === 0) return
+
+  if (imageFiles.length > 50) {
     showNotification('单次最多上传 50 张图片', 'error')
     return
   }
 
   try {
     isUploading.value = true
-    uploadProgress.value = { current: 0, total: files.length }
+    uploadProgress.value = { current: 0, total: imageFiles.length }
 
-    const result = await imageState.uploadImages(albumId.value, files)
+    const result = await imageState.uploadImages(albumId.value, imageFiles)
 
-    uploadProgress.value = { current: files.length, total: files.length }
+    uploadProgress.value = { current: imageFiles.length, total: imageFiles.length }
     await imageState.loadImagesByAlbum(albumId.value)
 
     setTimeout(() => {
@@ -301,7 +324,7 @@ function handleBack() {
         <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor">
           <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M7 16a4 4 0 01-.88-7.903A5 5 0 1115.9 6L16 6a5 5 0 011 9.9M15 13l-3-3m0 0l-3 3m3-3v12" />
         </svg>
-        <p>拖放图片到此处上传</p>
+        <p>拖放图片或 .gsj 工程文件到此处</p>
       </div>
     </div>
 
