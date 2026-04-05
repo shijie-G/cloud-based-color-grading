@@ -12,6 +12,7 @@ import { imageDB, type ImageDBItem, type AlbumRecord } from '../../views/worksta
 import { GSJ_MAGIC, type GsjProject, type GsjImage } from './gsjTypes'
 import type { CropState } from '../../views/workstation/types/cropTypes'
 import { decrypt } from './gsjCrypto'
+import { generateThumbnail } from '../../views/workstation/utils/imageUploadHelper'
 
 // ── canvas 重建工具 ───────────────────────────────────────────
 
@@ -90,7 +91,35 @@ function base64ToBlob(dataUrl: string): Blob {
   return new Blob([bytes], { type: mime })
 }
 
-async function toImageDBItem(img: GsjImage): Promise<ImageDBItem> {
+/**
+ * 还原历史包里的轻量标记为真实 dataUrl
+ *   "__src__"    → srcBase64（原图）
+ *   "__edited__" → editedSrc（裁切/旋转后），没有则降级到 srcBase64
+ */
+function restoreHistoryPackImageSrc(packJson: string, srcBase64: string, editedSrc?: string): string {
+  try {
+    const restore = (v: string | undefined): string | undefined => {
+      if (v === '__src__') return srcBase64
+      if (v === '__edited__') return editedSrc ?? srcBase64
+      return v
+    }
+    const pack = JSON.parse(packJson) as {
+      base: { imageSrc?: string; [k: string]: unknown }
+      diffs: Array<{ imageSrc?: string; [k: string]: unknown }>
+      cursor: number
+    }
+    if (pack.base.imageSrc) pack.base.imageSrc = restore(pack.base.imageSrc)
+    pack.diffs = pack.diffs.map(d => {
+      if ('imageSrc' in d) d.imageSrc = restore(d.imageSrc)
+      return d
+    })
+    return JSON.stringify(pack)
+  } catch {
+    return packJson
+  }
+}
+
+async function toImageDBItem(img: GsjImage): Promise<{ dbItem: ImageDBItem; restoredPackJson?: string }> {
   // 重建 editedSrc（如果有裁切/旋转/翻转）
   let editedSrc: string | undefined
   if (img.cropStateJson) {
@@ -102,26 +131,39 @@ async function toImageDBItem(img: GsjImage): Promise<ImageDBItem> {
     }
   }
 
+  // thumbnail：优先用 gsj 里保存的，旧版 gsj 没有则从原图重建
+  const thumbnail = img.thumbnail ?? await generateThumbnail(img.srcBase64)
+
+  // 历史包：把轻量标记还原为真实 dataUrl
+  let restoredPackJson: string | undefined
+  if (img.history?.packJson) {
+    restoredPackJson = restoreHistoryPackImageSrc(img.history.packJson, img.srcBase64, editedSrc)
+  }
+
   return {
-    id: img.id,
-    name: img.name,
-    blob: base64ToBlob(img.srcBase64),
-    src: img.srcBase64,
-    editedSrc,                          // 重建的裁切/旋转结果
-    adjustmentsJson: img.adjustmentsJson,
-    cropStateJson: img.cropStateJson,
-    filterConfigJson: img.filterConfigJson,
-    personalizeLayersJson: img.personalizeLayersJson,
-    uploadTime: new Date(img.uploadTime),
-    lastModified: new Date(img.lastModified),
-    fileHash: img.fileHash,
-    albumId: img.albumId,
-    isFavorite: img.isFavorite,
-    favoritedAt: img.favoritedAt,
-    isDeleted: img.isDeleted,
-    deletedAt: img.deletedAt,
-    tags: img.tags,
-    sortOrder: img.sortOrder,
+    dbItem: {
+      id: img.id,
+      name: img.name,
+      blob: base64ToBlob(img.srcBase64),
+      src: img.srcBase64,
+      editedSrc,
+      thumbnail,
+      adjustmentsJson: img.adjustmentsJson,
+      cropStateJson: img.cropStateJson,
+      filterConfigJson: img.filterConfigJson,
+      personalizeLayersJson: img.personalizeLayersJson,
+      uploadTime: new Date(img.uploadTime),
+      lastModified: new Date(img.lastModified),
+      fileHash: img.fileHash,
+      albumId: img.albumId,
+      isFavorite: img.isFavorite,
+      favoritedAt: img.favoritedAt,
+      isDeleted: img.isDeleted,
+      deletedAt: img.deletedAt,
+      tags: img.tags,
+      sortOrder: img.sortOrder,
+    },
+    restoredPackJson,
   }
 }
 
@@ -171,11 +213,11 @@ export async function restoreGsjProject(project: GsjProject, clearExisting = fal
   // 还原图片（含 editedSrc 重建）+ 历史
   let historyCount = 0
   for (const gsjImg of project.images) {
-    const dbItem = await toImageDBItem(gsjImg)   // 异步重建 editedSrc
+    const { dbItem, restoredPackJson } = await toImageDBItem(gsjImg)
     await imageDB.saveImage(dbItem)
 
-    if (gsjImg.history?.packJson) {
-      await imageDB.saveHistoryPack(gsjImg.id, gsjImg.history.packJson)
+    if (restoredPackJson) {
+      await imageDB.saveHistoryPack(gsjImg.id, restoredPackJson)
       historyCount++
     }
   }

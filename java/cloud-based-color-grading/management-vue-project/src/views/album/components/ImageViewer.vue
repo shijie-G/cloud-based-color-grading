@@ -96,7 +96,7 @@ const resetToDefaults = () => {
     style_type: 0, style_strength: 0,
     style_highlight_color: '#f8e9d6', style_shadow_color: '#2a3d55',
     style_blend: 0.3, grain_intensity: 0, vignette_strength: 0, vignette_size: 1.2,
-  })
+  }, true)  // silent：由 setSourceImage 统一触发渲染
 }
 
 // 监听图片变化，重置变换并应用调色（与 WorkstationPage.applyStoredAdjustments 对齐）
@@ -170,7 +170,7 @@ watch(() => props.image, async (newImage) => {
 
       // 4. 滤镜（在 setSourceImage 之前注入，确保处理链能读到）
       if (dbItem.filterConfigJson) {
-        setFilterConfig(JSON.parse(dbItem.filterConfigJson))
+        setFilterConfig(JSON.parse(dbItem.filterConfigJson), true)  // silent：由 setSourceImage 统一触发渲染
       } else {
         resetToDefaults()
       }

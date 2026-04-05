@@ -109,6 +109,19 @@
       <div class="drag-overlay" v-if="isDragOver">
         <div class="drag-content"><p>释放以上传图片</p></div>
       </div>
+
+      <!-- 初始加载复原遮罩 -->
+      <Transition name="restore-fade">
+        <div v-if="isRestoring" class="restore-overlay">
+          <div class="restore-box">
+            <svg class="restore-spinner" viewBox="0 0 50 50" xmlns="http://www.w3.org/2000/svg">
+              <circle cx="25" cy="25" r="20" fill="none" stroke="currentColor" stroke-width="4"
+                stroke-linecap="round" stroke-dasharray="90 60" />
+            </svg>
+            <span class="restore-text">正在恢复工程数据…</span>
+          </div>
+        </div>
+      </Transition>
     </div>
   </div>
 </template>
@@ -136,6 +149,7 @@ interface ImagePreviewProps {
   transformPending: boolean
   gridSettings: GridSettings
   applyGridPreset: (p: 'thirds' | 'ninths' | 'golden') => void
+  isRestoring?: boolean
 }
 interface ImagePreviewEvents {
   'upload:image':      [file: File]
@@ -547,4 +561,44 @@ defineExpose({ previewCanvas, resetTransform, onceDrawComplete })
 .grid-float-content {
   padding: 10px;
 }
+.restore-overlay {
+  position: absolute;
+  inset: 0;
+  z-index: 50;
+  background: rgba(16, 18, 22, 0.85);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  backdrop-filter: blur(3px);
+  border-radius: inherit;
+}
+
+.restore-box {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 1rem;
+}
+
+.restore-spinner {
+  width: 44px;
+  height: 44px;
+  color: #5b6af0;
+  animation: restore-spin 0.9s linear infinite;
+}
+
+@keyframes restore-spin {
+  to { transform: rotate(360deg); }
+}
+
+.restore-text {
+  font-size: 0.88rem;
+  color: #9ca3af;
+  letter-spacing: 0.03em;
+}
+
+.restore-fade-enter-active,
+.restore-fade-leave-active { transition: opacity 0.25s ease; }
+.restore-fade-enter-from,
+.restore-fade-leave-to { opacity: 0; }
 </style>

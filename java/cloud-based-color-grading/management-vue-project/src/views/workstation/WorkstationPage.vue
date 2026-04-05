@@ -24,6 +24,7 @@
         :gridSettings="gridSettings"
         :applyGridPreset="applyGridPreset"
         :compareActive="compareActive"
+        :isRestoring="isRestoring"
         @action:selectImage="handleSelectImage"
         @action:uploadImage="handleImageUpload"
         @layout:resetLayout="resetLayout"
@@ -139,6 +140,9 @@ const {
   handleImageUpload,
   selectImage,
 } = useImageState();
+
+// 初始加载复原状态
+const isRestoring = ref(false)
 
 // 使用调整状态管理
 const {
@@ -924,12 +928,17 @@ const onKeyDown = (e: KeyboardEvent) => {
   if ((key === 'z' && e.shiftKey) || key === 'y') { e.preventDefault(); handleRedo() }
 }
 
-onMounted(() => {
+onMounted(async () => {
   window.addEventListener('keydown', onKeyDown)
-
-  // 清理错误保存的 editedSrc（只保留有 cropStateJson 的 editedSrc）
-  // 这是一次性修复，清理之前版本错误保存的调色结果
   cleanupInvalidEditedSrc()
+
+  // 主动触发初始加载，显示复原遮罩直到完成
+  isRestoring.value = true
+  try {
+    await handleAlbumChange(null)
+  } finally {
+    isRestoring.value = false
+  }
 })
 
 // 清理错误保存的 editedSrc

@@ -40,7 +40,7 @@ export interface UseHSLStateReturn {
   /** 兼容旧接口：传入合成蒙版 canvas（无独立调色） */
   setMaskCanvas: (canvas: HTMLCanvasElement | null) => void
   /** 设置滤镜配置 */
-  setFilterConfig: (config: FilterConfig) => void
+  setFilterConfig: (config: FilterConfig, silent?: boolean) => void
   exportProcessed: (format?: 'png' | 'jpeg', quality?: number) => Promise<string>
 }
 
@@ -506,10 +506,14 @@ export function useHSLState(): UseHSLStateReturn {
     return result
   }
 
-  /** 设置滤镜配置（添加防抖） */
+  /** 设置滤镜配置
+   * @param config 滤镜配置
+   * @param silent 静默模式：只更新值，不触发渲染（由后续 setSourceImage 统一触发）
+   */
   let filterDebounceTimer: ReturnType<typeof setTimeout> | null = null
-  const setFilterConfig = (config: FilterConfig) => {
+  const setFilterConfig = (config: FilterConfig, silent = false) => {
     currentFilterConfig = config
+    if (silent) return   // 初始加载时静默注入，不触发额外渲染
 
     // 清除之前的定时器
     if (filterDebounceTimer) clearTimeout(filterDebounceTimer)

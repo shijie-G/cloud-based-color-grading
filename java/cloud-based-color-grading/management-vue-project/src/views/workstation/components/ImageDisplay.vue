@@ -15,6 +15,7 @@
       :transformPending="transformPending"
       :gridSettings="gridSettings"
       :applyGridPreset="applyGridPreset"
+      :isRestoring="isRestoring"
       @upload:image="handleImageUpload"
       @mask:commit="emit('mask:commit')"
       @mask:updateLayer="emit('mask:updateLayer', $event)"
@@ -76,6 +77,7 @@ interface ImageDisplayProps {
   gridSettings: import('../composables/useGridState').GridSettings
   applyGridPreset: (p: 'thirds' | 'ninths' | 'golden') => void
   compareActive?: boolean
+  isRestoring?: boolean
 }
 
 interface ImageDisplayEvents {

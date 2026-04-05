@@ -10,8 +10,9 @@
  *
  * 有意省略的字段（可在导入后重新计算/生成）：
  *   - editedSrc    → 由原图 + cropStateJson 在导入时重新渲染（rotate → flipH/V → rect 裁切）
- *   - thumbnail    → 由原图重新生成
  *   - history 快照中的 imageSrc → 回放时直接使用原图
+ *
+ * 注意：thumbnail 必须保存，Gallery 封面显示强依赖此字段，无法在导入时实时重建
  */
 
 // ── 当前格式版本 ──────────────────────────────────────────────
@@ -48,6 +49,8 @@ export interface GsjImage {
   name: string
   /** 原始图片 base64（含 MIME 前缀） — 唯一不可再生的大字段 */
   srcBase64: string
+  /** 缩略图 base64（1280px 压缩，Gallery 封面显示依赖此字段） */
+  thumbnail?: string
   /** 编辑参数 JSON（adjustments + hsl + mask） */
   adjustmentsJson?: string
   /** 裁切/旋转/翻转状态 JSON */
