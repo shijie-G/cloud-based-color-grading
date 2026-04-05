@@ -244,49 +244,22 @@ export function useHSLState(): UseHSLStateReturn {
     return canvas.toDataURL('image/jpeg', hires ? 0.95 : 0.88)
   }
 
-  /** 滤镜处理（优化版：并行分片处理） */
+  /** 滤镜处理（单 Worker 处理全图，空间滤镜不能分片） */
   const runFilterProcess = async (data: ImageData, config: FilterConfig): Promise<ImageData> => {
-    const workers = getFilterWorkers()
-    const n = workers.length
-    const totalBytes = data.data.length
-    const chunkBytes = Math.ceil(Math.ceil(totalBytes / n / 4) * 4)
+    const worker = getFilterWorkers()[0]  // 始终用第一个 worker，保证全图坐标正确
+    const copy = new Uint8ClampedArray(data.data.buffer.slice(0))
+    const plainConfig = JSON.parse(JSON.stringify(config))
 
-    const results = new Array<Uint8ClampedArray>(n)
-    let done = 0
-
-    return new Promise((resolve) => {
-      workers.forEach((worker, idx) => {
-        const start = idx * chunkBytes
-        if (start >= totalBytes) {
-          results[idx] = new Uint8ClampedArray(0)
-          if (++done === n) resolve(merge(results, data.width, data.height))
-          return
-        }
-
-        const end = Math.min(start + chunkBytes, totalBytes)
-        const copy = new Uint8ClampedArray(data.data.buffer.slice(start, end))
-
-        // 计算当前分片对应的图像区域
-        const startPixel = start / 4
-        const startY = Math.floor(startPixel / data.width)
-        const endPixel = end / 4
-        const endY = Math.ceil(endPixel / data.width)
-        const sliceHeight = endY - startY
-
-        worker.onmessage = (e: MessageEvent) => {
-          results[idx] = new Uint8ClampedArray(e.data.buffer)
-          if (++done === n) resolve(merge(results, data.width, data.height))
-        }
-        worker.onerror = (e) => reject(new Error(`filterWorker ${idx} error: ${e.message}`))
-
-        // 将 Proxy 对象转换为普通对象
-        const plainConfig = JSON.parse(JSON.stringify(config))
-
-        worker.postMessage(
-          { buffer: copy.buffer, config: plainConfig, width: data.width, height: sliceHeight },
-          { transfer: [copy.buffer] }
-        )
-      })
+    return new Promise((resolve, reject) => {
+      worker.onmessage = (e: MessageEvent) => {
+        const result = new Uint8ClampedArray(e.data.buffer)
+        resolve(new ImageData(result, data.width, data.height))
+      }
+      worker.onerror = (e) => reject(new Error(`filterWorker error: ${e.message}`))
+      worker.postMessage(
+        { buffer: copy.buffer, config: plainConfig, width: data.width, height: data.height },
+        { transfer: [copy.buffer] }
+      )
     })
   }
 
