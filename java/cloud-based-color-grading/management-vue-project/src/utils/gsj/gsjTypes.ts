@@ -1,22 +1,21 @@
 /**
  * .gsj 工程文件格式类型定义
- * GSJ = GaoSaoJi（高考志愿系统专属工程格式）
  *
  * 文件结构（JSON，UTF-8 编码）：
  * {
  *   meta:    工程元信息
  *   albums:  相册列表
- *   images:  图片列表（含所有编辑数据）
+ *   images:  图片列表（仅保存不可再生的原始数据）
  * }
+ *
+ * 有意省略的字段（可在导入后重新计算/生成）：
+ *   - editedSrc    → 由原图 + cropStateJson 在导入时重新渲染（rotate → flipH/V → rect 裁切）
+ *   - thumbnail    → 由原图重新生成
+ *   - history 快照中的 imageSrc → 回放时直接使用原图
  */
 
-import type { AdjustmentValues } from '../../views/workstation/component-interfaces'
-import type { HSLAdjustments } from '../../views/workstation/composables/useHSLProcessor'
-import type { CropState } from '../../views/workstation/types/cropTypes'
-import type { SerializedMaskLayer } from '../../views/workstation/composables/useHistoryState'
-
 // ── 当前格式版本 ──────────────────────────────────────────────
-export const GSJ_VERSION = '1.0.0'
+export const GSJ_VERSION = '1.1.0'
 export const GSJ_MAGIC = 'GSJ'
 
 // ── 元信息 ────────────────────────────────────────────────────
@@ -37,34 +36,26 @@ export interface GsjAlbum {
   coverImageId?: number
 }
 
-// ── 历史快照（单步） ──────────────────────────────────────────
-export interface GsjHistorySnapshot {
-  adjustments: AdjustmentValues
-  hslAdjustments: HSLAdjustments
-  maskLayers: SerializedMaskLayer[]
-  cropState: CropState
-  imageSrc: string     // 该步骤对应的图片 dataUrl（可能是原图或编辑后）
-}
-
-// ── 历史包 ────────────────────────────────────────────────────
+// ── 历史包（直接保存 IndexedDB 中的原始 packJson，base+diff 压缩格式） ──
 export interface GsjHistoryPack {
-  cursorPos: number
-  snapshots: GsjHistorySnapshot[]
+  cursorPos: number   // 冗余存一份游标，方便快速读取
+  packJson: string    // 原始 base+diff JSON，不展开
 }
 
-// ── 图片条目（images 表完整数据） ─────────────────────────────
+// ── 图片条目（仅保存不可再生的原始数据） ─────────────────────
 export interface GsjImage {
   id: number
   name: string
-  /** 原始图片 base64（含 MIME 前缀，如 data:image/jpeg;base64,...） */
+  /** 原始图片 base64（含 MIME 前缀） — 唯一不可再生的大字段 */
   srcBase64: string
-  /** 裁切/编辑后的图片 base64（可选） */
-  editedSrcBase64?: string
-  cropStateJson?: string
+  /** 编辑参数 JSON（adjustments + hsl + mask） */
   adjustmentsJson?: string
+  /** 裁切/旋转/翻转状态 JSON */
+  cropStateJson?: string
+  /** 滤镜配置 JSON */
   filterConfigJson?: string
+  /** 个性化图层 JSON */
   personalizeLayersJson?: string
-  thumbnail?: string
   uploadTime: number   // Unix ms
   lastModified: number // Unix ms
   fileHash?: string
@@ -76,7 +67,7 @@ export interface GsjImage {
   deletedAt?: number
   tags?: string[]
   sortOrder?: number
-  // 历史记录（整包）
+  // 历史记录（保留原始压缩包，不展开）
   history?: GsjHistoryPack
 }
 

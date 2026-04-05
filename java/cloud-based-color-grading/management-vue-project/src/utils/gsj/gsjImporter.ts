@@ -1,20 +1,86 @@
 /**
  * .gsj 工程文件导入器
- * 读取 .gsj 文件 → 解析 GsjProject → 还原到 IndexedDB
+ * 读取二进制 .gsj → 两轮解密 → 解析 JSON → 还原到 IndexedDB
  *
- * 还原策略：
- *   - 相册：按 id 覆盖写入（已存在则更新，不存在则创建）
- *   - 图片：按 id 覆盖写入（保留原图 blob，重建 editedSrc / 调色 / 历史等）
- *   - 历史：整包写回 history store
+ * editedSrc 重建策略：
+ *   不存储 editedSrc，导入时从 srcBase64 + cropStateJson 重新渲染：
+ *   原图 → rotate（旋转）→ flipH/flipV（翻转）→ rect（裁切）→ editedSrc
+ *   与 WorkstationPage 的 handleCropRotate / handleCropFlip / handleCropCommit 逻辑完全一致
  */
 
-import { imageDB, type ImageDBItem } from '../../views/workstation/utils/imageDB'
-import type { AlbumRecord } from '../../views/workstation/utils/imageDB'
+import { imageDB, type ImageDBItem, type AlbumRecord } from '../../views/workstation/utils/imageDB'
 import { GSJ_MAGIC, type GsjProject, type GsjImage } from './gsjTypes'
+import type { CropState } from '../../views/workstation/types/cropTypes'
+import { decrypt } from './gsjCrypto'
+
+// ── canvas 重建工具 ───────────────────────────────────────────
+
+function loadImage(src: string): Promise<HTMLImageElement> {
+  return new Promise((resolve, reject) => {
+    const img = new Image()
+    img.onload = () => resolve(img)
+    img.onerror = () => reject(new Error('图片加载失败'))
+    img.src = src
+  })
+}
+
+/**
+ * 用原图 + CropState 重建 editedSrc
+ * 执行顺序与 WorkstationPage 完全一致：rotate → flipH/V → rect 裁切
+ * 如果 cropState 是初始状态（无任何变换），返回 undefined（不需要 editedSrc）
+ */
+async function rebuildEditedSrc(srcBase64: string, cropState: CropState): Promise<string | undefined> {
+  const { rotate, flipH, flipV, rect } = cropState
+
+  // 初始状态：无任何变换，不需要 editedSrc
+  if (rotate === 0 && !flipH && !flipV && !rect) return undefined
+
+  const img = await loadImage(srcBase64)
+  let current: HTMLCanvasElement
+
+  // Step 1: 旋转（与 handleCropRotate 一致）
+  if (rotate !== 0) {
+    const rad = (rotate * Math.PI) / 180
+    const sw = rotate === 90 || rotate === 270 ? img.naturalHeight : img.naturalWidth
+    const sh = rotate === 90 || rotate === 270 ? img.naturalWidth  : img.naturalHeight
+    const c = document.createElement('canvas')
+    c.width = sw; c.height = sh
+    const ctx = c.getContext('2d')!
+    ctx.translate(sw / 2, sh / 2)
+    ctx.rotate(rad)
+    ctx.drawImage(img, -img.naturalWidth / 2, -img.naturalHeight / 2)
+    current = c
+  } else {
+    const c = document.createElement('canvas')
+    c.width = img.naturalWidth; c.height = img.naturalHeight
+    c.getContext('2d')!.drawImage(img, 0, 0)
+    current = c
+  }
+
+  // Step 2: 翻转（与 handleCropFlip 一致）
+  if (flipH || flipV) {
+    const c = document.createElement('canvas')
+    c.width = current.width; c.height = current.height
+    const ctx = c.getContext('2d')!
+    if (flipH) { ctx.translate(c.width, 0); ctx.scale(-1, 1) }
+    if (flipV) { ctx.translate(0, c.height); ctx.scale(1, -1) }
+    ctx.drawImage(current, 0, 0)
+    current = c
+  }
+
+  // Step 3: 裁切（与 handleCropCommit 一致）
+  if (rect) {
+    const c = document.createElement('canvas')
+    c.width = rect.w; c.height = rect.h
+    c.getContext('2d')!.drawImage(current, rect.x, rect.y, rect.w, rect.h, 0, 0, rect.w, rect.h)
+    current = c
+  }
+
+  return current.toDataURL('image/png')
+}
 
 // ── 内部工具 ──────────────────────────────────────────────────
 
-/** base64 dataUrl → Blob */
 function base64ToBlob(dataUrl: string): Blob {
   const [header, data] = dataUrl.split(',')
   const mime = header.match(/:(.*?);/)?.[1] ?? 'image/jpeg'
@@ -24,20 +90,28 @@ function base64ToBlob(dataUrl: string): Blob {
   return new Blob([bytes], { type: mime })
 }
 
-/** 将 GsjImage 还原为 ImageDBItem */
-function toImageDBItem(img: GsjImage): ImageDBItem {
-  const blob = base64ToBlob(img.srcBase64)
+async function toImageDBItem(img: GsjImage): Promise<ImageDBItem> {
+  // 重建 editedSrc（如果有裁切/旋转/翻转）
+  let editedSrc: string | undefined
+  if (img.cropStateJson) {
+    try {
+      const cropState: CropState = JSON.parse(img.cropStateJson)
+      editedSrc = await rebuildEditedSrc(img.srcBase64, cropState)
+    } catch (e) {
+      console.warn(`[GSJ] 重建 editedSrc 失败 (id=${img.id}):`, e)
+    }
+  }
+
   return {
     id: img.id,
     name: img.name,
-    blob,
+    blob: base64ToBlob(img.srcBase64),
     src: img.srcBase64,
-    editedSrc: img.editedSrcBase64,
-    cropStateJson: img.cropStateJson,
+    editedSrc,                          // 重建的裁切/旋转结果
     adjustmentsJson: img.adjustmentsJson,
+    cropStateJson: img.cropStateJson,
     filterConfigJson: img.filterConfigJson,
     personalizeLayersJson: img.personalizeLayersJson,
-    thumbnail: img.thumbnail,
     uploadTime: new Date(img.uploadTime),
     lastModified: new Date(img.lastModified),
     fileHash: img.fileHash,
@@ -51,53 +125,26 @@ function toImageDBItem(img: GsjImage): ImageDBItem {
   }
 }
 
-/**
- * 将 GsjHistoryPack 重新序列化为 imageDB 期望的整包格式
- * （base + diffs + cursor）
- */
-function reserializeHistoryPack(img: GsjImage): string | null {
-  if (!img.history || img.history.snapshots.length === 0) return null
-
-  const { snapshots, cursorPos } = img.history
-  const base = snapshots[0]
-  const diffs = snapshots.slice(1).map((snap, i) => {
-    const prev = snapshots[i]
-    const diff: Record<string, unknown> = {}
-    for (const key of Object.keys(snap) as (keyof typeof snap)[]) {
-      if (JSON.stringify(prev[key]) !== JSON.stringify(snap[key])) {
-        diff[key] = snap[key]
-      }
-    }
-    return diff
-  })
-
-  return JSON.stringify({ base, diffs, cursor: cursorPos })
-}
-
 // ── 解析入口 ──────────────────────────────────────────────────
 
-/**
- * 从 File 对象解析 .gsj 工程
- */
 export async function parseGsjFile(file: File): Promise<GsjProject> {
-  const text = await file.text()
-  const project = JSON.parse(text) as GsjProject
+  const buffer = await file.arrayBuffer()
+  const bytes = new Uint8Array(buffer)
 
-  // 基本校验
+  let json: string
+  // magic bytes 0x47 0x53 0x4a = "GSJ" → 加密格式
+  if (bytes[0] === 0x47 && bytes[1] === 0x53 && bytes[2] === 0x4a) {
+    json = await decrypt(bytes)
+  } else {
+    // 兼容旧版明文 JSON
+    json = new TextDecoder().decode(bytes)
+  }
+
+  const project = JSON.parse(json) as GsjProject
   if (project?.meta?.magic !== GSJ_MAGIC) {
     throw new Error('无效的 .gsj 文件：magic 校验失败')
   }
-
   return project
-}
-
-/**
- * 版本兼容检查（预留，当前仅打 warn）
- */
-function checkVersion(version: string): void {
-  if (version !== '1.0.0') {
-    console.warn(`[GSJ] 文件版本 ${version} 与当前版本不同，可能存在兼容性问题`)
-  }
 }
 
 // ── 还原入口 ──────────────────────────────────────────────────
@@ -109,42 +156,26 @@ export interface ImportResult {
   projectName: string
 }
 
-/**
- * 将解析后的 GsjProject 还原到 IndexedDB
- * @param project 已解析的工程对象
- * @param clearExisting 是否先清空现有数据（默认 false，按 id 覆盖）
- */
-export async function restoreGsjProject(
-  project: GsjProject,
-  clearExisting = false,
-): Promise<ImportResult> {
-  checkVersion(project.meta.version)
-
-  if (clearExisting) {
-    await imageDB.clearAll()
+export async function restoreGsjProject(project: GsjProject, clearExisting = false): Promise<ImportResult> {
+  if (project.meta.version !== '1.1.0') {
+    console.warn(`[GSJ] 文件版本 ${project.meta.version} 与当前版本不同，可能存在兼容性问题`)
   }
 
-  // 1. 还原相册
+  if (clearExisting) await imageDB.clearAll()
+
+  // 还原相册
   for (const album of project.albums) {
-    const existing = await imageDB.getAlbumById(album.id)
-    if (existing) {
-      await imageDB.updateAlbum(album as AlbumRecord)
-    } else {
-      // 手动写入（保留原 id，不走 autoIncrement）
-      await imageDB.updateAlbum(album as AlbumRecord)
-    }
+    await imageDB.updateAlbum(album as AlbumRecord)
   }
 
-  // 2. 还原图片 + 历史
+  // 还原图片（含 editedSrc 重建）+ 历史
   let historyCount = 0
   for (const gsjImg of project.images) {
-    const dbItem = toImageDBItem(gsjImg)
+    const dbItem = await toImageDBItem(gsjImg)   // 异步重建 editedSrc
     await imageDB.saveImage(dbItem)
 
-    // 还原历史包
-    const packJson = reserializeHistoryPack(gsjImg)
-    if (packJson) {
-      await imageDB.saveHistoryPack(gsjImg.id, packJson)
+    if (gsjImg.history?.packJson) {
+      await imageDB.saveHistoryPack(gsjImg.id, gsjImg.history.packJson)
       historyCount++
     }
   }
@@ -157,20 +188,11 @@ export async function restoreGsjProject(
   }
 }
 
-/**
- * 一步完成：读取文件 → 解析 → 还原
- */
-export async function importGsjFile(
-  file: File,
-  clearExisting = false,
-): Promise<ImportResult> {
+export async function importGsjFile(file: File, clearExisting = false): Promise<ImportResult> {
   const project = await parseGsjFile(file)
   return restoreGsjProject(project, clearExisting)
 }
 
-/**
- * 触发浏览器文件选择框，返回用户选择的 .gsj 文件
- */
 export function pickGsjFile(): Promise<File | null> {
   return new Promise(resolve => {
     const input = document.createElement('input')
