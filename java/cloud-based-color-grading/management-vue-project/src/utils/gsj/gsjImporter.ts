@@ -5,7 +5,6 @@
  * editedSrc 重建策略：
  *   不存储 editedSrc，导入时从 srcBase64 + cropStateJson 重新渲染：
  *   原图 → rotate（旋转）→ flipH/flipV（翻转）→ rect（裁切）→ editedSrc
- *   与 WorkstationPage 的 handleCropRotate / handleCropFlip / handleCropCommit 逻辑完全一致
  */
 
 import { imageDB, type ImageDBItem, type AlbumRecord } from '../../views/workstation/utils/imageDB'
@@ -25,21 +24,13 @@ function loadImage(src: string): Promise<HTMLImageElement> {
   })
 }
 
-/**
- * 用原图 + CropState 重建 editedSrc
- * 执行顺序与 WorkstationPage 完全一致：rotate → flipH/V → rect 裁切
- * 如果 cropState 是初始状态（无任何变换），返回 undefined（不需要 editedSrc）
- */
 async function rebuildEditedSrc(srcBase64: string, cropState: CropState): Promise<string | undefined> {
   const { rotate, flipH, flipV, rect } = cropState
-
-  // 初始状态：无任何变换，不需要 editedSrc
   if (rotate === 0 && !flipH && !flipV && !rect) return undefined
 
   const img = await loadImage(srcBase64)
   let current: HTMLCanvasElement
 
-  // Step 1: 旋转（与 handleCropRotate 一致）
   if (rotate !== 0) {
     const rad = (rotate * Math.PI) / 180
     const sw = rotate === 90 || rotate === 270 ? img.naturalHeight : img.naturalWidth
@@ -58,7 +49,6 @@ async function rebuildEditedSrc(srcBase64: string, cropState: CropState): Promis
     current = c
   }
 
-  // Step 2: 翻转（与 handleCropFlip 一致）
   if (flipH || flipV) {
     const c = document.createElement('canvas')
     c.width = current.width; c.height = current.height
@@ -69,7 +59,6 @@ async function rebuildEditedSrc(srcBase64: string, cropState: CropState): Promis
     current = c
   }
 
-  // Step 3: 裁切（与 handleCropCommit 一致）
   if (rect) {
     const c = document.createElement('canvas')
     c.width = rect.w; c.height = rect.h
@@ -91,36 +80,7 @@ function base64ToBlob(dataUrl: string): Blob {
   return new Blob([bytes], { type: mime })
 }
 
-/**
- * 还原历史包里的轻量标记为真实 dataUrl
- *   "__src__"    → srcBase64（原图）
- *   "__edited__" → editedSrc（裁切/旋转后），没有则降级到 srcBase64
- */
-function restoreHistoryPackImageSrc(packJson: string, srcBase64: string, editedSrc?: string): string {
-  try {
-    const restore = (v: string | undefined): string | undefined => {
-      if (v === '__src__') return srcBase64
-      if (v === '__edited__') return editedSrc ?? srcBase64
-      return v
-    }
-    const pack = JSON.parse(packJson) as {
-      base: { imageSrc?: string; [k: string]: unknown }
-      diffs: Array<{ imageSrc?: string; [k: string]: unknown }>
-      cursor: number
-    }
-    if (pack.base.imageSrc) pack.base.imageSrc = restore(pack.base.imageSrc)
-    pack.diffs = pack.diffs.map(d => {
-      if ('imageSrc' in d) d.imageSrc = restore(d.imageSrc)
-      return d
-    })
-    return JSON.stringify(pack)
-  } catch {
-    return packJson
-  }
-}
-
-async function toImageDBItem(img: GsjImage): Promise<{ dbItem: ImageDBItem; restoredPackJson?: string }> {
-  // 重建 editedSrc（如果有裁切/旋转/翻转）
+async function toImageDBItem(img: GsjImage): Promise<{ dbItem: ImageDBItem; packJson?: string }> {
   let editedSrc: string | undefined
   if (img.cropStateJson) {
     try {
@@ -131,14 +91,7 @@ async function toImageDBItem(img: GsjImage): Promise<{ dbItem: ImageDBItem; rest
     }
   }
 
-  // thumbnail：优先用 gsj 里保存的，旧版 gsj 没有则从原图重建
   const thumbnail = img.thumbnail ?? await generateThumbnail(img.srcBase64)
-
-  // 历史包：把轻量标记还原为真实 dataUrl
-  let restoredPackJson: string | undefined
-  if (img.history?.packJson) {
-    restoredPackJson = restoreHistoryPackImageSrc(img.history.packJson, img.srcBase64, editedSrc)
-  }
 
   return {
     dbItem: {
@@ -163,7 +116,7 @@ async function toImageDBItem(img: GsjImage): Promise<{ dbItem: ImageDBItem; rest
       tags: img.tags,
       sortOrder: img.sortOrder,
     },
-    restoredPackJson,
+    packJson: img.history?.packJson,
   }
 }
 
@@ -174,11 +127,9 @@ export async function parseGsjFile(file: File): Promise<GsjProject> {
   const bytes = new Uint8Array(buffer)
 
   let json: string
-  // magic bytes 0x47 0x53 0x4a = "GSJ" → 加密格式
   if (bytes[0] === 0x47 && bytes[1] === 0x53 && bytes[2] === 0x4a) {
     json = await decrypt(bytes)
   } else {
-    // 兼容旧版明文 JSON
     json = new TextDecoder().decode(bytes)
   }
 
@@ -205,19 +156,17 @@ export async function restoreGsjProject(project: GsjProject, clearExisting = fal
 
   if (clearExisting) await imageDB.clearAll()
 
-  // 还原相册
   for (const album of project.albums) {
     await imageDB.updateAlbum(album as AlbumRecord)
   }
 
-  // 还原图片（含 editedSrc 重建）+ 历史
   let historyCount = 0
   for (const gsjImg of project.images) {
-    const { dbItem, restoredPackJson } = await toImageDBItem(gsjImg)
+    const { dbItem, packJson } = await toImageDBItem(gsjImg)
     await imageDB.saveImage(dbItem)
 
-    if (restoredPackJson) {
-      await imageDB.saveHistoryPack(gsjImg.id, restoredPackJson)
+    if (packJson) {
+      await imageDB.saveHistoryPack(gsjImg.id, packJson)
       historyCount++
     }
   }

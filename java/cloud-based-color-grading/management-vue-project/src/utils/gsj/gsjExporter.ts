@@ -23,55 +23,13 @@ function extractCursor(packJson: string): number {
   try { return (JSON.parse(packJson) as { cursor: number }).cursor ?? 0 } catch { return 0 }
 }
 
-/**
- * 压缩历史包：把每个快照里的 imageSrc（完整 dataUrl）替换为轻量标记
- *   "__src__"    → 原图（与 srcBase64 相同）
- *   "__edited__" → 裁切/旋转后的图（与 editedSrc 相同）
- *   其他值       → 保留原样（兜底，理论上不会出现）
- *
- * 这是历史包体积最大的来源：一张 5MB 图片 30 步历史 = 最多 150MB
- */
-function compressHistoryPackImageSrc(packJson: string, srcBase64: string, editedSrc?: string): string {
-  try {
-    const pack = JSON.parse(packJson) as {
-      base: { imageSrc?: string; [k: string]: unknown }
-      diffs: Array<{ imageSrc?: string; [k: string]: unknown }>
-      cursor: number
-    }
-
-    const compress = (src: string | undefined): string | undefined => {
-      if (!src) return src
-      if (src === srcBase64) return '__src__'
-      if (editedSrc && src === editedSrc) return '__edited__'
-      // 其他 dataUrl（中间裁切步骤）：用 editedSrc 标记兜底，导入时用 editedSrc 还原
-      // 这些中间步骤的图片在撤销/重做时会重新渲染，不需要精确还原
-      if (src.startsWith('data:')) return '__edited__'
-      return src
-    }
-
-    pack.base.imageSrc = compress(pack.base.imageSrc as string)
-    pack.diffs = pack.diffs.map(d => {
-      if ('imageSrc' in d) d.imageSrc = compress(d.imageSrc as string)
-      return d
-    })
-
-    return JSON.stringify(pack)
-  } catch {
-    return packJson  // 解析失败原样返回
-  }
-}
-
 async function toGsjImage(item: ImageDBItem): Promise<GsjImage> {
   const srcBase64 = item.src || await blobToBase64(item.blob)
 
   let history: GsjHistoryPack | undefined
   try {
     const packJson = await imageDB.loadHistoryPack(item.id)
-    if (packJson) {
-      // 压缩 imageSrc：把完整 dataUrl 替换为轻量标记，大幅减小文件体积
-      const compressed = compressHistoryPackImageSrc(packJson, srcBase64, item.editedSrc)
-      history = { cursorPos: extractCursor(compressed), packJson: compressed }
-    }
+    if (packJson) history = { cursorPos: extractCursor(packJson), packJson }
   } catch { /* 历史读取失败不阻断导出 */ }
 
   return {
