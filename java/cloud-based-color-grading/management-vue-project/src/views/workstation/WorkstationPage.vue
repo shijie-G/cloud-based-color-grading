@@ -317,9 +317,18 @@ const scheduleSave = () => {
   if (!selectedImageId.value || isLoadingAdjustments) return
   if (saveTimer) clearTimeout(saveTimer)
   saveTimer = setTimeout(async () => {
-    // 只保存调色参数 JSON，不保存渲染后的图片到 editedSrc
-    // editedSrc 仅用于裁切/旋转/翻转后的图片
-    await saveAdjustments(selectedImageId.value!, serializeAdjustments())
+    const id = selectedImageId.value!
+    const adjustmentsJson = serializeAdjustments()
+    const hasActiveEdit =
+      Object.values(adjustments).some(v => v !== 0) ||
+      Object.values(hslAdjustments).some(group =>
+        group.hue !== 0 || group.saturation !== 0 || group.lightness !== 0
+      ) ||
+      maskLayers.length > 0
+    const renderedSrc = hasActiveEdit ? processedSrc.value : ''
+
+    // 调色参数和当前成品图一起落库，图库直接读取时不会再回退到原图
+    await saveAdjustments(id, adjustmentsJson, renderedSrc)
   }, 500)
 }
 
@@ -865,7 +874,7 @@ const handleAlbumChange = async (albumId: number | null) => {
         .map(item => ({
           id: item.id,
           name: item.name,
-          src: item.editedSrc || item.src,
+          src: item.src,
           originalSrc: item.src,
           thumbnail: item.thumbnail,
           originalFile: new File([item.blob], item.name, { type: item.blob.type }),
@@ -877,7 +886,7 @@ const handleAlbumChange = async (albumId: number | null) => {
       uploadedImages.value = albumImages.map(item => ({
         id: item.id,
         name: item.name,
-        src: item.editedSrc || item.src,
+        src: item.src,
         originalSrc: item.src,
         thumbnail: item.thumbnail,
         originalFile: new File([item.blob], item.name, { type: item.blob.type }),
@@ -941,15 +950,14 @@ onMounted(async () => {
   }
 })
 
-// 清理错误保存的 editedSrc
-// editedSrc 应该只用于裁切/旋转/翻转，不应包含调色效果
-// 如果 editedSrc 存在但没有对应的 cropStateJson，说明是错误保存的调色结果，需要清除
+// 清理孤立的 editedSrc
+// 如果没有任何编辑元数据，说明是历史脏数据，可以恢复到原图
 const cleanupInvalidEditedSrc = async () => {
   try {
     const allImages = await imageDB.getAllImages()
     for (const image of allImages) {
-      // 如果有 editedSrc 但没有 cropStateJson，清除 editedSrc
-      if (image.editedSrc && !image.cropStateJson) {
+      const hasEditMetadata = image.cropStateJson || image.adjustmentsJson || image.filterConfigJson
+      if (image.editedSrc && !hasEditMetadata) {
         console.log(`清理图片 ${image.id} 的错误 editedSrc`)
         await imageRepo.execute('clearCrop', { id: image.id })
       }

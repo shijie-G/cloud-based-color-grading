@@ -84,9 +84,9 @@ export function useImageState(): UseImageStateReturn {
 
   // 选择图片进行编辑
   const selectImage = (image: ImageItem): void => {
-    // 使用 src（可能是裁切后的图片）而不是 originalSrc
-    // src 优先使用 editedSrc（裁切后），没有则用原图
-    imageSrc.value = image.src
+    // 工作站编辑必须从可回放的底图开始：
+    // 优先使用 originalSrc，避免把已处理过的成品再次作为调色输入
+    imageSrc.value = image.originalSrc ?? image.src
     selectedImageId.value = image.id
   }
 

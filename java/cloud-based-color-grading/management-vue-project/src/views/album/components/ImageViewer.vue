@@ -4,6 +4,7 @@ import type { ImageDisplay } from '@/views/gallery/types/gallery'
 import { useHSLState } from '@/views/workstation/composables/useHSLState'
 import { drawLinearMask, drawRadialMask } from '@/views/workstation/composables/useMaskState'
 import { imageDB } from '@/views/workstation/utils/imageDB'
+import type { CropState } from '@/views/workstation/types/cropTypes'
 import ExportModal from './export/ExportModal.vue'
 import { exportGsjFile } from '@/utils/gsj'
 
@@ -28,6 +29,7 @@ const offsetX = ref(0)
 const offsetY = ref(0)
 const isPanning = ref(false)
 const imageContainer = ref<HTMLElement | null>(null)
+const previewBaseSrc = ref('')
 
 // 导出弹窗
 const showExportModal = ref(false)
@@ -47,7 +49,7 @@ const {
 const displayUrl = computed(() => {
   if (!props.image) return ''
   // 如果有调色效果，使用 processedSrc；否则使用裁切后的图片或原图
-  return processedSrc.value || props.image.editedSrc || props.image.url
+  return processedSrc.value || previewBaseSrc.value || props.image.url
 })
 
 // 打开导出弹窗
@@ -83,6 +85,63 @@ const resetTransform = () => {
   offsetY.value = 0
 }
 
+const loadImage = (src: string): Promise<HTMLImageElement> =>
+  new Promise((resolve, reject) => {
+    const img = new Image()
+    img.onload = () => resolve(img)
+    img.onerror = () => reject(new Error('图片加载失败'))
+    img.src = src
+  })
+
+const rebuildEditedSrc = async (srcBase64: string, cropState: CropState): Promise<string | undefined> => {
+  const { rotate, flipH, flipV, rect } = cropState
+  if (rotate === 0 && !flipH && !flipV && !rect) return undefined
+
+  const img = await loadImage(srcBase64)
+  let current: HTMLCanvasElement
+
+  if (rotate !== 0) {
+    const rad = (rotate * Math.PI) / 180
+    const sw = rotate === 90 || rotate === 270 ? img.naturalHeight : img.naturalWidth
+    const sh = rotate === 90 || rotate === 270 ? img.naturalWidth : img.naturalHeight
+    const c = document.createElement('canvas')
+    c.width = sw
+    c.height = sh
+    const ctx = c.getContext('2d')!
+    ctx.translate(sw / 2, sh / 2)
+    ctx.rotate(rad)
+    ctx.drawImage(img, -img.naturalWidth / 2, -img.naturalHeight / 2)
+    current = c
+  } else {
+    const c = document.createElement('canvas')
+    c.width = img.naturalWidth
+    c.height = img.naturalHeight
+    c.getContext('2d')!.drawImage(img, 0, 0)
+    current = c
+  }
+
+  if (flipH || flipV) {
+    const c = document.createElement('canvas')
+    c.width = current.width
+    c.height = current.height
+    const ctx = c.getContext('2d')!
+    if (flipH) { ctx.translate(c.width, 0); ctx.scale(-1, 1) }
+    if (flipV) { ctx.translate(0, c.height); ctx.scale(1, -1) }
+    ctx.drawImage(current, 0, 0)
+    current = c
+  }
+
+  if (rect) {
+    const c = document.createElement('canvas')
+    c.width = rect.w
+    c.height = rect.h
+    c.getContext('2d')!.drawImage(current, rect.x, rect.y, rect.w, rect.h, 0, 0, rect.w, rect.h)
+    current = c
+  }
+
+  return current.toDataURL('image/png')
+}
+
 // 重置为默认调色参数（与 WorkstationPage 保持一致）
 const resetToDefaults = () => {
   setBasicAdjustments({
@@ -105,18 +164,29 @@ watch(() => props.image, async (newImage) => {
   rotation.value = 0
 
   if (!newImage) {
+    previewBaseSrc.value = ''
     setSourceImage('')
     return
   }
 
-  const baseSrc = newImage.editedSrc || newImage.url
+  // 先清空当前处理结果，避免异步加载参数期间展示上一张图的处理态
+  previewBaseSrc.value = ''
+  setSourceImage('')
 
-  // ── 先从 IndexedDB 读取所有参数并注入，最后再调 setSourceImage ──
-  // 这样 setSourceImage 加载完图片后触发的 triggerProcess 能一次性
-  // 带上所有参数（基础调色 + HSL + 蒙版 + 滤镜），避免滤镜被跳过
   try {
     const dbItem = await imageDB.getImage(newImage.id)
-    if (dbItem?.adjustmentsJson) {
+    if (!dbItem) {
+      previewBaseSrc.value = newImage.url
+      resetToDefaults()
+      setSourceImage(newImage.url)
+      return
+    }
+
+    const cropState = dbItem.cropStateJson ? JSON.parse(dbItem.cropStateJson) as CropState : null
+    const rebuiltBase = cropState ? await rebuildEditedSrc(dbItem.src, cropState) : undefined
+    previewBaseSrc.value = rebuiltBase || dbItem.src
+
+    if (dbItem.adjustmentsJson) {
       const data = JSON.parse(dbItem.adjustmentsJson)
 
       // 1. 基础调色
@@ -135,7 +205,7 @@ watch(() => props.image, async (newImage) => {
         await new Promise<void>(resolve => {
           img.onload = () => resolve()
           img.onerror = () => resolve()
-          img.src = baseSrc
+          img.src = previewBaseSrc.value || dbItem.src
         })
         const w = img.naturalWidth
         const h = img.naturalHeight
@@ -179,11 +249,12 @@ watch(() => props.image, async (newImage) => {
     }
   } catch (error) {
     console.error('加载调色参数失败:', error)
+    previewBaseSrc.value = newImage.url
     resetToDefaults()
   }
 
   // 所有参数就绪后再触发图片加载，triggerProcess 一次性带上全部参数
-  setSourceImage(baseSrc)
+  setSourceImage(previewBaseSrc.value || newImage.url)
 }, { immediate: true })
 
 // 移除 computed，直接在模板中使用内联样式以提升性能
