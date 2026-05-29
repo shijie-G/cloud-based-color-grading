@@ -29,8 +29,8 @@ export function useImageState() {
     return images.value.map(img => {
       // 优先使用编辑后的图片（editedSrc），如果没有则使用原始 blob
       const url = img.editedSrc || URL.createObjectURL(img.blob)
-      // 如果有缩略图 DataURL，直接使用；否则使用原图 URL
-      const thumbnailUrl = img.thumbnail || url
+      // 缩略图也优先使用编辑后的图片，避免显示原图封面
+      const thumbnailUrl = img.editedSrc || img.thumbnail || url
 
       return {
         ...img,

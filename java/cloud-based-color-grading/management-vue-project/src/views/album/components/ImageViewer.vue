@@ -5,6 +5,7 @@ import { useHSLState } from '@/views/workstation/composables/useHSLState'
 import { drawLinearMask, drawRadialMask } from '@/views/workstation/composables/useMaskState'
 import { imageDB } from '@/views/workstation/utils/imageDB'
 import type { CropState } from '@/views/workstation/types/cropTypes'
+import { defaultFilterConfig } from '@/views/workstation/types/filterTypes'
 import ExportModal from './export/ExportModal.vue'
 import { exportGsjFile } from '@/utils/gsj'
 
@@ -158,6 +159,10 @@ const resetToDefaults = () => {
   }, true)  // silent：由 setSourceImage 统一触发渲染
 }
 
+const resetFilterToDefaults = () => {
+  setFilterConfig(defaultFilterConfig(), true)
+}
+
 // 监听图片变化，重置变换并应用调色（与 WorkstationPage.applyStoredAdjustments 对齐）
 watch(() => props.image, async (newImage) => {
   resetTransform()
@@ -242,7 +247,7 @@ watch(() => props.image, async (newImage) => {
       if (dbItem.filterConfigJson) {
         setFilterConfig(JSON.parse(dbItem.filterConfigJson), true)  // silent：由 setSourceImage 统一触发渲染
       } else {
-        resetToDefaults()
+        resetFilterToDefaults()
       }
     } else {
       resetToDefaults()

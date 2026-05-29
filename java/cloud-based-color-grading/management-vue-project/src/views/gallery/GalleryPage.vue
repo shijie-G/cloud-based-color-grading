@@ -68,8 +68,8 @@ async function loadAlbumCovers() {
           coverImage = validImages[0]
         }
 
-        if (coverImage && coverImage.thumbnail) {
-          covers.set(album.id, coverImage.thumbnail)
+        if (coverImage) {
+          covers.set(album.id, coverImage.editedSrc || coverImage.thumbnail || coverImage.src)
         }
       }
     }
