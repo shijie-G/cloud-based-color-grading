@@ -1,0 +1,24 @@
+2026-05-29 19:37:27.858 [main] INFO  c.g.gateway.GatewayApplicationTests - Starting GatewayApplicationTests using Java 21.0.7 with PID 97679 (started by gaoshijie in /Users/gaoshijie/u_Document/cloud-based-color-grading/cloud-based-color-grading/java/cloud-based-color-grading/gateway)
+2026-05-29 19:37:27.858 [main] INFO  c.g.gateway.GatewayApplicationTests - No active profile set, falling back to 1 default profile: "default"
+2026-05-29 19:37:28.062 [main] INFO  o.s.d.r.c.RepositoryConfigurationDelegate - Multiple Spring Data modules found, entering strict repository configuration mode
+2026-05-29 19:37:28.063 [main] INFO  o.s.d.r.c.RepositoryConfigurationDelegate - Bootstrapping Spring Data Redis repositories in DEFAULT mode.
+2026-05-29 19:37:28.072 [main] INFO  o.s.d.r.c.RepositoryConfigurationDelegate - Finished Spring Data repository scanning in 4 ms. Found 0 Redis repository interfaces.
+2026-05-29 19:37:28.145 [main] INFO  o.s.cloud.context.scope.GenericScope - BeanFactory id=b61a9bb9-6c2a-3861-8e2e-78994632b3b2
+2026-05-29 19:37:28.290 [main] ERROR i.n.r.d.DnsServerAddressStreamProviders - Unable to load io.netty.resolver.dns.macos.MacOSDnsServerAddressStreamProvider, fallback to system defaults. This may result in incorrect DNS resolutions on MacOS. Check whether you have a dependency on 'io.netty:netty-resolver-dns-native-macos'. Use DEBUG level to see the full stack: java.lang.UnsatisfiedLinkError: failed to load the required native library
+2026-05-29 19:37:29.452 [main] INFO  o.s.cloud.commons.util.InetUtils - Cannot determine local hostname
+2026-05-29 19:37:29.555 [main] INFO  o.s.c.g.r.RouteDefinitionRouteLocator - Loaded RoutePredicateFactory [After]
+2026-05-29 19:37:29.555 [main] INFO  o.s.c.g.r.RouteDefinitionRouteLocator - Loaded RoutePredicateFactory [Before]
+2026-05-29 19:37:29.555 [main] INFO  o.s.c.g.r.RouteDefinitionRouteLocator - Loaded RoutePredicateFactory [Between]
+2026-05-29 19:37:29.555 [main] INFO  o.s.c.g.r.RouteDefinitionRouteLocator - Loaded RoutePredicateFactory [Cookie]
+2026-05-29 19:37:29.555 [main] INFO  o.s.c.g.r.RouteDefinitionRouteLocator - Loaded RoutePredicateFactory [Header]
+2026-05-29 19:37:29.555 [main] INFO  o.s.c.g.r.RouteDefinitionRouteLocator - Loaded RoutePredicateFactory [Host]
+2026-05-29 19:37:29.555 [main] INFO  o.s.c.g.r.RouteDefinitionRouteLocator - Loaded RoutePredicateFactory [Method]
+2026-05-29 19:37:29.555 [main] INFO  o.s.c.g.r.RouteDefinitionRouteLocator - Loaded RoutePredicateFactory [Path]
+2026-05-29 19:37:29.555 [main] INFO  o.s.c.g.r.RouteDefinitionRouteLocator - Loaded RoutePredicateFactory [Query]
+2026-05-29 19:37:29.555 [main] INFO  o.s.c.g.r.RouteDefinitionRouteLocator - Loaded RoutePredicateFactory [ReadBody]
+2026-05-29 19:37:29.555 [main] INFO  o.s.c.g.r.RouteDefinitionRouteLocator - Loaded RoutePredicateFactory [RemoteAddr]
+2026-05-29 19:37:29.555 [main] INFO  o.s.c.g.r.RouteDefinitionRouteLocator - Loaded RoutePredicateFactory [XForwardedRemoteAddr]
+2026-05-29 19:37:29.555 [main] INFO  o.s.c.g.r.RouteDefinitionRouteLocator - Loaded RoutePredicateFactory [Weight]
+2026-05-29 19:37:29.555 [main] INFO  o.s.c.g.r.RouteDefinitionRouteLocator - Loaded RoutePredicateFactory [CloudFoundryRouteService]
+2026-05-29 19:37:30.609 [main] INFO  o.s.cloud.commons.util.InetUtils - Cannot determine local hostname
+2026-05-29 19:37:30.668 [main] INFO  c.g.gateway.GatewayApplicationTests - Started GatewayApplicationTests in 3.991 seconds (process running for 4.31)

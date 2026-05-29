@@ -1,5 +1,7 @@
 import type { Router } from 'vue-router';
 import { useUserStore } from '../stores/userStore';
+import { redirectBrowserToLogin } from './loginLocation';
+import { toStationLocation } from './stationLocation';
 
 /**
  * 设置路由守卫
@@ -21,8 +23,13 @@ export function setupRouterGuards(router: Router): void {
     console.log('目标路由 query:', to.query);
     
     const userStore = useUserStore();
-    const isLoggedIn = userStore.isLoggedIn;
+    let isLoggedIn = userStore.isLoggedIn;
     const requiresAuth = to.meta.requiresAuth;
+
+    if (!isLoggedIn) {
+      userStore.restoreUserInfo();
+      isLoggedIn = userStore.isLoggedIn;
+    }
     
     console.log('登录状态:', isLoggedIn);
     console.log('需要认证:', requiresAuth);
@@ -35,7 +42,13 @@ export function setupRouterGuards(router: Router): void {
     // 需求 6.2: 已登录用户访问登录页时，重定向到工作台
     if (to.path === '/login' && isLoggedIn) {
       console.log('✅ 已登录用户访问登录页，重定向到工作台');
-      next('/workstation');
+      const targetPath = toStationLocation('/workstation');
+      if (targetPath === '/workstation') {
+        next('/workstation');
+      } else {
+        window.location.href = targetPath;
+        next(false);
+      }
       return;
     }
 
@@ -44,10 +57,16 @@ export function setupRouterGuards(router: Router): void {
     if (requiresAuth && !isLoggedIn) {
       console.log('❌ 未登录用户访问受保护路由，重定向到登录页');
       console.log('保存重定向路径:', to.fullPath);
-      next({
-        path: '/login',
-        query: { redirect: to.fullPath }
-      });
+      const hasLoginRoute = router.getRoutes().some((route) => route.path === '/login');
+      if (hasLoginRoute) {
+        next({
+          path: '/login',
+          query: { redirect: to.fullPath }
+        });
+      } else {
+        redirectBrowserToLogin(to.fullPath);
+        next(false);
+      }
       return;
     }
 

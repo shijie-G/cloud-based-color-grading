@@ -22,7 +22,6 @@
         <module>gateway</module>
         <module>auth-service</module>
         <module>authz-service</module>
-        <module>business</module>
     </modules>
 
     <properties>

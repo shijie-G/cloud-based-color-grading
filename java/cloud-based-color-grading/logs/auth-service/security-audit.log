@@ -1,2 +1,3 @@
-2026-03-23 18:05:45.854 [http-nio-8081-exec-1] WARN  cn.gsjgsj.authservice.security - LOGIN_FAILURE - Username: 123456, Reason: User not found, IP: unknown
-2026-03-23 18:05:58.842 [http-nio-8081-exec-2] INFO  cn.gsjgsj.authservice.security - LOGIN_SUCCESS - Username: admin, UserId: 1, IP: unknown
+2026-05-29 18:46:08.280 [http-nio-8081-exec-1] INFO  cn.gsjgsj.authservice.security - LOGIN_SUCCESS - Username: admin, UserId: 1, IP: unknown
+2026-05-29 19:25:11.338 [http-nio-8081-exec-3] INFO  cn.gsjgsj.authservice.security - LOGIN_SUCCESS - Username: 17759766761, UserId: 9, IP: unknown
+2026-05-29 19:25:51.463 [http-nio-8081-exec-4] INFO  cn.gsjgsj.authservice.security - LOGIN_SUCCESS - Username: 17759766761, UserId: 9, IP: unknown

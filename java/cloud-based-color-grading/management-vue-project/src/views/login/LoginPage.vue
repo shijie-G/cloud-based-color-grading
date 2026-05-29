@@ -23,7 +23,7 @@
           <el-input
             ref="usernameInputRef"
             v-model="formData.username"
-            placeholder="手机号或邮箱"
+            placeholder="用户名、手机号或邮箱"
             size="large"
             @keyup.enter="handleLogin"
           >
@@ -83,7 +83,7 @@ import { useLoginForm } from './useLoginForm';
  */
 
 // 使用登录表单组合式函数
-const { formData, rules, loading, isFormValid, handleLogin } = useLoginForm();
+const { formData, formRef, rules, loading, isFormValid, handleLogin } = useLoginForm();
 
 // 账号输入框引用（用于自动聚焦）
 const usernameInputRef = ref();

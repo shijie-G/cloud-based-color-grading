@@ -1,47 +1,39 @@
-2026-03-23 18:03:50.550 [main] INFO  c.g.a.AuthServiceApplication - Starting AuthServiceApplication using Java 21.0.7 with PID 18500 (/Users/gaoshijie/u_Document/cloud-based-color-grading/cloud-based-color-grading/java/cloud-based-color-grading/auth-service/target/classes started by gaoshijie in /Users/gaoshijie/u_Document/cloud-based-color-grading/cloud-based-color-grading/java/cloud-based-color-grading)
-2026-03-23 18:03:50.555 [main] INFO  c.g.a.AuthServiceApplication - No active profile set, falling back to 1 default profile: "default"
-2026-03-23 18:03:50.807 [main] INFO  o.s.d.r.c.RepositoryConfigurationDelegate - Multiple Spring Data modules found, entering strict repository configuration mode
-2026-03-23 18:03:50.808 [main] INFO  o.s.d.r.c.RepositoryConfigurationDelegate - Bootstrapping Spring Data Redis repositories in DEFAULT mode.
-2026-03-23 18:03:50.819 [main] INFO  o.s.d.r.c.RepositoryConfigurationDelegate - Finished Spring Data repository scanning in 6 ms. Found 0 Redis repository interfaces.
-2026-03-23 18:03:50.887 [main] INFO  o.s.cloud.context.scope.GenericScope - BeanFactory id=7db9776a-0f49-330e-8caf-bffb412b50bd
-2026-03-23 18:03:51.012 [main] INFO  o.s.b.w.e.tomcat.TomcatWebServer - Tomcat initialized with port 8081 (http)
-2026-03-23 18:03:51.022 [main] INFO  o.a.catalina.core.StandardService - Starting service [Tomcat]
-2026-03-23 18:03:51.022 [main] INFO  o.a.catalina.core.StandardEngine - Starting Servlet engine: [Apache Tomcat/10.1.30]
-2026-03-23 18:03:51.048 [main] INFO  o.a.c.c.C.[Tomcat].[localhost].[/] - Initializing Spring embedded WebApplicationContext
-2026-03-23 18:03:51.048 [main] INFO  o.s.b.w.s.c.ServletWebServerApplicationContext - Root WebApplicationContext: initialization completed in 475 ms
-2026-03-23 18:03:51.124 [main] INFO  com.zaxxer.hikari.HikariDataSource - HikariPool-1 - Starting...
-2026-03-23 18:03:51.327 [main] INFO  com.zaxxer.hikari.pool.HikariPool - HikariPool-1 - Added connection com.mysql.cj.jdbc.ConnectionImpl@5908e6d6
-2026-03-23 18:03:51.328 [main] INFO  com.zaxxer.hikari.HikariDataSource - HikariPool-1 - Start completed.
-2026-03-23 18:03:51.642 [main] INFO  o.s.b.w.e.tomcat.TomcatWebServer - Tomcat started on port 8081 (http) with context path ''
-2026-03-23 18:03:51.647 [main] INFO  c.g.a.AuthServiceApplication - Started AuthServiceApplication in 1.321 seconds (process running for 1.588)
-2026-03-23 18:05:45.452 [http-nio-8081-exec-1] INFO  o.a.c.c.C.[Tomcat].[localhost].[/] - Initializing Spring DispatcherServlet 'dispatcherServlet'
-2026-03-23 18:05:45.452 [http-nio-8081-exec-1] INFO  o.s.web.servlet.DispatcherServlet - Initializing Servlet 'dispatcherServlet'
-2026-03-23 18:05:45.454 [http-nio-8081-exec-1] INFO  o.s.web.servlet.DispatcherServlet - Completed initialization in 2 ms
-2026-03-23 18:26:47.338 [SpringApplicationShutdownHook] INFO  com.zaxxer.hikari.HikariDataSource - HikariPool-1 - Shutdown initiated...
-2026-03-23 18:26:47.343 [SpringApplicationShutdownHook] INFO  com.zaxxer.hikari.HikariDataSource - HikariPool-1 - Shutdown completed.
-2026-03-23 18:26:58.078 [main] INFO  c.g.a.AuthServiceApplication - Starting AuthServiceApplication using Java 21.0.7 with PID 18805 (/Users/gaoshijie/u_Document/cloud-based-color-grading/cloud-based-color-grading/java/cloud-based-color-grading/auth-service/target/classes started by gaoshijie in /Users/gaoshijie/u_Document/cloud-based-color-grading/cloud-based-color-grading/java/cloud-based-color-grading)
-2026-03-23 18:26:58.078 [main] INFO  c.g.a.AuthServiceApplication - No active profile set, falling back to 1 default profile: "default"
-2026-03-23 18:26:58.420 [main] INFO  o.s.d.r.c.RepositoryConfigurationDelegate - Multiple Spring Data modules found, entering strict repository configuration mode
-2026-03-23 18:26:58.421 [main] INFO  o.s.d.r.c.RepositoryConfigurationDelegate - Bootstrapping Spring Data Redis repositories in DEFAULT mode.
-2026-03-23 18:26:58.432 [main] INFO  o.s.d.r.c.RepositoryConfigurationDelegate - Finished Spring Data repository scanning in 7 ms. Found 0 Redis repository interfaces.
-2026-03-23 18:26:58.514 [main] INFO  o.s.cloud.context.scope.GenericScope - BeanFactory id=7db9776a-0f49-330e-8caf-bffb412b50bd
-2026-03-23 18:26:58.667 [main] INFO  o.s.b.w.e.tomcat.TomcatWebServer - Tomcat initialized with port 8081 (http)
-2026-03-23 18:26:58.672 [main] INFO  o.a.catalina.core.StandardService - Starting service [Tomcat]
-2026-03-23 18:26:58.673 [main] INFO  o.a.catalina.core.StandardEngine - Starting Servlet engine: [Apache Tomcat/10.1.30]
-2026-03-23 18:26:58.700 [main] INFO  o.a.c.c.C.[Tomcat].[localhost].[/] - Initializing Spring embedded WebApplicationContext
-2026-03-23 18:26:58.700 [main] INFO  o.s.b.w.s.c.ServletWebServerApplicationContext - Root WebApplicationContext: initialization completed in 606 ms
-2026-03-23 18:26:58.787 [main] INFO  com.zaxxer.hikari.HikariDataSource - HikariPool-1 - Starting...
-2026-03-23 18:26:58.996 [main] INFO  com.zaxxer.hikari.pool.HikariPool - HikariPool-1 - Added connection com.mysql.cj.jdbc.ConnectionImpl@9d99851
-2026-03-23 18:26:58.997 [main] INFO  com.zaxxer.hikari.HikariDataSource - HikariPool-1 - Start completed.
-2026-03-23 18:26:59.438 [main] INFO  o.s.b.w.e.tomcat.TomcatWebServer - Tomcat started on port 8081 (http) with context path ''
-2026-03-23 18:26:59.445 [main] INFO  c.g.a.AuthServiceApplication - Started AuthServiceApplication in 1.598 seconds (process running for 1.826)
-2026-03-23 18:27:03.314 [http-nio-8081-exec-1] INFO  o.a.c.c.C.[Tomcat].[localhost].[/] - Initializing Spring DispatcherServlet 'dispatcherServlet'
-2026-03-23 18:27:03.315 [http-nio-8081-exec-1] INFO  o.s.web.servlet.DispatcherServlet - Initializing Servlet 'dispatcherServlet'
-2026-03-23 18:27:03.316 [http-nio-8081-exec-1] INFO  o.s.web.servlet.DispatcherServlet - Completed initialization in 1 ms
-2026-03-23 19:15:46.424 [HikariPool-1 housekeeper] WARN  com.zaxxer.hikari.pool.HikariPool - HikariPool-1 - Thread starvation or clock leap detected (housekeeper delta=3m16s781ms).
-2026-03-23 19:21:32.818 [HikariPool-1 housekeeper] WARN  com.zaxxer.hikari.pool.HikariPool - HikariPool-1 - Thread starvation or clock leap detected (housekeeper delta=4m46s381ms).
-2026-03-23 19:24:36.893 [HikariPool-1 housekeeper] WARN  com.zaxxer.hikari.pool.HikariPool - HikariPool-1 - Thread starvation or clock leap detected (housekeeper delta=2m34s68ms).
-2026-03-23 19:29:41.347 [HikariPool-1 housekeeper] WARN  com.zaxxer.hikari.pool.HikariPool - HikariPool-1 - Thread starvation or clock leap detected (housekeeper delta=5m4s454ms).
-2026-03-23 19:32:20.175 [HikariPool-1 housekeeper] WARN  com.zaxxer.hikari.pool.HikariPool - HikariPool-1 - Thread starvation or clock leap detected (housekeeper delta=2m8s817ms).
-2026-03-23 23:40:15.679 [SpringApplicationShutdownHook] INFO  com.zaxxer.hikari.HikariDataSource - HikariPool-1 - Shutdown initiated...
-2026-03-23 23:40:15.681 [SpringApplicationShutdownHook] INFO  com.zaxxer.hikari.HikariDataSource - HikariPool-1 - Shutdown completed.
+2026-05-29 18:43:41.674 [main] INFO  c.g.a.AuthServiceApplication - Starting AuthServiceApplication using Java 21.0.7 with PID 93327 (/Users/gaoshijie/u_Document/cloud-based-color-grading/cloud-based-color-grading/java/cloud-based-color-grading/auth-service/target/classes started by gaoshijie in /Users/gaoshijie/u_Document/cloud-based-color-grading/cloud-based-color-grading/java/cloud-based-color-grading)
+2026-05-29 18:43:41.682 [main] INFO  c.g.a.AuthServiceApplication - No active profile set, falling back to 1 default profile: "default"
+2026-05-29 18:43:42.177 [main] INFO  o.s.d.r.c.RepositoryConfigurationDelegate - Multiple Spring Data modules found, entering strict repository configuration mode
+2026-05-29 18:43:42.178 [main] INFO  o.s.d.r.c.RepositoryConfigurationDelegate - Bootstrapping Spring Data Redis repositories in DEFAULT mode.
+2026-05-29 18:43:42.190 [main] INFO  o.s.d.r.c.RepositoryConfigurationDelegate - Finished Spring Data repository scanning in 6 ms. Found 0 Redis repository interfaces.
+2026-05-29 18:43:42.263 [main] INFO  o.s.cloud.context.scope.GenericScope - BeanFactory id=7db9776a-0f49-330e-8caf-bffb412b50bd
+2026-05-29 18:43:42.391 [main] INFO  o.s.b.w.e.tomcat.TomcatWebServer - Tomcat initialized with port 8081 (http)
+2026-05-29 18:43:42.396 [main] INFO  o.a.catalina.core.StandardService - Starting service [Tomcat]
+2026-05-29 18:43:42.396 [main] INFO  o.a.catalina.core.StandardEngine - Starting Servlet engine: [Apache Tomcat/10.1.30]
+2026-05-29 18:43:42.425 [main] INFO  o.a.c.c.C.[Tomcat].[localhost].[/] - Initializing Spring embedded WebApplicationContext
+2026-05-29 18:43:42.425 [main] INFO  o.s.b.w.s.c.ServletWebServerApplicationContext - Root WebApplicationContext: initialization completed in 680 ms
+2026-05-29 18:43:42.499 [main] INFO  com.zaxxer.hikari.HikariDataSource - HikariPool-1 - Starting...
+2026-05-29 18:43:42.701 [main] INFO  com.zaxxer.hikari.pool.HikariPool - HikariPool-1 - Added connection com.mysql.cj.jdbc.ConnectionImpl@37a67cf
+2026-05-29 18:43:42.702 [main] INFO  com.zaxxer.hikari.HikariDataSource - HikariPool-1 - Start completed.
+2026-05-29 18:43:42.954 [main] INFO  o.s.b.w.e.tomcat.TomcatWebServer - Tomcat started on port 8081 (http) with context path ''
+2026-05-29 18:43:42.959 [main] INFO  c.g.a.AuthServiceApplication - Started AuthServiceApplication in 1.507 seconds (process running for 1.814)
+2026-05-29 18:46:07.730 [http-nio-8081-exec-1] INFO  o.a.c.c.C.[Tomcat].[localhost].[/] - Initializing Spring DispatcherServlet 'dispatcherServlet'
+2026-05-29 18:46:07.731 [http-nio-8081-exec-1] INFO  o.s.web.servlet.DispatcherServlet - Initializing Servlet 'dispatcherServlet'
+2026-05-29 18:46:07.734 [http-nio-8081-exec-1] INFO  o.s.web.servlet.DispatcherServlet - Completed initialization in 3 ms
+2026-05-29 19:38:53.744 [SpringApplicationShutdownHook] INFO  com.zaxxer.hikari.HikariDataSource - HikariPool-1 - Shutdown initiated...
+2026-05-29 19:38:53.745 [SpringApplicationShutdownHook] INFO  com.zaxxer.hikari.HikariDataSource - HikariPool-1 - Shutdown completed.
+2026-05-29 19:38:55.883 [main] INFO  c.g.a.AuthServiceApplication - Starting AuthServiceApplication using Java 21.0.7 with PID 97734 (/Users/gaoshijie/u_Document/cloud-based-color-grading/cloud-based-color-grading/java/cloud-based-color-grading/auth-service/target/classes started by gaoshijie in /Users/gaoshijie/u_Document/cloud-based-color-grading/cloud-based-color-grading/java/cloud-based-color-grading)
+2026-05-29 19:38:55.884 [main] INFO  c.g.a.AuthServiceApplication - No active profile set, falling back to 1 default profile: "default"
+2026-05-29 19:38:56.062 [main] INFO  o.s.d.r.c.RepositoryConfigurationDelegate - Multiple Spring Data modules found, entering strict repository configuration mode
+2026-05-29 19:38:56.062 [main] INFO  o.s.d.r.c.RepositoryConfigurationDelegate - Bootstrapping Spring Data Redis repositories in DEFAULT mode.
+2026-05-29 19:38:56.069 [main] INFO  o.s.d.r.c.RepositoryConfigurationDelegate - Finished Spring Data repository scanning in 3 ms. Found 0 Redis repository interfaces.
+2026-05-29 19:38:56.128 [main] INFO  o.s.cloud.context.scope.GenericScope - BeanFactory id=7db9776a-0f49-330e-8caf-bffb412b50bd
+2026-05-29 19:38:56.270 [main] INFO  o.s.b.w.e.tomcat.TomcatWebServer - Tomcat initialized with port 8081 (http)
+2026-05-29 19:38:56.275 [main] INFO  o.a.catalina.core.StandardService - Starting service [Tomcat]
+2026-05-29 19:38:56.275 [main] INFO  o.a.catalina.core.StandardEngine - Starting Servlet engine: [Apache Tomcat/10.1.30]
+2026-05-29 19:38:56.294 [main] INFO  o.a.c.c.C.[Tomcat].[localhost].[/] - Initializing Spring embedded WebApplicationContext
+2026-05-29 19:38:56.294 [main] INFO  o.s.b.w.s.c.ServletWebServerApplicationContext - Root WebApplicationContext: initialization completed in 399 ms
+2026-05-29 19:38:56.353 [main] INFO  com.zaxxer.hikari.HikariDataSource - HikariPool-1 - Starting...
+2026-05-29 19:38:56.553 [main] INFO  com.zaxxer.hikari.pool.HikariPool - HikariPool-1 - Added connection com.mysql.cj.jdbc.ConnectionImpl@4228f269
+2026-05-29 19:38:56.554 [main] INFO  com.zaxxer.hikari.HikariDataSource - HikariPool-1 - Start completed.
+2026-05-29 19:38:57.841 [main] INFO  o.s.cloud.commons.util.InetUtils - Cannot determine local hostname
+2026-05-29 19:38:57.868 [main] INFO  o.s.b.w.e.tomcat.TomcatWebServer - Tomcat started on port 8081 (http) with context path ''
+2026-05-29 19:38:58.869 [main] INFO  o.s.cloud.commons.util.InetUtils - Cannot determine local hostname
+2026-05-29 19:38:58.874 [main] INFO  c.g.a.AuthServiceApplication - Started AuthServiceApplication in 4.187 seconds (process running for 4.463)

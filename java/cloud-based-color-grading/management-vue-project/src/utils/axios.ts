@@ -1,7 +1,7 @@
 import axios from 'axios';
 import type { AxiosInstance, InternalAxiosRequestConfig, AxiosResponse, AxiosError } from 'axios';
 import { useUserStore } from '../stores/userStore';
-import router from '../router';
+import { redirectBrowserToLogin } from '../router/loginLocation';
 
 /**
  * 创建 Axios 实例
@@ -54,7 +54,7 @@ axiosInstance.interceptors.response.use(
     if (error.response?.status === 401) {
       const userStore = useUserStore();
       userStore.clearUserInfo();
-      router.push('/login');
+      redirectBrowserToLogin(window.location.hash.replace(/^#/, '') || window.location.pathname);
     }
     return Promise.reject(error);
   }

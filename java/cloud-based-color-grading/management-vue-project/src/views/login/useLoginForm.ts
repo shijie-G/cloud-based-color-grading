@@ -3,8 +3,9 @@ import { useRoute } from 'vue-router';
 import { ElMessage } from 'element-plus';
 import type { FormInstance, FormRules } from 'element-plus';
 import { useUserStore } from '../../stores/userStore';
-import { loginFormRules } from '../../utils/validators';
+import { isValidLoginAccount, loginFormRules } from '../../utils/validators';
 import type { LoginFormData } from '../../types/auth';
+import { toStationLocation } from '../../router/stationLocation';
 
 /**
  * useLoginForm 返回类型
@@ -51,10 +52,8 @@ export function useLoginForm(): UseLoginFormReturn {
       return false;
     }
 
-    // 检查账号格式（手机号或邮箱）
-    const PHONE_REGEX = /^1\d{10}$/;
-    const EMAIL_REGEX = /^[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}$/;
-    if (!PHONE_REGEX.test(formData.value.username) && !EMAIL_REGEX.test(formData.value.username)) {
+    // 检查账号格式（用户名、手机号或邮箱）
+    if (!isValidLoginAccount(formData.value.username)) {
       return false;
     }
 
@@ -99,7 +98,7 @@ export function useLoginForm(): UseLoginFormReturn {
 
       // 获取重定向路径
       const redirect = route.query.redirect as string;
-      const targetPath = redirect || '/workstation';
+      const targetPath = toStationLocation(redirect || '/workstation');
       console.log('准备跳转到:', targetPath);
       console.log('当前路由:', route.path);
       

@@ -1,7 +1,11 @@
-import { createRouter, createWebHistory, RouteRecordRaw } from 'vue-router'
+import { createRouter, createWebHashHistory, RouteRecordRaw } from 'vue-router'
 
 // Login 实例路由配置 (history 模式)
 const routes: RouteRecordRaw[] = [
+  {
+    path: '/',
+    redirect: '/login'
+  },
   {
     path: '/login',
     name: 'Login',
@@ -12,9 +16,9 @@ const routes: RouteRecordRaw[] = [
   }
 ]
 
-// 创建 login 路由实例 - history 模式
+// 创建 login 路由实例 - hash 模式，确保 /login.html 能直接承载登录页
 const loginRouter = createRouter({
-  history: createWebHistory(import.meta.env.BASE_URL),
+  history: createWebHashHistory('/login.html'),
   routes
 })
 

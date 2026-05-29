@@ -2,7 +2,7 @@
  * 登录表单数据
  */
 export interface LoginFormData {
-  username: string; // 手机号或邮箱
+  username: string; // 用户名、手机号或邮箱
   password: string;
 }
 
@@ -10,7 +10,7 @@ export interface LoginFormData {
  * 登录请求参数
  */
 export interface LoginRequest {
-  username: string; // 手机号或邮箱
+  username: string; // 用户名、手机号或邮箱
   password: string;
 }
 
