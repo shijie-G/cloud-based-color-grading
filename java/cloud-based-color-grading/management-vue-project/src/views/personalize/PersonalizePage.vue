@@ -5,6 +5,7 @@ import { usePersonalizeStorage } from './composables/usePersonalizeStorage'
 import { useHSLState } from '@/views/workstation/composables/useHSLState'
 import { drawLinearMask, drawRadialMask } from '@/views/workstation/composables/useMaskState'
 import { imageDB } from '@/views/workstation/utils/imageDB'
+import { resolvePersonalizeBaseSrc } from './utils/previewBaseImage'
 import CanvasArea from './components/CanvasArea.vue'
 import LayerPanel from './components/LayerPanel.vue'
 import AssetPanel from './components/AssetPanel.vue'
@@ -191,8 +192,8 @@ async function handleImageSelect(imageId: number, imageUrl: string, width: numbe
       return
     }
 
-    // 使用裁切后的图片（如果有）或原图
-    const baseSrc = dbItem.editedSrc || dbItem.src
+    // 仅以原图 + 裁切状态重建底图，不直接拿 editedSrc 作为调色输入
+    const baseSrc = await resolvePersonalizeBaseSrc(dbItem)
     setSourceImage(baseSrc)
 
     // 应用调色参数（如果有）

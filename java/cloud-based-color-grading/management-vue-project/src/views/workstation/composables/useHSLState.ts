@@ -414,7 +414,7 @@ export function useHSLState(): UseHSLStateReturn {
   const setSourceImage = async (src: string) => {
     if (!src) {
       processedSrc.value = ''; sourceSrc = ''
-      previewData = null; fullData = null
+      previewData = null; fullData = null; cachedSrc = ''
       return
     }
     sourceSrc = src

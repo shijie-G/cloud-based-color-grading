@@ -102,6 +102,7 @@ import type { CropState } from './types/cropTypes'
 import { DEFAULT_CROP_STATE } from './types/cropTypes'
 import { imageDB } from './utils/imageDB'
 import { imageRepo } from './utils/ImageRepository'
+import { resolveWorkstationSelectedSrc } from './utils/workstationCropSource'
 import TopNavbar from './components/TopNavbar.vue';
 import ImageDisplay from './components/ImageDisplay.vue';
 import PanelResizer from './components/PanelResizer.vue';
@@ -400,6 +401,7 @@ watch(hslAdjustments, scheduleSave, { deep: true })
 
 // 裁切预览恢复标志位（需在 watch 之前声明，避免 TDZ 错误）
 let isCropPreviewRestoring = false
+let isImageSelectionRestoring = false
 
 // 恢复裁切预览：只恢复 imageSrc，跳过调色链重跑和蒙版重置，避免闪烁
 const restoreCropPreview = () => {
@@ -416,7 +418,7 @@ const restoreCropPreview = () => {
 
 // 当选中图片变化时，通知 HSL 处理器
 watch(imageSrc, (src) => {
-  if (isCropPreviewRestoring) return  // 裁切预览恢复时跳过
+  if (isCropPreviewRestoring || isImageSelectionRestoring) return  // 裁切/选图恢复时跳过
   setSourceImage(src)
 }, { immediate: true })
 
@@ -485,10 +487,6 @@ const handleMaskUpdateLayerAdj = (payload: { id: string; adjustments: import('./
 // selectedImageId 变化时（含页面刷新后 onMounted 恢复）加载调色参数和裁切状态
 watch(selectedImageId, async (id) => {
   if (id == null) return
-  currentCropState.value = { ...DEFAULT_CROP_STATE }
-  const cropData = await loadCropData(id)
-  if (cropData?.cropState) currentCropState.value = cropData.cropState
-  await applyStoredAdjustments(id)
   // 切换图片：从 DB 恢复历史栈，若无历史则保存初始快照
   await history.switchImage(id)
   if (history.stack.value.length === 0) {
@@ -848,18 +846,31 @@ const updateGalleryHeight = (height: number) => {
 
 // 处理图片选择
 const handleSelectImage = async (image: ImageItem) => {
-  selectImage(image)
-  cropPreviewBackup = null  // 切图时清除裁切预览备份
-  currentCropState.value = { ...DEFAULT_CROP_STATE }
-  const cropData = await loadCropData(image.id)
-  if (cropData?.cropState) {
-    currentCropState.value = cropData.cropState
-  }
-  await applyStoredAdjustments(image.id)
-  // 后台预热变换缓存
-  if (image.originalSrc) {
-    const { rotate, flipH, flipV } = currentCropState.value
-    applyTransforms(image.originalSrc, rotate, flipH, flipV)
+  isImageSelectionRestoring = true
+  try {
+    setSourceImage('')
+    cropPreviewBackup = null  // 切图时清除裁切预览备份
+    currentCropState.value = { ...DEFAULT_CROP_STATE }
+    const cropData = await loadCropData(image.id)
+    if (cropData?.cropState) {
+      currentCropState.value = cropData.cropState
+    }
+    const restoredSrc = await resolveWorkstationSelectedSrc(
+      image,
+      cropData?.editedSrc,
+      cropData?.cropState ? JSON.stringify(cropData.cropState) : undefined
+    )
+    imageSrc.value = restoredSrc
+    selectedImageId.value = image.id
+    await applyStoredAdjustments(image.id)
+    setSourceImage(restoredSrc)
+    // 后台预热变换缓存
+    if (image.originalSrc) {
+      const { rotate, flipH, flipV } = currentCropState.value
+      applyTransforms(image.originalSrc, rotate, flipH, flipV)
+    }
+  } finally {
+    isImageSelectionRestoring = false
   }
 }
 
